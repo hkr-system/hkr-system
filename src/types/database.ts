@@ -77,6 +77,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"brevo_lists": {
+                  Row: {
+                    "brevo_list_id": number,"created_at": string,"created_by": string | null,"name": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "brevo_list_id": number,"created_at"?: string,"created_by"?: string | null,"name": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "brevo_list_id"?: number,"created_at"?: string,"created_by"?: string | null,"name"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"intermediaries": {
                   Row: {
                     "address": string | null,"contact": string | null,"country": string | null,"created_at": string,"created_by": string | null,"default_cutoff_weekday": number | null,"id": string,"name": string,"updated_at": string
@@ -90,6 +104,86 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"lead_events": {
+                  Row: {
+                    "body": string | null,"created_at": string,"created_by": string | null,"data": Json | null,"id": string,"kind": Database["public"]['Enums']["lead_event_kind"],"lead_id": string,"updated_at": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body"?: string | null,"created_at"?: string,"created_by"?: string | null,"data"?: Json | null,"id"?: string,"kind": Database["public"]['Enums']["lead_event_kind"],"lead_id": string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "body"?: string | null,"created_at"?: string,"created_by"?: string | null,"data"?: Json | null,"id"?: string,"kind"?: Database["public"]['Enums']["lead_event_kind"],"lead_id"?: string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_events_lead_id_fkey"
+      columns: ["lead_id"]
+isOneToOne: false
+      referencedRelation: "leads"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"lead_form_submissions": {
+                  Row: {
+                    "computed_score": number,"created_at": string,"created_by": string | null,"disqualified": boolean,"id": string,"ip": string | null,"lead_id": string | null,"merged": boolean,"raw": NonNullable<Json>,"reviewed_at": string | null,"reviewed_by": string | null,"submitted_at": string,"tier": Database["public"]['Enums']["lead_tier"] | null,"updated_at": string,"user_agent": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "computed_score"?: number,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"id"?: string,"ip"?: string | null,"lead_id"?: string | null,"merged"?: boolean,"raw": NonNullable<Json>,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"submitted_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"updated_at"?: string,"user_agent"?: string | null
+                  }
+                  Update: {
+                    "computed_score"?: number,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"id"?: string,"ip"?: string | null,"lead_id"?: string | null,"merged"?: boolean,"raw"?: NonNullable<Json>,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"submitted_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"updated_at"?: string,"user_agent"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_form_submissions_lead_id_fkey"
+      columns: ["lead_id"]
+isOneToOne: false
+      referencedRelation: "leads"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"lead_import_batches": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"file_name": string | null,"id": string,"rows_created": number,"rows_merged": number,"rows_skipped": number,"rows_total": number,"source": string,"undone_at": string | null,"undone_by": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"file_name"?: string | null,"id"?: string,"rows_created"?: number,"rows_merged"?: number,"rows_skipped"?: number,"rows_total"?: number,"source": string,"undone_at"?: string | null,"undone_by"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"file_name"?: string | null,"id"?: string,"rows_created"?: number,"rows_merged"?: number,"rows_skipped"?: number,"rows_total"?: number,"source"?: string,"undone_at"?: string | null,"undone_by"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"leads": {
+                  Row: {
+                    "brevo_contact_id": number | null,"brevo_list": string | null,"brevo_synced_at": string | null,"business_type": string | null,"city": string | null,"company": string,"contact_name": string | null,"country": string | null,"created_at": string,"created_by": string | null,"disqualified": boolean,"disqualify_reason": string | null,"email": string | null,"email_opt_out": boolean,"heard_about": string | null,"id": string,"import_batch_id": string | null,"language": string,"last_touch_at": string | null,"linkedin_url": string | null,"lost_reason": string | null,"market": Database["public"]['Enums']["market"] | null,"next_action": string | null,"next_action_date": string | null,"owner_user_id": string | null,"phone_e164": string | null,"score": number,"sells_iphones": boolean | null,"sells_refurbished": boolean | null,"source": string,"stage": Database["public"]['Enums']["lead_stage"],"stage_changed_at": string,"tier": Database["public"]['Enums']["lead_tier"] | null,"title": string | null,"updated_at": string,"volume_range": string | null,"volume_units_month": number | null,"website": string | null,"whatsapp_opt_in": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "brevo_contact_id"?: number | null,"brevo_list"?: string | null,"brevo_synced_at"?: string | null,"business_type"?: string | null,"city"?: string | null,"company": string,"contact_name"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"disqualify_reason"?: string | null,"email"?: string | null,"email_opt_out"?: boolean,"heard_about"?: string | null,"id"?: string,"import_batch_id"?: string | null,"language"?: string,"last_touch_at"?: string | null,"linkedin_url"?: string | null,"lost_reason"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"next_action"?: string | null,"next_action_date"?: string | null,"owner_user_id"?: string | null,"phone_e164"?: string | null,"score"?: number,"sells_iphones"?: boolean | null,"sells_refurbished"?: boolean | null,"source"?: string,"stage"?: Database["public"]['Enums']["lead_stage"],"stage_changed_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"title"?: string | null,"updated_at"?: string,"volume_range"?: string | null,"volume_units_month"?: number | null,"website"?: string | null,"whatsapp_opt_in"?: boolean
+                  }
+                  Update: {
+                    "brevo_contact_id"?: number | null,"brevo_list"?: string | null,"brevo_synced_at"?: string | null,"business_type"?: string | null,"city"?: string | null,"company"?: string,"contact_name"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"disqualify_reason"?: string | null,"email"?: string | null,"email_opt_out"?: boolean,"heard_about"?: string | null,"id"?: string,"import_batch_id"?: string | null,"language"?: string,"last_touch_at"?: string | null,"linkedin_url"?: string | null,"lost_reason"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"next_action"?: string | null,"next_action_date"?: string | null,"owner_user_id"?: string | null,"phone_e164"?: string | null,"score"?: number,"sells_iphones"?: boolean | null,"sells_refurbished"?: boolean | null,"source"?: string,"stage"?: Database["public"]['Enums']["lead_stage"],"stage_changed_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"title"?: string | null,"updated_at"?: string,"volume_range"?: string | null,"volume_units_month"?: number | null,"website"?: string | null,"whatsapp_opt_in"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "leads_import_batch_id_fkey"
+      columns: ["import_batch_id"]
+isOneToOne: false
+      referencedRelation: "lead_import_batches"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leads_owner_user_id_fkey"
+      columns: ["owner_user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["user_id"]
+    }
                   ]
                 },"profiles": {
                   Row: {
@@ -156,6 +250,9 @@ isOneToOne: false
             "can_see_finance":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"can_work_leads":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "current_app_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["app_role"]
                            },
@@ -175,10 +272,15 @@ isOneToOne: false
                            },
 "setup_table":
 { Args: { "p_pk"?: string,"p_table": unknown }; Returns: undefined
+                           },
+"undo_lead_import":
+{ Args: { "p_batch_id": string }; Returns: {
+              "kept": number,"removed": number
+            }[]
                            }
           }
           Enums: {
-            "account_role": "owner"|"specialist","app_role": "admin"|"bd"|"account_specialist","market": "EU"|"LATAM"|"US"|"ROW"
+            "account_role": "owner"|"specialist","app_role": "admin"|"bd"|"account_specialist","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -298,7 +400,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_role": ["owner", "specialist"],"app_role": ["admin", "bd", "account_specialist"],"market": ["EU", "LATAM", "US", "ROW"]
+            "account_role": ["owner", "specialist"],"app_role": ["admin", "bd", "account_specialist"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"]
           }
         }
 } as const

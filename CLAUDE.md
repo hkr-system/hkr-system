@@ -335,10 +335,22 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Terms and conditions: an official document Gabriel will write (RMA return address, bank and USDT details,
   RMA procedure, responsibilities of HKR and of the client). Until it exists the page shows "coming soon".
 
+## RMA rules (Phase 4, decided by Gabriel Oct 27 2026 from the templates)
+
+- RMA number `<code>-RMA-NN` per account; credit note number **`<code>-CN-NN`** per account (overrides SOP P10 /
+  brief "CN + invoice + seq").
+- Resolution per unit = union of the RMA form and tracker lists: Return to HK · Repair credit (local) · Credit note ·
+  Replacement (with next order) · Not covered (Pending until decided).
+- Two statuses: the RMA case follows the brief flow (Requested → Form received → Verified → Approved → Awaiting
+  return / Credit agreed → In batch → Received HK → Closed); each unit has the tracker unit status (Reported, Verified,
+  Awaiting shipment, Shipped to HK, Received in HK, Returned to client, Credited, Rejected, Closed).
+- Credit cap = invoice value × 1 % (SOP): above it → red warning; admin can still approve.
+- Fault categories: the 12 of the RMA Request Form (see the project doc).
+
 ## Open questions (ask before the phase that needs them)
 
-- Phase 4 + portal: need the fixtures HKR_RMA_Request_Form_TEMPLATE.xlsx (fault categories), the credit-note
-  template and the batch template; and the official terms document for the portal.
+- Phase 4 + portal: templates received Oct 27 2026 (structure in project doc `claude/HKR_phase4_templates.md`;
+  originals NOT in this public repo). Still missing: the official terms document for the portal.
 
 - Invoices: Gabriel sent 5 real invoices (Ever State; NOT in the repo — real client and bank data). The Kopious
   invoice uses a USDT fee of 0.8 % while the brief says 0.85 % — which is current? No Streamline FZE sample yet.

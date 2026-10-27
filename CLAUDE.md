@@ -48,8 +48,9 @@ plain words, one step at a time, and say exactly what to click or paste.
 | --- | --- |
 | 0 Foundation | Built (Oct 2026): auth, roles, RLS helpers, audit log, settings, app shell, demo seed |
 | 1 Leads | Built (Oct 2026): leads, My day, list, detail + timeline, Kanban, /apply form, importer, scoring settings, Brevo sync (inactive until BREVO_API_KEY) |
-| 2 WhatsApp | Next |
-| 3–7 | Not started |
+| 2 WhatsApp | Built (Oct 2026): webhook Edge Function, inbox (realtime, 24h window, templates, files, assignment), templates sync, numbers admin, broadcasts (bd drafts / admin approves, throttled worker), notifications, leads overview dashboard, collapsible menu, resizable columns |
+| 3 Accounts, orders, payments | Next |
+| 4–7 | Not started |
 
 ## Folder layout
 
@@ -63,11 +64,17 @@ src/
     actions.ts             signOut
     apply/                 PUBLIC lead qualification form (EN/ES), uses the admin client
     api/cron/              Vercel Cron routes (need Authorization: Bearer CRON_SECRET)
-    (app)/leads/           My day (page.tsx), list/, [id]/, board/, new/, import/, actions.ts
+    (app)/leads/           Overview dashboard (page.tsx), my-day/, list/, [id]/, board/, new/, import/, actions.ts
+    (app)/whatsapp/        inbox (page.tsx, ?c=<conversation>), broadcasts/, templates/, numbers/, actions.ts
+    api/wa/media/[id]      opens a message file (RLS-checked, cached in the private wa-media bucket)
+    api/cron/wa-worker     every-minute worker (called by Supabase pg_cron → public.wa_worker_tick())
   components/
     ui/                    shadcn/ui components (generated; edit sparingly)
     shell/                 sidebar links, mobile menu, clocks, user menu
     no-access.tsx          "No access" page
+    viz.tsx                StatTile, BarList, Funnel (single hue --viz-1, no chart library)
+    shell/app-sidebar.tsx  collapsible + resizable left menu (cookie hkr_sidebar)
+    ui/table.tsx           shadcn table + resizable columns for EVERY table (localStorage hkr-cols:*)
     coming-soon.tsx        PageHeader + placeholder for modules not built yet
   lib/
     supabase/              server.ts (Server Components/Actions), client.ts (browser),
@@ -79,11 +86,16 @@ src/
     leads/                 constants (stages, form options), countries (ISO + market), normalize,
                            scoring (pure, unit-tested), record (clean input → columns), import,
                            service (load settings/team), brevo-sync
+    whatsapp/              graph (Meta API calls), templates ({{n}} filling, 24h window — unit-tested),
+                           service (send text/template/file, conversations), broadcasts (segments),
+                           automations (welcome template + hooks for Phases 3–5)
+    notify.ts              in-app notifications + Brevo email (lead Qualified)
     brevo.ts               Brevo REST client (no-op without BREVO_API_KEY)
     format.ts              dates in the viewer's time zone
   proxy.ts                 Next.js 16 "proxy" (formerly middleware): logged-out → /login
   types/database.ts        generated Supabase types (npm run db:types) — do not edit by hand
 supabase/
+  functions/whatsapp-webhook/  Meta webhook (Deno, no imports; deployed via dashboard editor, Verify JWT OFF)
   migrations/              one SQL file per change, never edited after it ran on the hosted project
   seed.sql                 demo data (safe on hosted project, no passwords)
   seed_local_users.sql     LOCAL ONLY: creates demo Auth users with password LocalDemo-2026!
@@ -140,6 +152,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `npm test` | unit tests (vitest: scoring, countries, phones) |
 | `npm run test:e2e` | browser test per role (app running on :3000 against local Supabase) |
 | `node tests/e2e/leads.cjs` | Phase 1 browser test (run right after `npm run db:reset`; it changes data) |
+| `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
 Docker in Claude's cloud workspace: start it with `dockerd > /tmp/dockerd.log 2>&1 &` before `db:start`.
 
@@ -149,7 +162,12 @@ Environment variable names (values only in Vercel / `.env.local`, never in git o
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — used now
 - `SUPABASE_SECRET_KEY` — server only: /apply form and cron jobs (form shows "not available" without it)
 - `BREVO_API_KEY` — Brevo sync; everything Brevo is skipped while it is empty
-- `CRON_SECRET` — any long random text; Vercel sends it to /api/cron/* (nightly 03:00 UTC)
+- `CRON_SECRET` — long random text; Vercel sends it to /api/cron/* (nightly 03:00 UTC) and Supabase cron
+  sends it to /api/cron/wa-worker every minute: the SAME value must be stored in Supabase Vault as `cron_secret`
+- `WHATSAPP_ACCESS_TOKEN` — Meta system-user token (temporary test token while testing); nothing is sent without it
+- `WHATSAPP_WABA_ID` — WhatsApp Business Account id (from Meta → WhatsApp → API setup)
+- Supabase Edge Function secrets (not Vercel): `META_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`
+- This repo is PUBLIC: never write phone numbers, people's details, account ids or tokens in it.
 
 Hosted: Supabase project `hkr-system` (East US, ref `vsaumxeuraxmmfyremus`), Vercel project `hkr-system`
 in team "Hk Refurbished Stock" (Hobby plan), production URL https://hkr-system.vercel.app, linked to
@@ -182,6 +200,25 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   (created automatically in Brevo folder "HKR System"); example.com / .test emails are never sent.
 - "Replies waiting": stage Replied and no contact logged since entering Replied (Phase 2 adds WhatsApp).
 - Market from country: Europe → EU, Latin America & Caribbean → LATAM, US + territories → US, rest → ROW.
+
+## WhatsApp rules (Phase 2, decided by Gabriel Oct 2026)
+
+- Meta Cloud API direct, through the Meta app in HKR's business portfolio; testing uses Meta's free test
+  number and Gabriel's own phone as test recipient (a +1 number). US (+1) numbers never receive MARKETING
+  templates (Meta pause since Apr 2025, still active Aug 2026) → broadcasts skip them automatically.
+- Webhook: <SUPABASE_URL>/functions/v1/whatsapp-webhook, subscribed field "messages".
+- Visibility: admin all; bd/specialist see chats assigned to them or UNASSIGNED (all can see unassigned).
+- Unknown number writing in → new lead (stage New, source whatsapp_inbound).
+- Opt-out: button/text "Stop promotions", STOP, BAJA… → whatsapp_opt_in = false (never in broadcasts).
+- Broadcasts: bd/admin create drafts, only admin approves (DB trigger); per-number daily limit (default 200);
+  number auto-paused when Meta quality is RED. Specialist has no access to broadcasts.
+- Number per market (setting wa_number_by_market): LATAM → US number; EU incl. UK → European numbers (not configured yet).
+- No welcome template yet (setting wa_welcome_template empty → not sent).
+- Lead → Qualified: owner notified in-app AND by email (Brevo); no owner → all admin + bd.
+- Notifications (bell): new WhatsApp message (assignee or everyone if unassigned; one per chat while unread),
+  broadcast replies (creator), new form/WhatsApp leads (owner or admin + bd). Accounts needing attention and
+  RMA batches ready are to be added in Phases 3–4 (Gabriel's request Oct 27).
+- Leads overview "closest to converting": Sample/Proposal, then Meeting, then Qualified; then tier, score.
 
 ## Open questions (ask before the phase that needs them)
 

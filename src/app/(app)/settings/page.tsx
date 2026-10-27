@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SettingRow } from "./setting-row";
+import { OwnerByMarketForm, ScoringRuleRow, TargetCountriesForm } from "./lead-settings";
+import { countryName } from "@/lib/leads/countries";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -20,6 +22,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// Edited with their own controls further down the page.
+const SPECIAL_KEYS = ["lead_target_countries", "lead_owner_by_market"];
+
 export default async function SettingsPage() {
   const access = await checkSection("settings");
   if (!access.allowed) return <NoAccess />;
@@ -28,12 +33,15 @@ export default async function SettingsPage() {
   const [settings, users, rules, intermediaries, skus] = await Promise.all([
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
     supabase.from("profiles").select("user_id, full_name, email, role, timezone, active").order("full_name"),
-    supabase.from("scoring_rules").select("id, label, points, disqualify, active").order("sort_order"),
+    supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
     supabase.from("intermediaries").select("id, name, country, default_cutoff_weekday").order("name"),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
   ]);
 
   const categories = Object.keys(CATEGORY_LABELS);
+  const settingValue = (key: string) => (settings.data ?? []).find((s) => s.key === key)?.value;
+  const targetCountries = (Array.isArray(settingValue("lead_target_countries")) ? settingValue("lead_target_countries") : []) as string[];
+  const ownerByMarket = (settingValue("lead_owner_by_market") ?? {}) as Record<string, string | null>;
 
   return (
     <>
@@ -41,7 +49,7 @@ export default async function SettingsPage() {
 
       <div className="grid gap-6">
         {categories.map((cat) => {
-          const rows = (settings.data ?? []).filter((s) => s.category === cat);
+          const rows = (settings.data ?? []).filter((s) => s.category === cat && !SPECIAL_KEYS.includes(s.key));
           if (!rows.length) return null;
           return (
             <Card key={cat}>
@@ -101,27 +109,37 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Lead scoring rules</CardTitle>
-            <CardDescription>Defaults from the brief (§3 row 8). Editing comes with the Leads module (Phase 1).</CardDescription>
+            <CardDescription>
+              Points per rule (brief §3 row 8). Tier thresholds are in “Lead scoring” above. Changes apply to new form
+              submissions, imports and edits; existing scores are not recalculated.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Rule</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
-                  <TableHead>Effect</TableHead>
+                  <TableHead colSpan={3}>Points · value · active</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(rules.data ?? []).map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.label}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.disqualify ? "—" : `+${r.points}`}</TableCell>
-                    <TableCell>{r.disqualify ? <Badge variant="destructive">Disqualifies</Badge> : "Adds points"}</TableCell>
-                  </TableRow>
-                ))}
+                {(rules.data ?? []).map((r) => <ScoringRuleRow key={r.id} rule={r} />)}
               </TableBody>
             </Table>
+            <div className="mt-6 grid gap-2">
+              <h3 className="text-sm font-medium">Target countries (+{(rules.data ?? []).find((r) => r.operator === "in_setting")?.points ?? 0} points)</h3>
+              <TargetCountriesForm codes={targetCountries} names={targetCountries.map((c) => countryName(c))} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Lead owner per market</CardTitle>
+            <CardDescription>Owner given automatically to new /apply leads. Empty = nobody; the lead shows in everyone’s My day.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OwnerByMarketForm value={ownerByMarket} team={(users.data ?? []).filter((u) => u.active && (u.role === "admin" || u.role === "bd")).map((u) => ({ user_id: u.user_id, full_name: u.full_name || u.email }))} />
           </CardContent>
         </Card>
 

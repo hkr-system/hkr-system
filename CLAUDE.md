@@ -153,7 +153,7 @@ Environment variable names (values only in Vercel / `.env.local`, never in git o
 
 Hosted: Supabase project `hkr-system` (East US, ref `vsaumxeuraxmmfyremus`), Vercel project `hkr-system`
 in team "Hk Refurbished Stock" (Hobby plan), production URL https://hkr-system.vercel.app, linked to
-GitHub `hkr-system/hkr-system` (push to `main` deploys). `SUPABASE_SECRET_KEY` is not set in Vercel yet. Migrations are applied to the hosted project by Gabriel pasting the file
+GitHub `hkr-system/hkr-system` (push to `main` deploys). Vercel env set: Supabase URL + publishable key, `SUPABASE_SECRET_KEY`, `CRON_SECRET` (Oct 27 2026); `BREVO_API_KEY` pending. Migrations are applied to the hosted project by Gabriel pasting the file
 into Supabase → SQL Editor → Run (until the Supabase CLI is linked).
 
 Demo users (hosted: created by hand in Authentication → Users with Auto Confirm; roles set by seed.sql):

@@ -50,7 +50,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | 1 Leads | Built (Oct 2026): leads, My day, list, detail + timeline, Kanban, /apply form, importer, scoring settings, Brevo sync (inactive until BREVO_API_KEY) |
 | 2 WhatsApp | Built (Oct 2026): webhook Edge Function, inbox (realtime, 24h window, templates, files, assignment), templates sync, numbers admin, broadcasts (bd drafts / admin approves, throttled worker), notifications, leads overview dashboard, collapsible menu, resizable columns |
 | Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
-| 3 Accounts, orders, payments | Next |
+| 3 Accounts, orders, payments | Built (Oct 27 2026) except invoices: accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoice PDF/xlsx waits for the fixture invoices |
 | 4–7 | Not started |
 
 ## Folder layout
@@ -68,6 +68,9 @@ src/
     api/cron/              Vercel Cron routes (need Authorization: Bearer CRON_SECRET)
     (app)/leads/           Overview dashboard (page.tsx), my-day/, list/, [id]/, board/, new/, import/, actions.ts
     (app)/whatsapp/        inbox (page.tsx, ?c=<conversation>), broadcasts/, templates/, numbers/, actions.ts
+    (app)/accounts/        list (page.tsx), new/ (wizard P1), [id]/ (?tab=overview|contacts|orders|rmas|price-lists|files|edit), actions.ts
+    (app)/orders/          list (attention filters, KPIs), new/, [id]/ (detail: next action, payments, shipping), [id]/edit/, actions.ts
+    api/files/[id]         opens an account file with a 2-minute signed link (RLS-checked)
     api/wa/media/[id]      opens a message file (RLS-checked, cached in the private wa-media bucket)
     api/cron/wa-worker     every-minute worker (called by Supabase pg_cron → public.wa_worker_tick())
   components/
@@ -92,6 +95,10 @@ src/
     whatsapp/              graph (Meta API calls), templates ({{n}} filling, 24h window — unit-tested),
                            service (send text/template/file, conversations), broadcasts (segments),
                            automations (welcome template + hooks for Phases 3–5)
+    orders/                constants (statuses, labels, next actions, file kinds, money), calc (totals = SQL order_recalc,
+                           unit-tested), imei (Luhn parsing, unit-tested), service (terms, SKUs, assignments, form accounts)
+    accounts/code.ts       client code AAA-CC-NNN suggestion (unit-tested)
+    files.ts               account-files bucket, SOP file names ([code]_ORD-NN_[KIND])
     notify.ts              in-app notifications + Brevo email (lead Qualified)
     brevo.ts               Brevo REST client (no-op without BREVO_API_KEY)
     format.ts              dates in the viewer's time zone
@@ -101,6 +108,7 @@ supabase/
   functions/whatsapp-webhook/  Meta webhook (Deno, no imports; deployed via dashboard editor, Verify JWT OFF)
   migrations/              one SQL file per change, never edited after it ran on the hosted project
   seed.sql                 demo data (safe on hosted project, no passwords)
+  seed_phase3.sql          Phase 3 demo accounts (codes 9xx, is_demo) + 12 orders, payments, IMEIs (safe on hosted)
   seed_local_users.sql     LOCAL ONLY: creates demo Auth users with password LocalDemo-2026!
   tests/database/          pgTAP tests (npm run test:db)
 tests/e2e/roles.cjs        browser test per role (npm run test:e2e)
@@ -155,6 +163,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `npm test` | unit tests (vitest: scoring, countries, phones) |
 | `npm run test:e2e` | browser test per role (app running on :3000 against local Supabase) |
 | `node tests/e2e/leads.cjs` | Phase 1 browser test (run right after `npm run db:reset`; it changes data) |
+| `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
 Docker in Claude's cloud workspace: start it with `dockerd > /tmp/dockerd.log 2>&1 &` before `db:start`.
@@ -262,7 +271,36 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   RMA batches ready are to be added in Phases 3–4 (Gabriel's request Oct 27).
 - Leads overview "closest to converting": Sample/Proposal, then Meeting, then Qualified; then tier, score.
 
+## Accounts and orders rules (Phase 3, Oct 27 2026)
+
+- Owner and specialist live ONLY in `account_assignments` (no owner column) — Gabriel's decision. bd sees accounts
+  where they are owner; admin assigns. Specialist (and admin) create accounts (wizard P1); bd edits own accounts.
+- Client code AAA-CC-NNN (SOP §2.1), check constraint; `settings.account_code_last_seq` follows the highest REAL code
+  (demo accounts `is_demo` use 9xx and never move it); only admin changes a code.
+- Route: intermediary set → client pays EUR (partner invoice, uploaded) else USD (SOP §2.4). invoice_format JSON:
+  battery_line_separate / show_ce_text / show_note. Delivery set-up per account, copied to each order.
+- Orders: number ORD-NN per account (trigger). Totals by trigger `order_recalc` (never typed): subtotal + separate
+  battery line (qty × battery_unit_usd, only if the account's format is separate and the SKU is battery_eligible)
+  + freight + customs − RMA discount; USDT adds settings.usdt_fee_pct (0.85 %) of that; deposit settings.deposit_pct (10 %).
+  MOQ (US$20,000; first order US$10,000) is a warning in the form, not a block.
+- Status flow Quoted → Invoiced → Deposit paid → In preparation → Ready to ship → Balance paid → Shipped → Delivered →
+  Closed; one step at a time (admin can set any). Deposit/Balance paid come from an ADMIN-confirmed payment.
+  "Ready to ship" = goods ready in HK with balance due (status); "Clear to ship" (computed in view `order_overview`)
+  = balance confirmed + IMEI loaded + (client LABEL file | courier for our booking). Shipped needs Clear to ship + AWB.
+- Payments: anyone with the account records (status awaiting_confirmation, expected amount and difference computed);
+  only admin confirms/edits/deletes (SOP P3). Bell: admins get "Payment to confirm"; owner + specialists get
+  "Ready to ship, balance due".
+- Finance: `orders_finance` (base cost, margin %) and `order_lines_finance` (base price) — admin only.
+- IMEI master: 15 digits + Luhn; unique across all accounts; upload reports duplicates/invalid; shipped_at set on Shipped.
+- Files: private bucket `account-files/<account_id>/orders/ORD-NN/<CODE>_ORD-NN_<KIND>.<ext>` (or /general/);
+  uploaded from the browser (storage RLS by account), registered in `files`; opened via /api/files/<id>.
+- WhatsApp: a phone of an account contact links its chat to the account (no lead is created); hook
+  `onOrderStatusChange` stays inactive until an order-status utility template is approved.
+
 ## Open questions (ask before the phase that needs them)
+
+- Phase 3 invoices: need the fixture invoices (one with separate battery line, one absorbed, one Streamline FZE)
+  in `fixtures/` before building the invoice PDF/xlsx (Draft → Approved → Sent, MMDDYYYY-seq).
 
 - WhatsApp (status Oct 27 2026): first HKR template `hkr_iphone14_eu_offer` (marketing, EN, fixed prices) PENDING at
   Meta → then test broadcast to lead "Test NL (Gabriel)" (EU, opt-in). Meta business verification submitted
@@ -275,5 +313,3 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 
 - Which countries are "target countries" (+30)? Until filled in Settings, no lead reaches Tier A.
 - Owner notification email for new form leads: needs an owner rule and the Brevo sender domain (SPF/DKIM).
-- Phase 3: account owner — keep `accounts.owner_user_id` from the brief in sync with
-  `account_assignments` (owner), or use assignments only?

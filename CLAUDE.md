@@ -47,8 +47,9 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Phase | Status |
 | --- | --- |
 | 0 Foundation | Built (Oct 2026): auth, roles, RLS helpers, audit log, settings, app shell, demo seed |
-| 1 Leads | Next |
-| 2–7 | Not started |
+| 1 Leads | Built (Oct 2026): leads, My day, list, detail + timeline, Kanban, /apply form, importer, scoring settings, Brevo sync (inactive until BREVO_API_KEY) |
+| 2 WhatsApp | Next |
+| 3–7 | Not started |
 
 ## Folder layout
 
@@ -60,6 +61,9 @@ src/
       <module>/page.tsx    one folder per menu item (dashboard, accounts, orders, rmas,
                            price-lists, leads, whatsapp, settings)
     actions.ts             signOut
+    apply/                 PUBLIC lead qualification form (EN/ES), uses the admin client
+    api/cron/              Vercel Cron routes (need Authorization: Bearer CRON_SECRET)
+    (app)/leads/           My day (page.tsx), list/, [id]/, board/, new/, import/, actions.ts
   components/
     ui/                    shadcn/ui components (generated; edit sparingly)
     shell/                 sidebar links, mobile menu, clocks, user menu
@@ -71,6 +75,12 @@ src/
     auth.ts                getCurrentUser(), checkSection(), requireRole()  ← the only auth entry points
     nav.ts                 SECTIONS: menu items, which roles see them, read-only roles, phase
     roles.ts               AppRole type and labels
+    supabase/admin.ts      secret-key client: ONLY for /apply and cron jobs (bypasses RLS)
+    leads/                 constants (stages, form options), countries (ISO + market), normalize,
+                           scoring (pure, unit-tested), record (clean input → columns), import,
+                           service (load settings/team), brevo-sync
+    brevo.ts               Brevo REST client (no-op without BREVO_API_KEY)
+    format.ts              dates in the viewer's time zone
   proxy.ts                 Next.js 16 "proxy" (formerly middleware): logged-out → /login
   types/database.ts        generated Supabase types (npm run db:types) — do not edit by hand
 supabase/
@@ -127,7 +137,9 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `npm run db:reset` | rebuild local database from migrations + seeds |
 | `npm run db:types` | regenerate `src/types/database.ts` from the local database |
 | `npm run test:db` | pgTAP security tests |
+| `npm test` | unit tests (vitest: scoring, countries, phones) |
 | `npm run test:e2e` | browser test per role (app running on :3000 against local Supabase) |
+| `node tests/e2e/leads.cjs` | Phase 1 browser test (run right after `npm run db:reset`; it changes data) |
 
 Docker in Claude's cloud workspace: start it with `dockerd > /tmp/dockerd.log 2>&1 &` before `db:start`.
 
@@ -135,7 +147,9 @@ Docker in Claude's cloud workspace: start it with `dockerd > /tmp/dockerd.log 2>
 
 Environment variable names (values only in Vercel / `.env.local`, never in git or chat):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — used now
-- `SUPABASE_SECRET_KEY` — server only, used from Phase 1
+- `SUPABASE_SECRET_KEY` — server only: /apply form and cron jobs (form shows "not available" without it)
+- `BREVO_API_KEY` — Brevo sync; everything Brevo is skipped while it is empty
+- `CRON_SECRET` — any long random text; Vercel sends it to /api/cron/* (nightly 03:00 UTC)
 
 Hosted: Supabase project `hkr-system` (East US, ref `vsaumxeuraxmmfyremus`), Vercel project `hkr-system`
 in team "Hk Refurbished Stock" (Hobby plan), production URL https://hkr-system.vercel.app, linked to
@@ -154,8 +168,24 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   default settings in migrations are visible. Never commit secrets, client data or real prices.
 - Oct 2026: Phase 0 seeds four users including Arslan (bd, no accounts), per Gabriel's Phase 0 prompt.
 
+## Leads rules (Phase 1, decided by Gabriel Oct 2026)
+
+- Stages: New → Contacted → Replied → Qualified → Meeting → Sample/Proposal → Won → Lost (Lost needs a reason).
+- /apply: Tier A (not disqualified) → Qualified; Tier B, C and disqualified → New. Disqualified leads are kept, flagged.
+- No automatic owner (`settings.lead_owner_by_market` all empty); new submissions show in every BD user's My day.
+- Target countries list starts EMPTY → max score 60 → no Tier A until Gabriel fills it in Settings.
+- Form options: volume <100 / 100–399 / 400–999 / 1000+ (stored as lower bound 0/100/400/1000);
+  business types in `src/lib/leads/constants.ts` incl. the 6 exclusions of brief §3 row 8.
+- Merge key: email, then phone (E.164). Unique indexes enforce one lead per email and per phone.
+  Form merge updates the lead with the new answers; imports only FILL EMPTY fields.
+- Brevo: on create/stage/market/language change the lead goes to list `<Stage>-<Market>-<LANG>`
+  (created automatically in Brevo folder "HKR System"); example.com / .test emails are never sent.
+- "Replies waiting": stage Replied and no contact logged since entering Replied (Phase 2 adds WhatsApp).
+- Market from country: Europe → EU, Latin America & Caribbean → LATAM, US + territories → US, rest → ROW.
+
 ## Open questions (ask before the phase that needs them)
 
-- Phase 1: which countries are "target countries" for the +30 lead score? (`settings.lead_target_countries` is empty.)
+- Which countries are "target countries" (+30)? Until filled in Settings, no lead reaches Tier A.
+- Owner notification email for new form leads: needs an owner rule and the Brevo sender domain (SPF/DKIM).
 - Phase 3: account owner — keep `accounts.owner_user_id` from the brief in sync with
   `account_assignments` (owner), or use assignments only?

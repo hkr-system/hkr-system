@@ -127,14 +127,14 @@ isOneToOne: false
                   ]
                 },"lead_form_submissions": {
                   Row: {
-                    "computed_score": number,"created_at": string,"created_by": string | null,"disqualified": boolean,"id": string,"ip": string | null,"lead_id": string | null,"merged": boolean,"raw": NonNullable<Json>,"reviewed_at": string | null,"reviewed_by": string | null,"submitted_at": string,"tier": Database["public"]['Enums']["lead_tier"] | null,"updated_at": string,"user_agent": string | null
+                    "computed_score": number,"created_at": string,"created_by": string | null,"disqualified": boolean,"heard_other": string | null,"id": string,"ip": string | null,"lead_id": string | null,"merged": boolean,"raw": NonNullable<Json>,"ref": string | null,"ref_no": number,"reviewed_at": string | null,"reviewed_by": string | null,"src": string | null,"submitted_at": string,"tier": Database["public"]['Enums']["lead_tier"] | null,"updated_at": string,"user_agent": string | null,"utm": NonNullable<Json>
                   }
                   ComputedFields: never
                   Insert: {
-                    "computed_score"?: number,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"id"?: string,"ip"?: string | null,"lead_id"?: string | null,"merged"?: boolean,"raw": NonNullable<Json>,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"submitted_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"updated_at"?: string,"user_agent"?: string | null
+                    "computed_score"?: number,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"heard_other"?: string | null,"id"?: string,"ip"?: string | null,"lead_id"?: string | null,"merged"?: boolean,"raw": NonNullable<Json>,"ref"?: string | null,"ref_no"?: number,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"src"?: string | null,"submitted_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"updated_at"?: string,"user_agent"?: string | null,"utm"?: NonNullable<Json>
                   }
                   Update: {
-                    "computed_score"?: number,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"id"?: string,"ip"?: string | null,"lead_id"?: string | null,"merged"?: boolean,"raw"?: NonNullable<Json>,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"submitted_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"updated_at"?: string,"user_agent"?: string | null
+                    "computed_score"?: number,"created_at"?: string,"created_by"?: string | null,"disqualified"?: boolean,"heard_other"?: string | null,"id"?: string,"ip"?: string | null,"lead_id"?: string | null,"merged"?: boolean,"raw"?: NonNullable<Json>,"ref"?: string | null,"ref_no"?: number,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"src"?: string | null,"submitted_at"?: string,"tier"?: Database["public"]['Enums']["lead_tier"] | null,"updated_at"?: string,"user_agent"?: string | null,"utm"?: NonNullable<Json>
                   }
                   Relationships: [
                     {

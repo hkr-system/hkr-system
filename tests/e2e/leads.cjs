@@ -26,19 +26,28 @@ async function apply(browser, data) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto(BASE + '/apply' + (data.lang === 'es' ? '?lang=es' : ''));
+  // Step 1 — company
   await page.fill('input[name=company]', data.company);
+  await page.selectOption('select[name=country]', data.country);
+  if (data.screenshot) await page.screenshot({ path: `${DIR}/${data.screenshot}`, fullPage: true });
+  await page.click('[data-testid=apply-next]:visible');
+  // Step 2 — what they sell
+  await page.selectOption('select[name=business_type]', data.type);
+  await page.click(`input[name=sells_iphones][value=${data.iphones}] + span`);
+  await page.click(`input[name=sells_refurbished][value=${data.refurb}] + span`);
+  await page.selectOption('select[name=volume_range]', data.volume);
+  await page.selectOption('select[name=heard_about]', data.heard || 'event');
+  if (data.heard === 'other') await page.fill('input[name=heard_other]', data.heardOther || 'A supplier told me');
+  await page.click('[data-testid=apply-next]:visible');
+  // Step 3 — contact
   await page.fill('input[name=contact_name]', data.contact);
   await page.fill('input[name=email]', data.email);
-  await page.fill('input[name=whatsapp]', data.phone);
-  await page.selectOption('select[name=country]', data.country);
-  await page.selectOption('select[name=business_type]', data.type);
-  await page.check(`input[name=sells_iphones][value=${data.iphones}]`);
-  await page.check(`input[name=sells_refurbished][value=${data.refurb}]`);
-  await page.selectOption('select[name=volume_range]', data.volume);
-  if (data.screenshot) await page.screenshot({ path: `${DIR}/${data.screenshot}`, fullPage: true });
+  if (data.dial) await page.selectOption('select[name=dial_code]', data.dial);
+  await page.fill('input[name=phone_national]', data.phone);
   await page.click('button[type=submit]');
   await page.waitForSelector('[data-testid=apply-done], p[role=alert]');
   const ok = await page.$('[data-testid=apply-done]');
+  if (ok && data.screenshot) await page.screenshot({ path: `${DIR}/thanks-${data.screenshot}`, fullPage: true });
   await ctx.close();
   return !!ok;
 }
@@ -60,12 +69,12 @@ async function apply(browser, data) {
   }
 
   // 1. Public form: a Tier A buyer and a pawn shop.
-  check(await apply(browser, { company: 'Tulip Phones BV', contact: 'Eva Jansen', email: 'eva@tulip-phones.test', phone: '06 22334455',
+  check(await apply(browser, { company: 'Tulip Phones BV', contact: 'Eva Jansen', email: 'eva@tulip-phones.test', phone: '6 22334455', dial: '+31',
     country: 'NL', type: 'refurbished_reseller', iphones: 'yes', refurb: 'yes', volume: '400-999', screenshot: 'apply-form.png' }), 'apply: Tier A submission accepted');
-  check(await apply(browser, { lang: 'es', company: 'Empeños Centro', contact: 'Luis Pérez', email: 'luis@empenos.test', phone: '+52 55 1234 5678',
+  check(await apply(browser, { lang: 'es', company: 'Empeños Centro', contact: 'Luis Pérez', email: 'luis@empenos.test', phone: '55 1234 5678', dial: '+52',
     country: 'MX', type: 'pawn_shop', iphones: 'yes', refurb: 'no', volume: '100-399' }), 'apply (ES): pawn shop submission accepted');
-  check(await apply(browser, { company: 'Tulip Phones BV', contact: 'Eva Jansen', email: 'EVA@tulip-phones.test', phone: '0622334455',
-    country: 'NL', type: 'refurbished_reseller', iphones: 'yes', refurb: 'yes', volume: '1000+' }), 'apply: same buyer again (should merge)');
+  check(await apply(browser, { company: 'Tulip Phones BV', contact: 'Eva Jansen', email: 'EVA@tulip-phones.test', phone: '622334455', dial: '+31',
+    country: 'NL', heard: 'other', type: 'refurbished_reseller', iphones: 'yes', refurb: 'yes', volume: '1000+' }), 'apply: same buyer again (should merge)');
 
   // 2. Yessica works the leads.
   {

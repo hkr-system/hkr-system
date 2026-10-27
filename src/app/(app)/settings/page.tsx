@@ -18,6 +18,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   engine: "Price-list engine",
   promotions: "Weekly promotions",
   leads: "Lead scoring",
+  landing: "Landing page (/apply)",
 };
 
 const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

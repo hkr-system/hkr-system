@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/apply"];
 
 // Runs before every page: refreshes the Supabase session cookie and sends
 // logged-out visitors to /login. Role checks happen in the pages (src/lib/auth.ts)

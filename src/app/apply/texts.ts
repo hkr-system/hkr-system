@@ -1,0 +1,36 @@
+export type Lang = "en" | "es";
+
+export const T = {
+  en: {
+    title: "Become an HKR wholesale partner",
+    intro: "Grade A+++ refurbished iPhones from Hong Kong for resellers in Europe, Latin America and the US. Tell us about your business and our team will contact you.",
+    company: "Company name", country: "Country", city: "City", contact: "Your name", email: "Email",
+    whatsapp: "WhatsApp number (with country code)", website: "Website or online shop",
+    businessType: "Type of business", sellsIphones: "Do you sell iPhones today?",
+    sellsRefurbished: "Do you sell refurbished phones today?", volume: "How many phones could you buy per month?",
+    heard: "How did you hear about us?", yes: "Yes", no: "No", choose: "Choose…",
+    waOptIn: "I agree to receive messages from HK Refurbished Stock on WhatsApp.",
+    consent: "By sending this form you agree that HK Refurbished Stock contacts you by email about wholesale offers. You can unsubscribe at any time.",
+    submit: "Send", sending: "Sending…",
+    thanks: "Thank you! We received your details and will contact you soon.",
+    required: "Please fill in the required fields.", tooMany: "Too many submissions from this connection. Please try again later.",
+    unavailable: "The form is not available right now. Please write to us by email.",
+    other: "Español",
+  },
+  es: {
+    title: "Conviértase en socio mayorista de HKR",
+    intro: "iPhones reacondicionados grado A+++ desde Hong Kong para revendedores en Europa, Latinoamérica y EE. UU. Cuéntenos sobre su negocio y nuestro equipo le contactará.",
+    company: "Nombre de la empresa", country: "País", city: "Ciudad", contact: "Su nombre", email: "Correo electrónico",
+    whatsapp: "Número de WhatsApp (con código de país)", website: "Sitio web o tienda en línea",
+    businessType: "Tipo de negocio", sellsIphones: "¿Vende iPhones actualmente?",
+    sellsRefurbished: "¿Vende teléfonos reacondicionados actualmente?", volume: "¿Cuántos teléfonos podría comprar al mes?",
+    heard: "¿Cómo nos conoció?", yes: "Sí", no: "No", choose: "Elija…",
+    waOptIn: "Acepto recibir mensajes de HK Refurbished Stock por WhatsApp.",
+    consent: "Al enviar este formulario acepta que HK Refurbished Stock le contacte por correo sobre ofertas mayoristas. Puede darse de baja en cualquier momento.",
+    submit: "Enviar", sending: "Enviando…",
+    thanks: "¡Gracias! Recibimos sus datos y le contactaremos pronto.",
+    required: "Complete los campos obligatorios.", tooMany: "Demasiados envíos desde esta conexión. Intente más tarde.",
+    unavailable: "El formulario no está disponible en este momento. Escríbanos por correo.",
+    other: "English",
+  },
+} as const;

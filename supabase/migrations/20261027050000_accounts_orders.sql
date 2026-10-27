@@ -158,7 +158,7 @@ grant execute on function public.can_see_contact_owner(uuid, uuid) to authentica
 create table public.orders (
   id                   uuid primary key default gen_random_uuid(),
   account_id           uuid not null references public.accounts (id) on delete restrict,
-  number               text not null,                         -- ORD-NN, per account (SOP §2.2)
+  number               text not null default '',              -- ORD-NN per account (SOP §2.2), set by trigger
   status               public.order_status not null default 'quoted',
   order_date           date not null default current_date,
   hk_invoice_no        text,
@@ -551,7 +551,8 @@ revoke execute on function public.orders_after_total() from public, anon, authen
 create view public.order_overview
 with (security_invoker = true)
 as
-select o.id, o.account_id, o.number, o.status,
+select o.id, o.account_id, o.number, o.status, o.order_date, o.pieces, o.total_usd, o.eta_date, o.updated_at,
+       o.delivery_setup,
        a.code as account_code, a.name as account_name, a.market,
        (o.partner_invoice_eur is not null) as pays_in_eur,
        coalesce(o.partner_invoice_eur, o.total_usd) as payable_total,
@@ -724,8 +725,10 @@ begin
     insert into public.order_events (order_id, account_id, kind, body, file_id, user_id)
     values (new.order_id, new.account_id, 'payment',
             initcap(new.type::text) || ' proof recorded: ' || new.currency || ' ' || to_char(new.amount, 'FM999,999,990.00')
-              || coalesce(' · difference ' || to_char(new.difference, 'FM999,999,990.00')
-                          || coalesce(' (' || replace(new.difference_reason, '_', ' ') || ')', ''), '')
+              || case when coalesce(new.difference, 0) <> 0
+                      then ' · difference ' || to_char(new.difference, 'FM999,999,990.00')
+                           || coalesce(' (' || replace(new.difference_reason, '_', ' ') || ')', '')
+                      else '' end
               || ' · awaiting confirmation',
             new.proof_file_id, auth.uid());
     -- "accounts needing attention": every admin is asked to confirm

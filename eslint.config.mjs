@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Plain Node test scripts (CommonJS) and generated types.
     "tests/e2e/**",
     "src/types/database.ts",
+    // Deno code (Supabase Edge Functions)
+    "supabase/functions/**",
   ]),
 ]);
 

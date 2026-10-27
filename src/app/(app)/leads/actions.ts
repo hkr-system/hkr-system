@@ -8,6 +8,7 @@ import { STAGES, type LeadStage } from "@/lib/leads/constants";
 import { buildLeadFields, scoreFields } from "@/lib/leads/record";
 import { loadScoringConfig } from "@/lib/leads/service";
 import { syncLeadToBrevo } from "@/lib/leads/brevo-sync";
+import { notifyLeadQualified } from "@/lib/notify";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string };
 
@@ -76,11 +77,13 @@ export async function changeStage(id: string, stage: LeadStage, lostReason?: str
   if (!STAGES.includes(stage)) return { error: "Unknown stage." };
   if (stage === "Lost" && !lostReason?.trim()) return { error: "Give a reason when marking a lead Lost." };
   const db = await createClient();
+  const { data: before } = await db.from("leads").select("stage").eq("id", id).maybeSingle();
   const { error } = await db
     .from("leads")
     .update({ stage, lost_reason: stage === "Lost" ? lostReason!.trim() : null })
     .eq("id", id);
   if (error) return { error: friendly(error) };
+  if (stage === "Qualified" && before?.stage !== "Qualified") await notifyLeadQualified(id);
   await syncLeadToBrevo(id);
   refresh(id);
   return { ok: true };

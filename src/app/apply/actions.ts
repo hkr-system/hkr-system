@@ -6,6 +6,8 @@ import { BUSINESS_TYPES, HEARD_ABOUT, VOLUME_RANGES, type LeadStage } from "@/li
 import { buildLeadFields, scoreFields } from "@/lib/leads/record";
 import { loadOwnerByMarket, loadScoringConfig } from "@/lib/leads/service";
 import { syncLeadToBrevo } from "@/lib/leads/brevo-sync";
+import { notifyLeadQualified } from "@/lib/notify";
+import { onFormSubmission } from "@/lib/whatsapp/automations";
 import { T, type Lang } from "./texts";
 
 export type ApplyState = { done?: boolean; error?: string };
@@ -99,6 +101,9 @@ export async function submitApplication(_prev: ApplyState, fd: FormData): Promis
     lead_id: leadId, merged: Boolean(existing), ip, user_agent: userAgent,
   });
 
+  const becameQualified = formStage === "Qualified" && (!existing || existing.stage === "New");
+  if (becameQualified) await notifyLeadQualified(leadId);
   await syncLeadToBrevo(leadId);
+  await onFormSubmission(leadId); // WhatsApp welcome template, when configured and opted in
   return { done: true };
 }

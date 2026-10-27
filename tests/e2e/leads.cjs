@@ -70,7 +70,7 @@ async function apply(browser, data) {
   // 2. Yessica works the leads.
   {
     const { ctx, page } = await login(browser, 'yessica');
-    await page.goto(BASE + '/leads');
+    await page.goto(BASE + '/leads/my-day');
     const subs = await page.textContent('[data-testid=myday-submissions]');
     check(subs.includes('Tulip Phones BV') && subs.includes('Empeños Centro'), 'My day: both form submissions listed');
     check(subs.includes('existing lead'), 'My day: repeated submission shown as existing lead');
@@ -160,7 +160,7 @@ async function apply(browser, data) {
   // 3. Arslan: next actions due today
   {
     const { ctx, page } = await login(browser, 'arslan');
-    await page.goto(BASE + '/leads');
+    await page.goto(BASE + '/leads/my-day');
     const due = await page.textContent('[data-testid=myday-due]');
     check(due.includes('Madrid Móviles Renovados') && due.includes('Guadalajara iStore'), "Arslan's My day: due today and overdue actions");
     check(!due.includes('Berlin Second Life'), "Arslan's My day: not other people's leads");
@@ -171,8 +171,10 @@ async function apply(browser, data) {
   // 4. Atreyi: read only
   {
     const { ctx, page } = await login(browser, 'atreyi');
-    await page.goto(BASE + '/leads');
-    check(page.url().endsWith('/leads/list'), 'account_specialist: /leads opens the list (no My day)');
+    await page.goto(BASE + '/leads/my-day');
+    check(page.url().endsWith('/leads'), 'account_specialist: My day sends to the overview');
+    check(!!(await page.$('[data-testid=funnel]')), 'account_specialist: sees the overview funnel');
+    await page.goto(BASE + '/leads/list');
     check((await page.getByText('Read-only for your role').count()) === 1, 'account_specialist: read-only badge');
     await page.click('text=Amstel Mobile BV');
     await page.waitForSelector('[data-testid=timeline]');

@@ -51,6 +51,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | 2 WhatsApp | Built (Oct 2026): webhook Edge Function, inbox (realtime, 24h window, templates, files, assignment), templates sync, numbers admin, broadcasts (bd drafts / admin approves, throttled worker), notifications, leads overview dashboard, collapsible menu, resizable columns |
 | Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
 | 3 Accounts, orders, payments | Built (Oct 27 2026) except invoices: accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoice PDF/xlsx waits for the fixture invoices |
+| Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4–7 | Not started |
 
 ## Folder layout
@@ -68,7 +69,9 @@ src/
     api/cron/              Vercel Cron routes (need Authorization: Bearer CRON_SECRET)
     (app)/leads/           Overview dashboard (page.tsx), my-day/, list/, [id]/, board/, new/, import/, actions.ts
     (app)/whatsapp/        inbox (page.tsx, ?c=<conversation>), broadcasts/, templates/, numbers/, actions.ts
-    (app)/accounts/        list (page.tsx), new/ (wizard P1), [id]/ (?tab=overview|contacts|orders|rmas|price-lists|files|edit), actions.ts
+    (app)/sales/           Sales dashboard (menu "Sales" = section key "orders"; order pages stay under /orders)
+    (app)/finance/         admin: monthly plan (goals company + per owner, history, projection), actions.ts
+    (app)/accounts/        overview/health (page.tsx), list/, new/ (wizard P1), [id]/ (?tab=overview|contacts|orders|rmas|price-lists|files|edit), actions.ts
     (app)/orders/          list (attention filters, KPIs), new/, [id]/ (detail: next action, payments, shipping), [id]/edit/, actions.ts
     api/files/[id]         opens an account file with a 2-minute signed link (RLS-checked)
     api/wa/media/[id]      opens a message file (RLS-checked, cached in the private wa-media bucket)
@@ -98,6 +101,9 @@ src/
     orders/                constants (statuses, labels, next actions, file kinds, money), calc (totals = SQL order_recalc,
                            unit-tested), imei (Luhn parsing, unit-tested), service (terms, SKUs, assignments, form accounts)
     accounts/code.ts       client code AAA-CC-NNN suggestion (unit-tested)
+    sales/                 series (day/week/month buckets), projection (suggestion), health (account health) —
+                           all unit-tested; load (sales_orders rpc, periods); tabs (tab bars)
+    section-badges.ts      red counters per menu item (live counts of pending work)
     files.ts               account-files bucket, SOP file names ([code]_ORD-NN_[KIND])
     notify.ts              in-app notifications + Brevo email (lead Qualified)
     brevo.ts               Brevo REST client (no-op without BREVO_API_KEY)
@@ -108,6 +114,7 @@ supabase/
   functions/whatsapp-webhook/  Meta webhook (Deno, no imports; deployed via dashboard editor, Verify JWT OFF)
   migrations/              one SQL file per change, never edited after it ran on the hosted project
   seed.sql                 demo data (safe on hosted project, no passwords)
+  seed_phase3_history.sql  ~36 closed demo orders over 11 months for the dashboards (safe on hosted)
   seed_phase3.sql          Phase 3 demo accounts (codes 9xx, is_demo) + 12 orders, payments, IMEIs (safe on hosted)
   seed_local_users.sql     LOCAL ONLY: creates demo Auth users with password LocalDemo-2026!
   tests/database/          pgTAP tests (npm run test:db)
@@ -163,6 +170,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `npm test` | unit tests (vitest: scoring, countries, phones) |
 | `npm run test:e2e` | browser test per role (app running on :3000 against local Supabase) |
 | `node tests/e2e/leads.cjs` | Phase 1 browser test (run right after `npm run db:reset`; it changes data) |
+| `node tests/e2e/dashboards.cjs` | Sales / Accounts / Finance dashboards per role (after db:reset) |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
@@ -297,10 +305,31 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - WhatsApp: a phone of an account contact links its chat to the account (no lead is created); hook
   `onOrderStatusChange` stays inactive until an order-status utility template is approved.
 
+## Dashboards rules (Gabriel, Oct 27 2026)
+
+- Revenue = invoice total (`total_usd`) of orders with status ≥ Invoiced, dated by `order_date` (brief §8).
+- Margin visibility: admin all; **a BD user sees the net margin of HER OWN accounts** (decision overriding brief §3
+  row 2 for bd), never base cost or company totals; the specialist sees no margin and no revenue widgets
+  (brief §8). Served by `sales_orders(from, to)` (security definer); `orders_finance` stays admin-only.
+- Sales goals: monthly, company (owner null) + per owner; admin edits in Finance; a BD sees only her own goal.
+- Sales history (monthly totals from before the system) and projections: admin only. A month's "actual" = the
+  history figure when given, else the system's orders. Suggested projection = average of the last 3 months ×
+  (same month last year ÷ the 3 months before it last year) when that history exists — Gabriel writes the figure.
+- Account health: needs attention (payment to confirm, deposit due, balance due on Ready to ship, ETA pending,
+  open RMAs from Phase 4) > inactive (active account, no order for `settings.account_inactive_days`, default 45 —
+  Gabriel had no preference) > open orders > onboarding > OK.
+- Menu "Orders" is labelled **Sales** (UI in English); Finance is a new admin menu item.
+- Menu counters (Gabriel): per section, red, live counts — Sales (admin: payments to confirm; others: orders needing
+  action), WhatsApp (unanswered chats), Leads (unread new-lead notices). RMAs: batch deadlines in Phase 4.
+
 ## Open questions (ask before the phase that needs them)
 
-- Phase 3 invoices: need the fixture invoices (one with separate battery line, one absorbed, one Streamline FZE)
-  in `fixtures/` before building the invoice PDF/xlsx (Draft → Approved → Sent, MMDDYYYY-seq).
+- Invoices: Gabriel sent 5 real invoices (Ever State; NOT in the repo — real client and bank data). The Kopious
+  invoice uses a USDT fee of 0.8 % while the brief says 0.85 % — which is current? No Streamline FZE sample yet.
+
+- Phase 3 invoices still to build (PDF + xlsx, Draft → Approved → Sent, MMDDYYYY-seq) from those references:
+  per-line description (model / storage / SIM / CE|UKCA / battery health or "New Battery cell 0 Cycle" / grade /
+  colours), separate "New battery cell" line, shipping and customs per unit, payment-details block from Settings.
 
 - WhatsApp (status Oct 27 2026): first HKR template `hkr_iphone14_eu_offer` (marketing, EN, fixed prices) PENDING at
   Meta → then test broadcast to lead "Test NL (Gabriel)" (EU, opt-in). Meta business verification submitted

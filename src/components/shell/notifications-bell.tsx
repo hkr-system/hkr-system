@@ -20,7 +20,7 @@ export function NotificationsBell({ notes, unread }: { notes: Note[]; unread: nu
         <Button variant="ghost" size="icon" className="relative" aria-label={`Notifications (${unread} unread)`} data-testid="bell">
           <Bell />
           {unread ? (
-            <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white">
+            <span className="absolute top-0 right-0 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white">
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}

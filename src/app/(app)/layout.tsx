@@ -1,7 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
 import { sectionsFor } from "@/lib/nav";
 import { ROLE_LABELS } from "@/lib/roles";
-import { NavLinks } from "@/components/shell/nav-links";
+import { AppSidebar } from "@/components/shell/app-sidebar";
+import { SIDEBAR_COOKIE } from "@/components/shell/sidebar-cookie";
+import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
+import { cookies } from "next/headers";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { Clocks } from "@/components/shell/clocks";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -26,6 +29,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const items = sectionsFor(user.role).map(({ key, label, href }) => ({ key, label, href }));
+  const raw = (await cookies()).get(SIDEBAR_COOKIE)?.value ?? "";
+  const [c, w] = raw.split(".");
+  const sidebar = { collapsed: c === "1", width: Math.min(360, Math.max(176, Number(w) || 224)) };
   const db = await createClient();
   const [{ data: notes }, { count: unread }] = await Promise.all([
     db.from("notifications").select("id, title, body, link, read_at, created_at").order("created_at", { ascending: false }).limit(10),
@@ -34,15 +40,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-svh">
-      <aside className="sticky top-0 hidden h-svh w-56 shrink-0 flex-col border-r bg-background p-3 md:flex">
-        <div className="mb-4 flex items-center gap-2 px-2 pt-1">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground">
-            HKR
-          </div>
-          <span className="text-sm font-semibold">HKR System</span>
-        </div>
-        <NavLinks items={items} />
-      </aside>
+      <AppSidebar items={items} initialCollapsed={sidebar.collapsed} initialWidth={sidebar.width} />
+      <RealtimeRefresh tables={["notifications"]} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
           <MobileNav items={items} />
@@ -53,7 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <UserMenu name={user.fullName} email={user.email} roleLabel={ROLE_LABELS[user.role]} />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
       </div>
     </div>
   );

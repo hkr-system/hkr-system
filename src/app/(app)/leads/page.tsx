@@ -10,6 +10,7 @@ import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { StageBadge, TierBadge } from "@/components/leads/badges";
 import { PeriodSelect } from "@/components/leads/period-select";
+import { ShareFormDialog } from "@/components/leads/share-form-dialog";
 import { BarList, Funnel, StatTile } from "@/components/viz";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +36,7 @@ export default async function LeadsOverviewPage({ searchParams }: PageProps<"/le
   const today = todayIn(user.timezone);
   const db = await createClient();
 
-  const [funnel, open, recent, advanced, overdue, won, team, subs, convs] = await Promise.all([
+  const [funnel, open, recent, advanced, overdue, won, team, subs, convs, baseUrlRow] = await Promise.all([
     db.rpc("lead_funnel", { p_since: since ?? undefined }),
     db.from("leads").select("id, stage, tier, market, source, owner_user_id, last_touch_at, stage_changed_at")
       .in("stage", OPEN_STAGES).eq("disqualified", false).limit(10000),
@@ -49,7 +50,10 @@ export default async function LeadsOverviewPage({ searchParams }: PageProps<"/le
     loadTeam(db),
     readOnly ? Promise.resolve({ count: null }) : db.from("lead_form_submissions").select("id", { count: "exact", head: true }).is("reviewed_at", null),
     db.from("wa_conversations").select("last_inbound_at, last_outbound_at, status").neq("status", "resolved").limit(2000),
+    db.from("settings").select("value").eq("key", "app_base_url").maybeSingle(),
   ]);
+  const baseUrl = typeof baseUrlRow.data?.value === "string" && baseUrlRow.data.value ? baseUrlRow.data.value : "https://hkr-system.vercel.app";
+  const sharers = team.filter((m) => m.role === "admin" || m.role === "bd").map((m) => ({ user_id: m.user_id, full_name: m.full_name }));
 
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const openRows = open.data ?? [];
@@ -80,6 +84,7 @@ export default async function LeadsOverviewPage({ searchParams }: PageProps<"/le
       <PageHeader title="Leads overview" description="Where the pipeline stands and what needs action today.">
         <div className="flex items-center gap-2">
           <PeriodSelect value={period} />
+          {!readOnly ? <ShareFormDialog baseUrl={baseUrl} owners={sharers} currentUserId={user.id} /> : null}
           {!readOnly ? <Button asChild size="sm"><Link href="/leads/new">New lead</Link></Button> : null}
         </div>
       </PageHeader>

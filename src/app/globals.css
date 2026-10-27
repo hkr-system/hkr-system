@@ -5,6 +5,20 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-hkr-bg: var(--hkr-bg);
+  --color-hkr-bg-2: var(--hkr-bg-2);
+  --color-hkr-surface: var(--hkr-surface);
+  --color-hkr-line: var(--hkr-line);
+  --color-hkr-ink: var(--hkr-ink);
+  --color-hkr-ink-2: var(--hkr-ink-2);
+  --color-hkr-muted: var(--hkr-muted);
+  --color-hkr-accent: var(--hkr-accent);
+  --color-hkr-accent-tint: var(--hkr-accent-tint);
+  --color-hkr-action: var(--hkr-action);
+  --color-hkr-action-dark: var(--hkr-action-dark);
+  --color-hkr-red-tint: var(--hkr-red-tint);
+  --color-hkr-ok: var(--hkr-ok);
+  --color-hkr-warn: var(--hkr-warn);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);

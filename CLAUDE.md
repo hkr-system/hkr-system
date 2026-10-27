@@ -322,7 +322,23 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Menu counters (Gabriel): per section, red, live counts — Sales (admin: payments to confirm; others: orders needing
   action), WhatsApp (unanswered chats), Leads (unread new-lead notices). RMAs: batch deadlines in Phase 4.
 
+## Client portal (/portal) — added by Gabriel Oct 27 2026 (not in the brief)
+
+- Built together with Phase 4 (RMAs). Clients see: open orders, IMEIs, invoices of the order, terms and conditions,
+  their current approved price list (Phase 6), pending RMAs and history of unresolved RMAs; and submit RMA requests
+  per unit (IMEI, defect, evidence photos/videos) replacing the RMA Request Form xlsx (SOP P6 fields).
+- IMEI not in the IMEIs shipped TO THAT ACCOUNT → warning, not a block (never reveal another client's IMEI).
+- Languages: English + Spanish (default from the account language), like /apply.
+- Login: email link (magic link) ONLY for users HKR created and authorised — no self sign-up
+  (`shouldCreateUser: false`, Supabase sign-ups off; a portal user is created by admin/specialist from a contact).
+  Clients get NO internal role: separate `portal_users` table, own layout, `is_staff()` stays false for them.
+- Terms and conditions: an official document Gabriel will write (RMA return address, bank and USDT details,
+  RMA procedure, responsibilities of HKR and of the client). Until it exists the page shows "coming soon".
+
 ## Open questions (ask before the phase that needs them)
+
+- Phase 4 + portal: need the fixtures HKR_RMA_Request_Form_TEMPLATE.xlsx (fault categories), the credit-note
+  template and the batch template; and the official terms document for the portal.
 
 - Invoices: Gabriel sent 5 real invoices (Ever State; NOT in the repo — real client and bank data). The Kopious
   invoice uses a USDT fee of 0.8 % while the brief says 0.85 % — which is current? No Streamline FZE sample yet.

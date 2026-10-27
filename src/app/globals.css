@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,76 +49,62 @@
 }
 
 :root {
-  --viz-1: #2a78d6; /* single-series data colour (dataviz reference palette, slot 1) */
-  --viz-track: color-mix(in oklab, #2a78d6 12%, transparent);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* HKR brand tokens (claude/HKR_brand_tokens.md): light ground, navy type, red for the one action. */
+  --hkr-bg: #f5f6f9;
+  --hkr-bg-2: #eaedf3;
+  --hkr-surface: #ffffff;
+  --hkr-line: rgba(15, 26, 51, 0.14);
+  --hkr-ink: #0f1a33;
+  --hkr-ink-2: #4b5a7c;
+  --hkr-muted: #6b7794;
+  --hkr-accent: #2f4f8f;
+  --hkr-accent-tint: #e3e8f2;
+  --hkr-action: #d6192e;
+  --hkr-action-dark: #b4142a;
+  --hkr-red-tint: #fde9ec;
+  --hkr-ok: #2fb36b;
+  --hkr-warn: #d98b00;
+
+  --viz-1: var(--hkr-accent); /* single-series data colour */
+  --viz-track: color-mix(in oklab, #2f4f8f 12%, transparent);
+  --background: var(--hkr-bg);
+  --foreground: var(--hkr-ink);
+  --card: var(--hkr-surface);
+  --card-foreground: var(--hkr-ink);
+  --popover: var(--hkr-surface);
+  --popover-foreground: var(--hkr-ink);
+  --primary: var(--hkr-action);
+  --primary-foreground: #ffffff;
+  --secondary: var(--hkr-bg-2);
+  --secondary-foreground: var(--hkr-ink);
+  --muted: var(--hkr-bg-2);
+  --muted-foreground: var(--hkr-ink-2);
+  --accent: var(--hkr-accent-tint);
+  --accent-foreground: var(--hkr-ink);
+  --destructive: var(--hkr-action);
+  --border: var(--hkr-line);
+  --input: var(--hkr-line);
+  --ring: var(--hkr-accent);
+  --chart-1: var(--hkr-accent);
+  --chart-2: #5f7fb8;
+  --chart-3: #93a9d1;
+  --chart-4: #c3cfe6;
+  --chart-5: var(--hkr-ink);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--hkr-bg-2);
+  --sidebar-foreground: var(--hkr-ink);
+  --sidebar-primary: var(--hkr-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--hkr-surface);
+  --sidebar-accent-foreground: var(--hkr-accent);
+  --sidebar-border: var(--hkr-line);
+  --sidebar-ring: var(--hkr-accent);
 }
 
+/* The app is light-only by decision (brand tokens v2); .dark keeps the same values so nothing flips. */
 .dark {
-  --viz-1: #3987e5;
-  --viz-track: color-mix(in oklab, #3987e5 18%, transparent);
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--hkr-bg);
+  --foreground: var(--hkr-ink);
 }
 
 @layer base {
@@ -133,6 +119,16 @@
   }
   html {
     @apply font-sans;
+  }
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-heading), var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+  table, [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+  a:not([class]) {
+    color: var(--hkr-accent);
   }
 }
 /* Resized tables (see components/ui/table.tsx): long content is cut with an ellipsis. */

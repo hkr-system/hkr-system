@@ -21,7 +21,7 @@ export default async function NumbersPage() {
   return (
     <>
       <PageHeader title="Numbers"
-        description="Numbers appear here when Meta sends their first webhook, or with the import button. Quality is checked daily; a Low (RED) rating pauses broadcasts automatically.">
+        description="Numbers appear here when Meta sends their first webhook, or with the import button (which also connects incoming messages for the WhatsApp account). Quality is checked daily; a Low (RED) rating pauses broadcasts automatically.">
         <ImportNumbersButton />
       </PageHeader>
       <div className="grid gap-6">

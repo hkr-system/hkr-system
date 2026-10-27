@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { adminClientAvailable, createAdminClient } from "@/lib/supabase/admin";
-import { listNumbers, listTemplates, numberHealth, wabaId, whatsappConfigured } from "@/lib/whatsapp/graph";
+import { listNumbers, listTemplates, numberHealth, subscribeAppToWaba, wabaId, whatsappConfigured } from "@/lib/whatsapp/graph";
 import { ensureConversation, graphVersion, sendFileMessage, sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/service";
 import { fillBody } from "@/lib/whatsapp/templates";
 import { notifyUsers } from "@/lib/notify";
@@ -150,6 +150,8 @@ export async function importNumbers(): Promise<WaState> {
   const db = await createClient();
   try {
     const v = await graphVersion(db);
+    // make sure Meta delivers this account's incoming messages to our webhook
+    const sub = await subscribeAppToWaba(v, wabaId());
     const { data } = await listNumbers(v, wabaId());
     for (const n of data) {
       const phone = `+${n.display_phone_number.replace(/[^0-9]/g, "")}`;
@@ -158,7 +160,7 @@ export async function importNumbers(): Promise<WaState> {
       else await db.from("wa_numbers").insert({ phone_number_id: n.id, display_phone: phone, verified_name: n.verified_name ?? null, label: "New number" });
     }
     refresh();
-    return { ok: true, message: `${data.length} numbers found in Meta.` };
+    return { ok: true, message: `${data.length} numbers found in Meta. Incoming messages: ${sub.success ? "connected" : "check the webhook in Meta"}.` };
   } catch (e) {
     return err(e);
   }

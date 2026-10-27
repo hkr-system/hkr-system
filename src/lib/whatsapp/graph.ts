@@ -111,6 +111,12 @@ export function numberHealth(v: string, phoneNumberId: string) {
   );
 }
 
+// Meta only sends a WhatsApp account's messages to the webhook of apps "subscribed" to that account.
+// POST is idempotent: it (re)subscribes the app that owns the access token.
+export function subscribeAppToWaba(v: string, waba: string) {
+  return graph<{ success?: boolean }>(v, `${waba}/subscribed_apps`, { method: "POST" });
+}
+
 export function listNumbers(v: string, waba: string) {
   return graph<{ data: { id: string; display_phone_number: string; verified_name?: string; quality_rating?: string }[] }>(
     v, `${waba}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating`,

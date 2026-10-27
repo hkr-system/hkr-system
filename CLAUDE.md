@@ -174,7 +174,7 @@ Environment variable names (values only in Vercel / `.env.local`, never in git o
 
 Hosted: Supabase project `hkr-system` (East US, ref `vsaumxeuraxmmfyremus`), Vercel project `hkr-system`
 in team "Hk Refurbished Stock" (Hobby plan), production URL https://hkr-system.vercel.app, linked to
-GitHub `hkr-system/hkr-system` (push to `main` deploys). Vercel env set: Supabase URL + publishable key, `SUPABASE_SECRET_KEY`, `CRON_SECRET` (new value Oct 27 2026, same as Vault `cron_secret`), `WHATSAPP_ACCESS_TOKEN` (temporary ~24 h token — replace with a permanent system-user token), `WHATSAPP_WABA_ID`; `BREVO_API_KEY` pending. Edge Function `whatsapp-webhook` deployed (Verify JWT OFF) with secrets `META_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`. Migrations are applied to the hosted project by Gabriel pasting the file
+GitHub `hkr-system/hkr-system` (push to `main` deploys). Vercel env set: Supabase URL + publishable key, `SUPABASE_SECRET_KEY`, `CRON_SECRET` (new value Oct 27 2026, same as Vault `cron_secret`), `WHATSAPP_ACCESS_TOKEN` (60-day user token made Oct 27 2026 in Graph API Explorer → expires ~late Dec 2026; replace with the permanent system-user token `hkr-system` once another portfolio admin approves the request), `WHATSAPP_WABA_ID` (the PRODUCTION WhatsApp account "HK Refurbished Stock", not Meta's test account); `BREVO_API_KEY` pending. Edge Function `whatsapp-webhook` deployed (Verify JWT OFF) with secrets `META_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`. Migrations are applied to the hosted project by Gabriel pasting the file
 into Supabase → SQL Editor → Run (until the Supabase CLI is linked).
 
 Demo users (hosted: created by hand in Authentication → Users with Auto Confirm; roles set by seed.sql):
@@ -247,7 +247,14 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Opt-out: button/text "Stop promotions", STOP, BAJA… → whatsapp_opt_in = false (never in broadcasts).
 - Broadcasts: bd/admin create drafts, only admin approves (DB trigger); per-number daily limit (default 200);
   number auto-paused when Meta quality is RED. Specialist has no access to broadcasts.
-- Number per market (setting wa_number_by_market): LATAM → US number; EU incl. UK → European numbers (not configured yet).
+- Number per market (setting wa_number_by_market): LATAM → US number (none yet); EU incl. UK → European numbers.
+  Oct 27 2026: production number = a Netherlands number, label NL-1, market EU, registered on the production
+  WhatsApp account; payment method added in Meta. Gabriel chose NEW numbers over migrating his WhatsApp Business
+  app number (app "warm-up" does not transfer to the API). Which number LATAM uses until a US number exists: undecided.
+- Meta rules learned: `hello_world` can only be sent from Meta test numbers (#131058); test numbers only send to
+  numbers on Meta's recipient list (#131030); every broadcast needs an APPROVED template of the production account;
+  new accounts get slower template reviews. Meta allows 2 numbers until the business is verified.
+- Setup status, ids and next steps (not for this public repo): project doc `claude/WhatsApp_setup_status.md`.
 - No welcome template yet (setting wa_welcome_template empty → not sent).
 - Lead → Qualified: owner notified in-app AND by email (Brevo); no owner → all admin + bd.
 - Notifications (bell): new WhatsApp message (assignee or everyone if unassigned; one per chat while unread),
@@ -257,9 +264,12 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 
 ## Open questions (ask before the phase that needs them)
 
-- WhatsApp: create a permanent system-user token (the test token expires daily); change the webhook verify token
-  (the current one is a placeholder) in Supabase secrets and Meta at the same time; test numbers can only send to
-  numbers on Meta's recipient list.
+- WhatsApp (status Oct 27 2026): first HKR template `hkr_iphone14_eu_offer` (marketing, EN, fixed prices) PENDING at
+  Meta → then test broadcast to lead "Test NL (Gabriel)" (EU, opt-in). Meta business verification submitted
+  (~2 working days). Permanent system-user token waits for a second portfolio admin's approval. Change the webhook
+  verify token (placeholder) in Supabase secrets and Meta together. Offer: a reusable template with variables for
+  models/prices. Clean-up pending Gabriel's OK: Meta sample data (+16505551111 number, "test user name" chat/lead),
+  the mistaken unverified NL number in the production account.
 - WhatsApp: Meta v26 "usernames" can omit the phone number (`from`) for users who adopt a username — `wa_ingest`
   keys on the phone; revisit when Meta enables it widely.
 

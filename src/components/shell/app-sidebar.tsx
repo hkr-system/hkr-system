@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { NavLinks, type NavItem } from "./nav-links";
 
@@ -58,8 +59,11 @@ export function AppSidebar({ items, initialCollapsed, initialWidth }: { items: N
       data-testid="sidebar"
     >
       <div className={cn("flex items-center gap-2 p-3", collapsed && "flex-col px-2")}>
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground">HKR</div>
-        {!collapsed ? <span className="truncate text-sm font-semibold">HKR System</span> : null}
+        {collapsed ? (
+          <Image src="/brand/logo.png" alt="HK Refurbished Stock" width={469} height={278} className="h-6 w-auto" priority />
+        ) : (
+          <Image src="/brand/logo.png" alt="HK Refurbished Stock" width={469} height={278} className="h-10 w-auto shrink-0" priority />
+        )}
         <div className={cn(!collapsed && "ml-auto")}>
           {collapsed ? (
             <Tooltip><TooltipTrigger asChild>{toggle}</TooltipTrigger><TooltipContent side="right">Expand menu</TooltipContent></Tooltip>

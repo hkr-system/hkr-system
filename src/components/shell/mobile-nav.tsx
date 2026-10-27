@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -17,7 +18,8 @@ export function MobileNav({ items }: { items: NavItem[] }) {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-4">
         <SheetHeader className="p-0 pb-4">
-          <SheetTitle>HKR System</SheetTitle>
+          <SheetTitle className="sr-only">HKR System</SheetTitle>
+          <Image src="/brand/logo.png" alt="HK Refurbished Stock" width={469} height={278} className="h-10 w-auto" />
         </SheetHeader>
         <NavLinks items={items} onNavigate={() => setOpen(false)} />
       </SheetContent>

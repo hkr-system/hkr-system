@@ -452,6 +452,14 @@ isOneToOne: false
 "is_staff":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"lead_funnel":
+{ Args: { "p_since"?: string }; Returns: {
+              "current": number,"reached": number,"stage": Database["public"]['Enums']["lead_stage"]
+            }[]
+                           },
+"notify_upsert":
+{ Args: { "p_body": string,"p_kind": string,"p_link": string,"p_title": string,"p_user": string }; Returns: undefined
+                           },
 "security_check":
 { Args: Record<PropertyKey, never>; Returns: {
               "problem": string,"table_name": string

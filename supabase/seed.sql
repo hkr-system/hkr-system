@@ -87,3 +87,62 @@ values
   ('Riyadh Smart Devices', 'Faisal Al Saud', 'SA', 'Riyadh', 'ROW', 'IFA master list', 'demo29@example.com', '+966501221732', 'phone_shop', true, true, '400-999', 400, 60, 'B', false, null, 'New', (select user_id from public.profiles where email = 'yessica.demo@hk-refurbished-stock.com'), 'Ask for monthly forecast', current_date + 7, null, 'en'),
   ('Lagos Phone Mart', 'Chinedu Okafor', 'NG', 'Lagos', 'ROW', 'website_form', 'demo30@example.com', '+2348031229650', 'online_seller', true, true, '100-399', 100, 45, 'B', false, null, 'Replied', null, null, null, null, 'en')
 on conflict (email) where email is not null do nothing;
+
+-- 5. WhatsApp demo data (Phase 2). Demo numbers are NOT connected to Meta (is_demo = true):
+--    replies from them are disabled. The real numbers appear when Meta sends their first webhook.
+insert into public.wa_numbers (phone_number_id, display_phone, label, market, is_demo, quality_rating, messaging_tier)
+values ('demo-hk1', '+85200000001', 'HK-1 (demo)', 'ROW', true, 'GREEN', 'TIER_1K'),
+       ('demo-hk2', '+85200000002', 'HK-2 (demo)', 'ROW', true, 'GREEN', 'TIER_250'),
+       ('demo-us',  '+13050000003', 'US (demo)',   'US',  true, 'GREEN', 'TIER_1K'),
+       ('demo-nl',  '+31600000004', 'NL (demo)',   'EU',  true, 'YELLOW', 'TIER_250')
+on conflict (phone_number_id) do nothing;
+
+-- hello_world exists in every Meta WhatsApp test account; "Sync from Meta" refreshes it.
+insert into public.wa_templates (name, language, category, status, components)
+values ('hello_world', 'en_US', 'UTILITY', 'APPROVED',
+        '[{"type":"HEADER","format":"TEXT","text":"Hello World"},{"type":"BODY","text":"Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us."},{"type":"FOOTER","text":"WhatsApp Business Platform sample message"}]')
+on conflict (name, language) do nothing;
+
+do $$
+declare
+  v_conv uuid;
+  v_gabriel uuid := (select user_id from public.profiles where email = 'gabriel.demo@hk-refurbished-stock.com');
+  r record;
+begin
+  if exists (select 1 from public.wa_conversations c join public.wa_numbers n on n.id = c.wa_number_id where n.is_demo) then
+    return; -- already seeded
+  end if;
+  for r in
+    select * from (values
+      ('demo-us', '+525511187850', 'Alejandro', null::uuid, 'open',     array['in|180|Hola, ¿tienen iPhone 13 de 128GB para esta semana?', 'out|170|Hola Alejandro, sí. Le comparto la lista hoy.', 'in|30|Perfecto, gracias']),
+      ('demo-nl', '+31611000000',  'Daan',      null,       'open',     array['in|1500|Can you send me the price list for iPhone 14 Pro?', 'out|1490|Hi Daan, sure — sending it today.', 'in|20|Also interested in 15 Pro Max']),
+      ('demo-nl', '+491511023757', 'Jonas',     v_gabriel,  'open',     array['out|3000|Hi Jonas, here is our latest list.', 'in|2900|Thanks, we will review on Monday']),
+      ('demo-nl', '+34611055433',  'Pau',       null,       'resolved', array['in|5000|Do you ship to Barcelona?', 'out|4990|Yes, FOB Hong Kong; we can book the courier.']),
+      ('demo-hk1','+2348031229650','Chinedu',   null,       'open',     array['in|45|Hello, what is your minimum order?'])
+    ) as t(number_pid, phone, name, assignee, status, msgs)
+  loop
+    insert into public.wa_conversations (wa_number_id, contact_phone, contact_name, lead_id, assigned_user_id, status)
+    values ((select id from public.wa_numbers where phone_number_id = r.number_pid), r.phone, r.name,
+            (select id from public.leads where phone_e164 = r.phone), r.assignee, 'open')
+    returning id into v_conv;
+    insert into public.wa_messages (conversation_id, direction, type, body, status, cost_category, meta_timestamp)
+    select v_conv,
+           case when split_part(m, '|', 1) = 'in' then 'inbound' else 'outbound' end::public.wa_direction,
+           'text', split_part(m, '|', 3),
+           case when split_part(m, '|', 1) = 'in' then 'received' else 'read' end::public.wa_message_status,
+           case when split_part(m, '|', 1) = 'in' then 'none' else 'service' end::public.wa_cost_category,
+           now() - (split_part(m, '|', 2)::int * interval '1 minute')
+      from unnest(r.msgs) with ordinality as x(m, ord)
+     order by ord;
+    update public.wa_conversations set status = r.status::public.wa_conversation_status where id = v_conv;
+  end loop;
+end $$;
+
+-- Some demo leads agreed to WhatsApp messages (for broadcast tests). The US one shows the
+-- automatic skip of marketing templates to +1 numbers.
+update public.leads set whatsapp_opt_in = true
+ where email in ('demo01@example.com', 'demo04@example.com', 'demo13@example.com', 'demo16@example.com',
+                 'demo17@example.com', 'demo18@example.com', 'demo24@example.com', 'demo28@example.com');
+
+-- Demo leads above are old news: mark their "new lead" notifications as read.
+update public.notifications set read_at = now() where kind = 'new_lead' and read_at is null;

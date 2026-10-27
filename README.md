@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HKR System
 
-## Getting Started
+Internal operations platform of HK Refurbished Stock: accounts, orders, RMAs, price lists, leads
+and WhatsApp in one app. Built with Next.js, Supabase and Vercel.
 
-First, run the development server:
+Developer notes and conventions: see [CLAUDE.md](./CLAUDE.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## First-time setup (hosted)
+
+1. **Vercel** → Add New… → Project → import `hkr-system/hkr-system` → add the environment variables
+   listed in `.env.example` → Deploy.
+2. **Supabase** → Authentication → Sign In / Providers → turn off "Allow new users to sign up".
+   Authentication → URL Configuration → Site URL = the Vercel address.
+3. **Supabase** → SQL Editor → paste `supabase/migrations/20261027000000_foundation.sql` → Run.
+4. **Supabase** → Authentication → Users → Add user → Create new user (Auto Confirm on) for the four
+   demo emails in CLAUDE.md.
+5. **Supabase** → SQL Editor → paste `supabase/seed.sql` → Run.
+
+## Local development
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+cp .env.example .env.local   # fill with the local values printed by `npm run db:start`
+npm install
+npm run db:start
+npm run dev
+```

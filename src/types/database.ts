@@ -489,6 +489,54 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"sales_goals": {
+                  Row: {
+                    "amount_usd": number,"created_at": string,"created_by": string | null,"id": string,"month": string,"owner_user_id": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_usd": number,"created_at"?: string,"created_by"?: string | null,"id"?: string,"month": string,"owner_user_id"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_usd"?: number,"created_at"?: string,"created_by"?: string | null,"id"?: string,"month"?: string,"owner_user_id"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sales_goals_owner_user_id_fkey"
+      columns: ["owner_user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["user_id"]
+    }
+                  ]
+                },"sales_history": {
+                  Row: {
+                    "amount_usd": number,"created_at": string,"created_by": string | null,"month": string,"notes": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_usd": number,"created_at"?: string,"created_by"?: string | null,"month": string,"notes"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_usd"?: number,"created_at"?: string,"created_by"?: string | null,"month"?: string,"notes"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sales_projections": {
+                  Row: {
+                    "amount_usd": number,"created_at": string,"created_by": string | null,"month": string,"notes": string | null,"suggested_usd": number | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_usd": number,"created_at"?: string,"created_by"?: string | null,"month": string,"notes"?: string | null,"suggested_usd"?: number | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_usd"?: number,"created_at"?: string,"created_by"?: string | null,"month"?: string,"notes"?: string | null,"suggested_usd"?: number | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"scoring_rules": {
                   Row: {
                     "active": boolean,"created_at": string,"created_by": string | null,"disqualify": boolean,"field": string,"id": string,"label": string,"operator": string,"points": number,"sort_order": number,"updated_at": string,"value": Json | null
@@ -752,6 +800,11 @@ isOneToOne: false
                            },
 "order_recalc":
 { Args: { "p_order": string }; Returns: undefined
+                           },
+"sales_orders":
+{ Args: { "p_from": string,"p_to": string }; Returns: {
+              "account_id": string,"margin_usd": number,"number": string,"order_date": string,"order_id": string,"pieces": number,"rma_discount_usd": number,"status": Database["public"]['Enums']["order_status"],"total_usd": number
+            }[]
                            },
 "security_check":
 { Args: Record<PropertyKey, never>; Returns: {

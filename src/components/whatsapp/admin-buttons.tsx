@@ -42,7 +42,7 @@ export function ImportNumbersButton() {
 export function HealthButton({ id }: { id: string }) {
   const a = useAction(() => refreshNumberHealth(id));
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex flex-wrap items-center gap-1 break-words">
       <Button size="xs" variant="outline" onClick={a.run} disabled={a.pending}>{a.pending ? "…" : "Check"}</Button>
       <Result state={a.state} />
     </span>
@@ -60,16 +60,16 @@ export function NumberEditRow({ n }: { n: NumberRow }) {
   const q = n.quality_rating;
   return (
     <TableRow>
-      <TableCell className="align-top">
+      <TableCell className="w-80 max-w-80 align-top whitespace-normal">
         <div className="font-medium">{n.display_phone}</div>
         <div className="text-xs text-muted-foreground">{n.verified_name ?? ""}{n.is_demo ? " · demo" : ""}</div>
-        <div className="mt-1 flex items-center gap-2 text-xs">
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
           <span className={q === "RED" ? "text-destructive" : q === "YELLOW" ? "text-amber-600" : ""}>Quality {q ?? "—"}</span>
           <span>· {n.messaging_tier ?? "tier —"}</span>
           {!n.is_demo ? <HealthButton id={n.id} /> : null}
         </div>
       </TableCell>
-      <TableCell colSpan={2}>
+      <TableCell colSpan={2} className="whitespace-normal">
         <form action={action} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="id" value={n.id} />
           <Input name="label" defaultValue={n.label ?? ""} placeholder="Label (HK-1, NL…)" className="h-8 w-32" aria-label="Label" />

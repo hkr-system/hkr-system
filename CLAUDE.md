@@ -171,7 +171,7 @@ Environment variable names (values only in Vercel / `.env.local`, never in git o
 
 Hosted: Supabase project `hkr-system` (East US, ref `vsaumxeuraxmmfyremus`), Vercel project `hkr-system`
 in team "Hk Refurbished Stock" (Hobby plan), production URL https://hkr-system.vercel.app, linked to
-GitHub `hkr-system/hkr-system` (push to `main` deploys). Vercel env set: Supabase URL + publishable key, `SUPABASE_SECRET_KEY`, `CRON_SECRET` (Oct 27 2026); `BREVO_API_KEY` pending. Migrations are applied to the hosted project by Gabriel pasting the file
+GitHub `hkr-system/hkr-system` (push to `main` deploys). Vercel env set: Supabase URL + publishable key, `SUPABASE_SECRET_KEY`, `CRON_SECRET` (new value Oct 27 2026, same as Vault `cron_secret`), `WHATSAPP_ACCESS_TOKEN` (temporary ~24 h token — replace with a permanent system-user token), `WHATSAPP_WABA_ID`; `BREVO_API_KEY` pending. Edge Function `whatsapp-webhook` deployed (Verify JWT OFF) with secrets `META_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`. Migrations are applied to the hosted project by Gabriel pasting the file
 into Supabase → SQL Editor → Run (until the Supabase CLI is linked).
 
 Demo users (hosted: created by hand in Authentication → Users with Auto Confirm; roles set by seed.sql):
@@ -206,7 +206,10 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Meta Cloud API direct, through the Meta app in HKR's business portfolio; testing uses Meta's free test
   number and Gabriel's own phone as test recipient (a +1 number). US (+1) numbers never receive MARKETING
   templates (Meta pause since Apr 2025, still active Aug 2026) → broadcasts skip them automatically.
-- Webhook: <SUPABASE_URL>/functions/v1/whatsapp-webhook, subscribed field "messages".
+- Webhook: <SUPABASE_URL>/functions/v1/whatsapp-webhook, subscribed field "messages" (Meta app → Use cases → Connect on WhatsApp → Step 2).
+- Real messages arrive only if (1) the Meta app is PUBLISHED (privacy policy URL = HKR website "Legal Notices" page) and
+  (2) the WhatsApp account is subscribed to the app: Numbers → "Import numbers from Meta" does this (POST <WABA>/subscribed_apps).
+  Live since Oct 27 2026 on Meta's test number.
 - Visibility: admin all; bd/specialist see chats assigned to them or UNASSIGNED (all can see unassigned).
 - Unknown number writing in → new lead (stage New, source whatsapp_inbound).
 - Opt-out: button/text "Stop promotions", STOP, BAJA… → whatsapp_opt_in = false (never in broadcasts).
@@ -221,6 +224,12 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Leads overview "closest to converting": Sample/Proposal, then Meeting, then Qualified; then tier, score.
 
 ## Open questions (ask before the phase that needs them)
+
+- WhatsApp: create a permanent system-user token (the test token expires daily); change the webhook verify token
+  (the current one is a placeholder) in Supabase secrets and Meta at the same time; test numbers can only send to
+  numbers on Meta's recipient list.
+- WhatsApp: Meta v26 "usernames" can omit the phone number (`from`) for users who adopt a username — `wa_ingest`
+  keys on the phone; revisit when Meta enables it widely.
 
 - Which countries are "target countries" (+30)? Until filled in Settings, no lead reaches Tier A.
 - Owner notification email for new form leads: needs an owner rule and the Brevo sender domain (SPF/DKIM).

@@ -51,17 +51,23 @@ isOneToOne: false
                   ]
                 },"accounts": {
                   Row: {
-                    "code": string,"country": string | null,"created_at": string,"created_by": string | null,"id": string,"market": Database["public"]['Enums']["market"] | null,"name": string,"updated_at": string
+                    "billing_entity": Database["public"]['Enums']["billing_entity"],"code": string,"country": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"delivery_setup": Database["public"]['Enums']["delivery_setup"],"drive_folder_url": string | null,"id": string,"intermediary_id": string | null,"invoice_format": NonNullable<Json>,"is_demo": boolean,"language": string,"legal_name": string | null,"market": Database["public"]['Enums']["market"] | null,"name": string,"notes": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"status": Database["public"]['Enums']["account_status"],"tier": string | null,"updated_at": string,"vat_eori": string | null,"whatsapp_group_note": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "code": string,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"market"?: Database["public"]['Enums']["market"] | null,"name": string,"updated_at"?: string
+                    "billing_entity"?: Database["public"]['Enums']["billing_entity"],"code": string,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"drive_folder_url"?: string | null,"id"?: string,"intermediary_id"?: string | null,"invoice_format"?: NonNullable<Json>,"is_demo"?: boolean,"language"?: string,"legal_name"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"name": string,"notes"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"status"?: Database["public"]['Enums']["account_status"],"tier"?: string | null,"updated_at"?: string,"vat_eori"?: string | null,"whatsapp_group_note"?: string | null
                   }
                   Update: {
-                    "code"?: string,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"market"?: Database["public"]['Enums']["market"] | null,"name"?: string,"updated_at"?: string
+                    "billing_entity"?: Database["public"]['Enums']["billing_entity"],"code"?: string,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"drive_folder_url"?: string | null,"id"?: string,"intermediary_id"?: string | null,"invoice_format"?: NonNullable<Json>,"is_demo"?: boolean,"language"?: string,"legal_name"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"name"?: string,"notes"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"status"?: Database["public"]['Enums']["account_status"],"tier"?: string | null,"updated_at"?: string,"vat_eori"?: string | null,"whatsapp_group_note"?: string | null
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "accounts_intermediary_id_fkey"
+      columns: ["intermediary_id"]
+isOneToOne: false
+      referencedRelation: "intermediaries"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"audit_log": {
                   Row: {
@@ -90,6 +96,90 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"contacts": {
+                  Row: {
+                    "account_id": string | null,"created_at": string,"created_by": string | null,"email": string | null,"id": string,"language": string,"lead_id": string | null,"name": string,"phone_e164": string | null,"role": string | null,"updated_at": string,"whatsapp_opt_in": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"id"?: string,"language"?: string,"lead_id"?: string | null,"name": string,"phone_e164"?: string | null,"role"?: string | null,"updated_at"?: string,"whatsapp_opt_in"?: boolean
+                  }
+                  Update: {
+                    "account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"id"?: string,"language"?: string,"lead_id"?: string | null,"name"?: string,"phone_e164"?: string | null,"role"?: string | null,"updated_at"?: string,"whatsapp_opt_in"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contacts_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contacts_lead_id_fkey"
+      columns: ["lead_id"]
+isOneToOne: false
+      referencedRelation: "leads"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"files": {
+                  Row: {
+                    "account_id": string,"created_at": string,"created_by": string | null,"file_name": string,"id": string,"kind": Database["public"]['Enums']["file_kind"],"mime_type": string | null,"owner_id": string | null,"owner_table": string,"size_bytes": number | null,"storage_path": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"file_name": string,"id"?: string,"kind"?: Database["public"]['Enums']["file_kind"],"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string,"size_bytes"?: number | null,"storage_path": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"file_name"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["file_kind"],"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string,"size_bytes"?: number | null,"storage_path"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "files_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"imei_master": {
+                  Row: {
+                    "account_id": string,"created_at": string,"created_by": string | null,"id": string,"imei": string,"order_id": string | null,"shipped_at": string | null,"sku_id": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"imei": string,"order_id"?: string | null,"shipped_at"?: string | null,"sku_id"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"imei"?: string,"order_id"?: string | null,"shipped_at"?: string | null,"sku_id"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "imei_master_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_sku_id_fkey"
+      columns: ["sku_id"]
+isOneToOne: false
+      referencedRelation: "skus"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"intermediaries": {
                   Row: {
@@ -203,6 +293,186 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["user_id"]
+    }
+                  ]
+                },"order_events": {
+                  Row: {
+                    "account_id": string,"body": string | null,"created_at": string,"created_by": string | null,"file_id": string | null,"from_status": Database["public"]['Enums']["order_status"] | null,"id": string,"kind": string,"order_id": string,"to_status": Database["public"]['Enums']["order_status"] | null,"updated_at": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"body"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id"?: string | null,"from_status"?: Database["public"]['Enums']["order_status"] | null,"id"?: string,"kind": string,"order_id": string,"to_status"?: Database["public"]['Enums']["order_status"] | null,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "account_id"?: string,"body"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id"?: string | null,"from_status"?: Database["public"]['Enums']["order_status"] | null,"id"?: string,"kind"?: string,"order_id"?: string,"to_status"?: Database["public"]['Enums']["order_status"] | null,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "order_events_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_events_file_fk"
+      columns: ["file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_events_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_events_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"order_lines": {
+                  Row: {
+                    "account_id": string,"battery_new": boolean,"battery_unit_usd": number,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"order_id": string,"qty": number,"sku_id": string | null,"sort_order": number,"unit_price_usd": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"order_id": string,"qty": number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd": number,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"order_id"?: string,"qty"?: number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "order_lines_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_sku_id_fkey"
+      columns: ["sku_id"]
+isOneToOne: false
+      referencedRelation: "skus"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"order_lines_finance": {
+                  Row: {
+                    "base_price_usd": number | null,"created_at": string,"created_by": string | null,"order_line_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "base_price_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"order_line_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "base_price_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"order_line_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "order_lines_finance_order_line_id_fkey"
+      columns: ["order_line_id"]
+isOneToOne: true
+      referencedRelation: "order_lines"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"orders": {
+                  Row: {
+                    "account_id": string,"balance_due_usd": number,"battery_line_usd": number,"courier": string | null,"created_at": string,"created_by": string | null,"customs_usd": number,"delivered_date": string | null,"delivery_setup": Database["public"]['Enums']["delivery_setup"],"deposit_due_usd": number,"eta_date": string | null,"freight_usd": number,"hk_invoice_no": string | null,"id": string,"notes": string | null,"number": string,"order_date": string,"partner_invoice_eur": number | null,"partner_invoice_no": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"pieces": number,"rma_discount_usd": number,"ship_date": string | null,"ship_to": NonNullable<Json>,"status": Database["public"]['Enums']["order_status"],"subtotal_usd": number,"total_usd": number,"tracking": string | null,"updated_at": string,"usdt_fee_usd": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"balance_due_usd"?: number,"battery_line_usd"?: number,"courier"?: string | null,"created_at"?: string,"created_by"?: string | null,"customs_usd"?: number,"delivered_date"?: string | null,"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"deposit_due_usd"?: number,"eta_date"?: string | null,"freight_usd"?: number,"hk_invoice_no"?: string | null,"id"?: string,"notes"?: string | null,"number": string,"order_date"?: string,"partner_invoice_eur"?: number | null,"partner_invoice_no"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"pieces"?: number,"rma_discount_usd"?: number,"ship_date"?: string | null,"ship_to"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["order_status"],"subtotal_usd"?: number,"total_usd"?: number,"tracking"?: string | null,"updated_at"?: string,"usdt_fee_usd"?: number
+                  }
+                  Update: {
+                    "account_id"?: string,"balance_due_usd"?: number,"battery_line_usd"?: number,"courier"?: string | null,"created_at"?: string,"created_by"?: string | null,"customs_usd"?: number,"delivered_date"?: string | null,"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"deposit_due_usd"?: number,"eta_date"?: string | null,"freight_usd"?: number,"hk_invoice_no"?: string | null,"id"?: string,"notes"?: string | null,"number"?: string,"order_date"?: string,"partner_invoice_eur"?: number | null,"partner_invoice_no"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"pieces"?: number,"rma_discount_usd"?: number,"ship_date"?: string | null,"ship_to"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["order_status"],"subtotal_usd"?: number,"total_usd"?: number,"tracking"?: string | null,"updated_at"?: string,"usdt_fee_usd"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "orders_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"orders_finance": {
+                  Row: {
+                    "base_cost_usd": number | null,"created_at": string,"created_by": string | null,"margin_pct": number | null,"order_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "base_cost_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"margin_pct"?: number | null,"order_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "base_cost_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"margin_pct"?: number | null,"order_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "orders_finance_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: true
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "orders_finance_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: true
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"payments": {
+                  Row: {
+                    "account_id": string,"amount": number,"confirmed_at": string | null,"confirmed_by": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"difference": number | null,"difference_reason": string | null,"expected_amount": number | null,"id": string,"method": Database["public"]['Enums']["payment_method"],"notes": string | null,"order_id": string,"proof_file_id": string | null,"received_at": string,"reference": string | null,"status": Database["public"]['Enums']["payment_status"],"type": Database["public"]['Enums']["payment_type"],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"amount": number,"confirmed_at"?: string | null,"confirmed_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"difference"?: number | null,"difference_reason"?: string | null,"expected_amount"?: number | null,"id"?: string,"method"?: Database["public"]['Enums']["payment_method"],"notes"?: string | null,"order_id": string,"proof_file_id"?: string | null,"received_at"?: string,"reference"?: string | null,"status"?: Database["public"]['Enums']["payment_status"],"type": Database["public"]['Enums']["payment_type"],"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"amount"?: number,"confirmed_at"?: string | null,"confirmed_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"difference"?: number | null,"difference_reason"?: string | null,"expected_amount"?: number | null,"id"?: string,"method"?: Database["public"]['Enums']["payment_method"],"notes"?: string | null,"order_id"?: string,"proof_file_id"?: string | null,"received_at"?: string,"reference"?: string | null,"status"?: Database["public"]['Enums']["payment_status"],"type"?: Database["public"]['Enums']["payment_type"],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payments_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_proof_file_fk"
+      columns: ["proof_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
     }
                   ]
                 },"profiles": {
@@ -428,10 +698,27 @@ isOneToOne: false
                 }
           }
           Views: {
-            [_ in never]: never
+            "order_overview": {
+                  Row: {
+                    "account_code": string,"account_id": string,"account_name": string,"balance_confirmed": number | null,"balance_ok": boolean | null,"deposit_confirmed": number | null,"deposit_payable": number | null,"id": string,"imei_count": number | null,"label_ok": boolean | null,"market": Database["public"]['Enums']["market"] | null,"number": string,"payable_total": number | null,"payment_awaiting": boolean | null,"pays_in_eur": boolean | null,"status": Database["public"]['Enums']["order_status"]
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "orders_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
           }
           Functions: {
-            "can_see_conversation":
+            "can_see_contact_owner":
+{ Args: { "p_account": string,"p_lead": string }; Returns: boolean
+                           },
+"can_see_conversation":
 { Args: { "p_id": string }; Returns: boolean
                            },
 "can_see_finance":
@@ -460,13 +747,25 @@ isOneToOne: false
 "notify_upsert":
 { Args: { "p_body": string,"p_kind": string,"p_link": string,"p_title": string,"p_user": string }; Returns: undefined
                            },
+"order_finance_recalc":
+{ Args: { "p_order": string }; Returns: undefined
+                           },
+"order_recalc":
+{ Args: { "p_order": string }; Returns: undefined
+                           },
 "security_check":
 { Args: Record<PropertyKey, never>; Returns: {
               "problem": string,"table_name": string
             }[]
                            },
+"setting_num":
+{ Args: { "p_default": number,"p_key": string }; Returns: number
+                           },
 "setup_table":
 { Args: { "p_pk"?: string,"p_table": unknown }; Returns: undefined
+                           },
+"storage_account_access":
+{ Args: { "p_name": string }; Returns: boolean
                            },
 "undo_lead_import":
 { Args: { "p_batch_id": string }; Returns: {
@@ -487,7 +786,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "account_role": "owner"|"specialist","app_role": "admin"|"bd"|"account_specialist","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
+            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -607,7 +906,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_role": ["owner", "specialist"],"app_role": ["admin", "bd", "account_specialist"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
+            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
           }
         }
 } as const

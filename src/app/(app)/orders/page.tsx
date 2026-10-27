@@ -8,6 +8,8 @@ import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { StatTile } from "@/components/viz";
 import { OrderFilters } from "@/components/orders/order-filters";
+import { SectionTabs } from "@/components/sales/tabs";
+import { SALES_TABS } from "@/lib/sales/tabs";
 import { OrdersTable, type OrderRow } from "@/components/orders/orders-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,9 +52,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
 
   return (
     <>
-      <PageHeader title="Orders" description={`${rows.length} order${rows.length === 1 ? "" : "s"} shown.`}>
+      <PageHeader title="All orders" description={`${rows.length} order${rows.length === 1 ? "" : "s"} shown.`}>
         <Button asChild size="sm"><Link href="/orders/new">New order</Link></Button>
       </PageHeader>
+      <SectionTabs tabs={SALES_TABS} />
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="order-kpis">
         <StatTile label="Open orders" value={open.length} sub={money(openUsd)} href="/orders" />
         <StatTile label="Payment to confirm" value={count("confirm")} tone="attention" href="/orders?attention=confirm" />

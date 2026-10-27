@@ -9,6 +9,8 @@ import { BILLING_ENTITY_LABEL, OPEN_ORDER_STATUSES, PAYMENT_METHOD_LABEL, type A
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { AccountFilters } from "@/components/accounts/account-filters";
+import { SectionTabs } from "@/components/sales/tabs";
+import { accountTabs } from "@/lib/sales/tabs";
 import { AccountStatusBadge } from "@/components/accounts/badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,9 +51,10 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
 
   return (
     <>
-      <PageHeader title="Accounts" description={`${rows.length} client account${rows.length === 1 ? "" : "s"}${user.role === "bd" ? " where you are the owner" : ""}.`}>
+      <PageHeader title="All accounts" description={`${rows.length} client account${rows.length === 1 ? "" : "s"}${user.role === "bd" ? " where you are the owner" : ""}.`}>
         {canCreate ? <Button asChild size="sm"><Link href="/accounts/new">New account</Link></Button> : null}
       </PageHeader>
+      <SectionTabs tabs={accountTabs(canCreate)} />
       <AccountFilters owners={team.filter((t) => t.role !== "account_specialist")} showOwner={user.role !== "bd"} />
       <Card>
         <CardContent className="px-0">

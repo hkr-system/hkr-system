@@ -13,7 +13,7 @@ export function AccountFilters({ owners, showOwner }: { owners: { user_id: strin
   const set = (k: string, v: string) => {
     const next = new URLSearchParams(params.toString());
     if (v) next.set(k, v); else next.delete(k);
-    start(() => router.push(`/accounts?${next.toString()}`));
+    start(() => router.push(`/accounts/list?${next.toString()}`));
   };
   const v = (k: string) => params.get(k) ?? "";
   return (

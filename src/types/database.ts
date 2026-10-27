@@ -185,6 +185,26 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"notifications": {
+                  Row: {
+                    "body": string | null,"created_at": string,"created_by": string | null,"emailed_at": string | null,"id": string,"kind": string,"link": string | null,"read_at": string | null,"title": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body"?: string | null,"created_at"?: string,"created_by"?: string | null,"emailed_at"?: string | null,"id"?: string,"kind": string,"link"?: string | null,"read_at"?: string | null,"title": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "body"?: string | null,"created_at"?: string,"created_by"?: string | null,"emailed_at"?: string | null,"id"?: string,"kind"?: string,"link"?: string | null,"read_at"?: string | null,"title"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notifications_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["user_id"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "active": boolean,"created_at": string,"created_by": string | null,"email": string,"full_name": string,"role": Database["public"]['Enums']["app_role"] | null,"timezone": string,"updated_at": string,"user_id": string
@@ -241,13 +261,180 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"wa_broadcast_recipients": {
+                  Row: {
+                    "broadcast_id": string,"created_at": string,"created_by": string | null,"error_title": string | null,"id": string,"lead_id": string | null,"message_id": string | null,"phone": string,"sent_at": string | null,"skip_reason": string | null,"status": Database["public"]['Enums']["wa_recipient_status"],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "broadcast_id": string,"created_at"?: string,"created_by"?: string | null,"error_title"?: string | null,"id"?: string,"lead_id"?: string | null,"message_id"?: string | null,"phone": string,"sent_at"?: string | null,"skip_reason"?: string | null,"status"?: Database["public"]['Enums']["wa_recipient_status"],"updated_at"?: string
+                  }
+                  Update: {
+                    "broadcast_id"?: string,"created_at"?: string,"created_by"?: string | null,"error_title"?: string | null,"id"?: string,"lead_id"?: string | null,"message_id"?: string | null,"phone"?: string,"sent_at"?: string | null,"skip_reason"?: string | null,"status"?: Database["public"]['Enums']["wa_recipient_status"],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "wa_broadcast_recipients_broadcast_id_fkey"
+      columns: ["broadcast_id"]
+isOneToOne: false
+      referencedRelation: "wa_broadcasts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "wa_broadcast_recipients_lead_id_fkey"
+      columns: ["lead_id"]
+isOneToOne: false
+      referencedRelation: "leads"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "wa_broadcast_recipients_message_id_fkey"
+      columns: ["message_id"]
+isOneToOne: false
+      referencedRelation: "wa_messages"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"wa_broadcasts": {
+                  Row: {
+                    "approved_at": string | null,"approved_by": string | null,"count_delivered": number,"count_failed": number,"count_queued": number,"count_read": number,"count_sent": number,"count_skipped": number,"created_at": string,"created_by": string | null,"header_filename": string | null,"header_media_id": string | null,"id": string,"name": string,"scheduled_at": string | null,"segment": NonNullable<Json>,"status": Database["public"]['Enums']["wa_broadcast_status"],"template_id": string,"updated_at": string,"variables": NonNullable<Json>,"wa_number_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"count_delivered"?: number,"count_failed"?: number,"count_queued"?: number,"count_read"?: number,"count_sent"?: number,"count_skipped"?: number,"created_at"?: string,"created_by"?: string | null,"header_filename"?: string | null,"header_media_id"?: string | null,"id"?: string,"name": string,"scheduled_at"?: string | null,"segment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["wa_broadcast_status"],"template_id": string,"updated_at"?: string,"variables"?: NonNullable<Json>,"wa_number_id": string
+                  }
+                  Update: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"count_delivered"?: number,"count_failed"?: number,"count_queued"?: number,"count_read"?: number,"count_sent"?: number,"count_skipped"?: number,"created_at"?: string,"created_by"?: string | null,"header_filename"?: string | null,"header_media_id"?: string | null,"id"?: string,"name"?: string,"scheduled_at"?: string | null,"segment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["wa_broadcast_status"],"template_id"?: string,"updated_at"?: string,"variables"?: NonNullable<Json>,"wa_number_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "wa_broadcasts_template_id_fkey"
+      columns: ["template_id"]
+isOneToOne: false
+      referencedRelation: "wa_templates"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "wa_broadcasts_wa_number_id_fkey"
+      columns: ["wa_number_id"]
+isOneToOne: false
+      referencedRelation: "wa_numbers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"wa_conversations": {
+                  Row: {
+                    "account_id": string | null,"assigned_user_id": string | null,"contact_name": string | null,"contact_phone": string,"created_at": string,"created_by": string | null,"id": string,"last_inbound_at": string | null,"last_message_at": string | null,"last_message_preview": string | null,"last_outbound_at": string | null,"lead_id": string | null,"status": Database["public"]['Enums']["wa_conversation_status"],"updated_at": string,"wa_number_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id"?: string | null,"assigned_user_id"?: string | null,"contact_name"?: string | null,"contact_phone": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_inbound_at"?: string | null,"last_message_at"?: string | null,"last_message_preview"?: string | null,"last_outbound_at"?: string | null,"lead_id"?: string | null,"status"?: Database["public"]['Enums']["wa_conversation_status"],"updated_at"?: string,"wa_number_id": string
+                  }
+                  Update: {
+                    "account_id"?: string | null,"assigned_user_id"?: string | null,"contact_name"?: string | null,"contact_phone"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_inbound_at"?: string | null,"last_message_at"?: string | null,"last_message_preview"?: string | null,"last_outbound_at"?: string | null,"lead_id"?: string | null,"status"?: Database["public"]['Enums']["wa_conversation_status"],"updated_at"?: string,"wa_number_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "wa_conversations_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "wa_conversations_assigned_user_id_fkey"
+      columns: ["assigned_user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["user_id"]
+    },{
+      foreignKeyName: "wa_conversations_lead_id_fkey"
+      columns: ["lead_id"]
+isOneToOne: false
+      referencedRelation: "leads"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "wa_conversations_wa_number_id_fkey"
+      columns: ["wa_number_id"]
+isOneToOne: false
+      referencedRelation: "wa_numbers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"wa_messages": {
+                  Row: {
+                    "body": string | null,"broadcast_id": string | null,"conversation_id": string,"cost_category": Database["public"]['Enums']["wa_cost_category"],"created_at": string,"created_by": string | null,"delivered_at": string | null,"direction": Database["public"]['Enums']["wa_direction"],"error_code": string | null,"error_title": string | null,"id": string,"media_filename": string | null,"media_id": string | null,"media_mime": string | null,"media_path": string | null,"meta_message_id": string | null,"meta_timestamp": string | null,"read_at": string | null,"sent_at": string | null,"sent_by": string | null,"status": Database["public"]['Enums']["wa_message_status"],"template_language": string | null,"template_name": string | null,"type": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body"?: string | null,"broadcast_id"?: string | null,"conversation_id": string,"cost_category"?: Database["public"]['Enums']["wa_cost_category"],"created_at"?: string,"created_by"?: string | null,"delivered_at"?: string | null,"direction": Database["public"]['Enums']["wa_direction"],"error_code"?: string | null,"error_title"?: string | null,"id"?: string,"media_filename"?: string | null,"media_id"?: string | null,"media_mime"?: string | null,"media_path"?: string | null,"meta_message_id"?: string | null,"meta_timestamp"?: string | null,"read_at"?: string | null,"sent_at"?: string | null,"sent_by"?: string | null,"status": Database["public"]['Enums']["wa_message_status"],"template_language"?: string | null,"template_name"?: string | null,"type": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "body"?: string | null,"broadcast_id"?: string | null,"conversation_id"?: string,"cost_category"?: Database["public"]['Enums']["wa_cost_category"],"created_at"?: string,"created_by"?: string | null,"delivered_at"?: string | null,"direction"?: Database["public"]['Enums']["wa_direction"],"error_code"?: string | null,"error_title"?: string | null,"id"?: string,"media_filename"?: string | null,"media_id"?: string | null,"media_mime"?: string | null,"media_path"?: string | null,"meta_message_id"?: string | null,"meta_timestamp"?: string | null,"read_at"?: string | null,"sent_at"?: string | null,"sent_by"?: string | null,"status"?: Database["public"]['Enums']["wa_message_status"],"template_language"?: string | null,"template_name"?: string | null,"type"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "wa_messages_broadcast_fk"
+      columns: ["broadcast_id"]
+isOneToOne: false
+      referencedRelation: "wa_broadcasts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "wa_messages_conversation_id_fkey"
+      columns: ["conversation_id"]
+isOneToOne: false
+      referencedRelation: "wa_conversations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"wa_numbers": {
+                  Row: {
+                    "active": boolean,"broadcasts_paused": boolean,"created_at": string,"created_by": string | null,"daily_broadcast_limit": number,"display_phone": string,"id": string,"is_demo": boolean,"label": string | null,"market": Database["public"]['Enums']["market"] | null,"messaging_tier": string | null,"paused_reason": string | null,"phone_number_id": string,"quality_checked_at": string | null,"quality_rating": string | null,"updated_at": string,"verified_name": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"broadcasts_paused"?: boolean,"created_at"?: string,"created_by"?: string | null,"daily_broadcast_limit"?: number,"display_phone": string,"id"?: string,"is_demo"?: boolean,"label"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"messaging_tier"?: string | null,"paused_reason"?: string | null,"phone_number_id": string,"quality_checked_at"?: string | null,"quality_rating"?: string | null,"updated_at"?: string,"verified_name"?: string | null
+                  }
+                  Update: {
+                    "active"?: boolean,"broadcasts_paused"?: boolean,"created_at"?: string,"created_by"?: string | null,"daily_broadcast_limit"?: number,"display_phone"?: string,"id"?: string,"is_demo"?: boolean,"label"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"messaging_tier"?: string | null,"paused_reason"?: string | null,"phone_number_id"?: string,"quality_checked_at"?: string | null,"quality_rating"?: string | null,"updated_at"?: string,"verified_name"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"wa_templates": {
+                  Row: {
+                    "category": string,"components": NonNullable<Json>,"created_at": string,"created_by": string | null,"id": string,"language": string,"meta_id": string | null,"name": string,"status": string,"synced_at": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category": string,"components"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"id"?: string,"language": string,"meta_id"?: string | null,"name": string,"status": string,"synced_at"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "category"?: string,"components"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"id"?: string,"language"?: string,"meta_id"?: string | null,"name"?: string,"status"?: string,"synced_at"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"wa_webhook_events": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"error": string | null,"id": number,"payload": NonNullable<Json>,"received_at": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"error"?: string | null,"id"?: never,"payload": NonNullable<Json>,"received_at"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"error"?: string | null,"id"?: never,"payload"?: NonNullable<Json>,"received_at"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 }
           }
           Views: {
             [_ in never]: never
           }
           Functions: {
-            "can_see_finance":
+            "can_see_conversation":
+{ Args: { "p_id": string }; Returns: boolean
+                           },
+"can_see_finance":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "can_work_leads":
@@ -277,10 +464,22 @@ isOneToOne: false
 { Args: { "p_batch_id": string }; Returns: {
               "kept": number,"removed": number
             }[]
+                           },
+"wa_ingest":
+{ Args: { "payload": Json }; Returns: Json
+                           },
+"wa_refresh_broadcast_counts":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"wa_status_rank":
+{ Args: { "s": Database["public"]['Enums']["wa_message_status"] }; Returns: number
+                           },
+"wa_worker_tick":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            }
           }
           Enums: {
-            "account_role": "owner"|"specialist","app_role": "admin"|"bd"|"account_specialist","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW"
+            "account_role": "owner"|"specialist","app_role": "admin"|"bd"|"account_specialist","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -400,7 +599,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_role": ["owner", "specialist"],"app_role": ["admin", "bd", "account_specialist"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"]
+            "account_role": ["owner", "specialist"],"app_role": ["admin", "bd", "account_specialist"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
           }
         }
 } as const

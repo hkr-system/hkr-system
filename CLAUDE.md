@@ -49,6 +49,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | 0 Foundation | Built (Oct 2026): auth, roles, RLS helpers, audit log, settings, app shell, demo seed |
 | 1 Leads | Built (Oct 2026): leads, My day, list, detail + timeline, Kanban, /apply form, importer, scoring settings, Brevo sync (inactive until BREVO_API_KEY) |
 | 2 WhatsApp | Built (Oct 2026): webhook Edge Function, inbox (realtime, 24h window, templates, files, assignment), templates sync, numbers admin, broadcasts (bd drafts / admin approves, throttled worker), notifications, leads overview dashboard, collapsible menu, resizable columns |
+| Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
 | 3 Accounts, orders, payments | Next |
 | 4–7 | Not started |
 
@@ -62,7 +63,8 @@ src/
       <module>/page.tsx    one folder per menu item (dashboard, accounts, orders, rmas,
                            price-lists, leads, whatsapp, settings)
     actions.ts             signOut
-    apply/                 PUBLIC lead qualification form (EN/ES), uses the admin client
+    apply/                 PUBLIC landing + 3-step qualification form (EN/ES): page.tsx (tracking src/ref/utm),
+                           landing.tsx (sections), apply-form.tsx, thanks.tsx, texts.ts (all copy), actions.ts
     api/cron/              Vercel Cron routes (need Authorization: Bearer CRON_SECRET)
     (app)/leads/           Overview dashboard (page.tsx), my-day/, list/, [id]/, board/, new/, import/, actions.ts
     (app)/whatsapp/        inbox (page.tsx, ?c=<conversation>), broadcasts/, templates/, numbers/, actions.ts
@@ -70,6 +72,7 @@ src/
     api/cron/wa-worker     every-minute worker (called by Supabase pg_cron → public.wa_worker_tick())
   components/
     ui/                    shadcn/ui components (generated; edit sparingly)
+    leads/share-form-dialog.tsx  "Share form": /apply links per channel + owner, copy, QR (qrcode)
     shell/                 sidebar links, mobile menu, clocks, user menu
     no-access.tsx          "No access" page
     viz.tsx                StatTile, BarList, Funnel (single hue --viz-1, no chart library)
@@ -177,6 +180,35 @@ into Supabase → SQL Editor → Run (until the Supabase CLI is linked).
 Demo users (hosted: created by hand in Authentication → Users with Auto Confirm; roles set by seed.sql):
 gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atreyi.demo@
 (account_specialist) — all `@hk-refurbished-stock.com`.
+
+## Brand (decided by Gabriel, Oct 27 2026)
+
+- Tokens in `src/app/globals.css` (`--hkr-*`, also Tailwind utilities `bg-hkr-*`, `text-hkr-*`); source of truth
+  is the project doc `claude/HKR_brand_tokens.md`. Light ground only: NO navy and NO red as backgrounds; navy for
+  type and marks, red (`--hkr-action` = shadcn `--primary`) only for the one primary button per screen and alerts.
+  No dark theme (`.dark` mirrors light).
+- Fonts: Archivo (headings, `--font-heading`, applied to h1–h3 and `.font-heading`) + Source Sans 3 (body).
+  Tables and `[data-tabular]` use tabular-nums.
+- Logo `public/brand/logo.png` (transparent) in sidebar, mobile menu, login, /apply; brand photos in `public/brand/photos`.
+- `/settings/brand` (admin) shows every token, buttons, chips and a sample table: check it before styling new screens.
+- Client-facing figures on /apply come from the SOP (12-month warranty, 1–2 % defects, MOQ US$20,000, sample from
+  US$10,000 for 400+/month). Never show prices or engine percentages on /apply.
+
+## /apply landing (Oct 27 2026)
+
+- Link format shared with leads: `/apply?lang=es|en&src=wa|email|linkedin|expo|direct&ref=<owner first name>&utm_*`;
+  stored in `lead_form_submissions.src / ref / utm`. Leads → "Share form" builds these links (admin + bd) with a QR.
+- Public reference `HKR-YY-NNNN` from `lead_form_submissions.ref_no`; written to the lead timeline and prefilled in the
+  WhatsApp message of the thank-you page.
+- Thank-you WhatsApp number: the lead market's number (`wa_number_by_market`, active, not demo), else the setting
+  `apply_whatsapp_public` (Settings → Landing page). Empty → the WhatsApp button is hidden.
+- "How did you hear about us" = other → required free text (`heard_other`, also in the timeline).
+- Welcome-kit buttons (who we are, videos/photos, booklet) show "Coming soon" until marketing files exist
+  (planned: `marketing_assets` + public bucket, Settings → Landing).
+- Form fields: step 1 company/country/city/website; step 2 business_type, sells_iphones, sells_refurbished,
+  volume_range, heard_about(+other); step 3 contact_name, title, dial_code + phone_national, email, opt-in.
+  Draft kept in localStorage (`hkr_apply_draft`). Segment cards preselect volume_range (small→100-399,
+  medium→400-999, large→1000+).
 
 ## Decisions log
 

@@ -49,6 +49,8 @@
 }
 
 :root {
+  --viz-1: #2a78d6; /* single-series data colour (dataviz reference palette, slot 1) */
+  --viz-track: color-mix(in oklab, #2a78d6 12%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -84,6 +86,8 @@
 }
 
 .dark {
+  --viz-1: #3987e5;
+  --viz-track: color-mix(in oklab, #3987e5 18%, transparent);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -130,4 +134,10 @@
   html {
     @apply font-sans;
   }
+}
+/* Resized tables (see components/ui/table.tsx): long content is cut with an ellipsis. */
+table[data-resized] th,
+table[data-resized] td {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

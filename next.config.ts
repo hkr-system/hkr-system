@@ -5,6 +5,10 @@ import type { NextConfig } from "next";
 // and safer (no risk of caching one user's data for another).
 const nextConfig: NextConfig = {
   cacheComponents: false,
+  experimental: {
+    // Lead imports send up to 5,000 rows to a Server Action.
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

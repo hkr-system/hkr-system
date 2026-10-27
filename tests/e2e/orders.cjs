@@ -37,7 +37,7 @@ function tmpFile(name, content) {
   let newOrderUrl;
   {
     const { ctx, page } = await login(browser, 'atreyi');
-    await page.goto(BASE + '/accounts');
+    await page.goto(BASE + '/accounts/list');
     check((await page.locator('[data-testid=accounts-table] tbody tr').count()) === 4, 'specialist sees all 4 demo accounts');
     await page.goto(BASE + '/accounts/new');
     await page.fill('input[name=name]', 'Brick Phones');
@@ -132,7 +132,7 @@ function tmpFile(name, content) {
   // Yessica (bd): only own accounts
   {
     const { ctx, page } = await login(browser, 'yessica');
-    await page.goto(BASE + '/accounts');
+    await page.goto(BASE + '/accounts/list');
     const t = await page.textContent('[data-testid=accounts-table]');
     check(t.includes('AMS-NL-901') && t.includes('MEX-MX-903') && !t.includes('BER-DE-902'), 'bd sees only the accounts she owns');
     await page.goto(BASE + '/orders?status=all');

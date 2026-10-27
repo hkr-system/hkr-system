@@ -8,7 +8,7 @@ const DIR = process.env.SCREENSHOT_DIR || require('path').join(__dirname, '.scre
 require('fs').mkdirSync(DIR, { recursive: true });
 const PW = 'LocalDemo-2026!';
 const users = [
-  { name: 'gabriel', role: 'Admin', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp','settings'] },
+  { name: 'gabriel', role: 'Admin', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp','finance','settings'] },
   { name: 'yessica', role: 'Business development', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp'] },
   { name: 'arslan', role: 'Business development', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp'] },
   { name: 'atreyi', role: 'Account specialist', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp'] },

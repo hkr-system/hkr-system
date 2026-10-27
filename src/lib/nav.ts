@@ -11,6 +11,7 @@ export type SectionKey =
   | "price-lists"
   | "leads"
   | "whatsapp"
+  | "finance"
   | "settings";
 
 export type Section = {
@@ -20,6 +21,7 @@ export type Section = {
   roles: readonly AppRole[];
   readOnlyFor?: readonly AppRole[];
   phase: number; // build phase that delivers the module (brief §10)
+  also?: readonly string[]; // other paths that belong to this menu item (highlighted as active)
   summary: string;
 };
 
@@ -30,8 +32,8 @@ export const SECTIONS: readonly Section[] = [
     summary: "Widgets per role, daily report, Thursday queue and alerts." },
   { key: "accounts", label: "Accounts", href: "/accounts", roles: ALL, phase: 3,
     summary: "Client accounts, contacts, files and the new-account wizard." },
-  { key: "orders", label: "Orders", href: "/orders", roles: ALL, phase: 3,
-    summary: "Orders, payments, shipping readiness and invoices." },
+  { key: "orders", label: "Sales", href: "/sales", also: ["/orders"], roles: ALL, phase: 3,
+    summary: "Sales dashboard, orders, payments, shipping readiness and invoices." },
   { key: "rmas", label: "RMAs", href: "/rmas", roles: ALL, phase: 4,
     summary: "RMA intake, IMEI check, weekly EU batches and credit notes." },
   { key: "price-lists", label: "Price lists", href: "/price-lists", roles: ALL, phase: 6,
@@ -40,6 +42,8 @@ export const SECTIONS: readonly Section[] = [
     summary: "Leads, stages, next actions, the public qualification form and Brevo sync." },
   { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", roles: ALL, phase: 2,
     summary: "Inbox for the 4 numbers, templates and broadcasts." },
+  { key: "finance", label: "Finance", href: "/finance", roles: ["admin"], phase: 3,
+    summary: "Sales goals, sales history, projections and margins (admin)." },
   { key: "settings", label: "Settings", href: "/settings", roles: ["admin"], phase: 0,
     summary: "Parameters, users and scoring rules." },
 ];

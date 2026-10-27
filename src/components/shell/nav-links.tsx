@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Building2, ShoppingCart, RotateCcw, Tags, Target, MessageCircle, Settings,
+  LayoutDashboard, Building2, ShoppingCart, RotateCcw, Tags, Target, MessageCircle, Settings, Landmark,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,10 +18,11 @@ const ICONS: Record<SectionKey, LucideIcon> = {
   "price-lists": Tags,
   leads: Target,
   whatsapp: MessageCircle,
+  finance: Landmark,
   settings: Settings,
 };
 
-export type NavItem = { key: SectionKey; label: string; href: string };
+export type NavItem = { key: SectionKey; label: string; href: string; also?: readonly string[]; badge?: number };
 
 export function NavLinks({ items, onNavigate, collapsed }: { items: NavItem[]; onNavigate?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
@@ -29,7 +30,7 @@ export function NavLinks({ items, onNavigate, collapsed }: { items: NavItem[]; o
     <nav aria-label="Main" className="grid gap-0.5">
       {items.map((item) => {
         const Icon = ICONS[item.key];
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = [item.href, ...(item.also ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
         const link = (
           <Link
             key={item.key}
@@ -44,14 +45,21 @@ export function NavLinks({ items, onNavigate, collapsed }: { items: NavItem[]; o
               collapsed && "justify-center px-0",
             )}
           >
-            <Icon className="size-4 shrink-0" aria-hidden />
+            <span className="relative">
+              <Icon className="size-4 shrink-0" aria-hidden />
+              {collapsed && item.badge ? <span className="absolute -top-1 -right-1 size-2 rounded-full bg-hkr-action" aria-hidden /> : null}
+            </span>
             {collapsed ? null : <span className="truncate">{item.label}</span>}
+            {!collapsed && item.badge ? (
+              <span className="ml-auto min-w-5 rounded-full bg-hkr-action px-1.5 text-center text-[11px] leading-5 font-semibold text-white tabular-nums"
+                data-testid={`badge-${item.key}`} aria-label={`${item.badge} pending`}>{item.badge > 99 ? "99+" : item.badge}</span>
+            ) : null}
           </Link>
         );
         return collapsed ? (
           <Tooltip key={item.key}>
             <TooltipTrigger asChild>{link}</TooltipTrigger>
-            <TooltipContent side="right">{item.label}</TooltipContent>
+            <TooltipContent side="right">{item.label}{item.badge ? ` (${item.badge})` : ""}</TooltipContent>
           </Tooltip>
         ) : link;
       })}

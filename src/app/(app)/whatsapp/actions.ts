@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { adminClientAvailable, createAdminClient } from "@/lib/supabase/admin";
-import { listNumbers, listTemplates, numberHealth, subscribeAppToWaba, wabaId, whatsappConfigured } from "@/lib/whatsapp/graph";
+import { listNumbers, listTemplates, numberHealth, registerNumber, subscribeAppToWaba, wabaId, whatsappConfigured } from "@/lib/whatsapp/graph";
 import { ensureConversation, graphVersion, sendFileMessage, sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/service";
 import { fillBody } from "@/lib/whatsapp/templates";
 import { notifyUsers } from "@/lib/notify";
@@ -180,7 +180,23 @@ export async function refreshNumberHealth(id: string): Promise<WaState> {
       ...(red ? { broadcasts_paused: true, paused_reason: "Quality rating Low (RED): broadcasts paused automatically" } : {}),
     }).eq("id", n.id);
     refresh();
-    return { ok: true };
+    const meta = [h.status && `Meta status ${h.status}`, h.name_status && `name ${h.name_status}`].filter(Boolean).join(" · ");
+    return { ok: true, message: meta ? `Done. ${meta}.` : "Done." };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+export async function registerNumberForApi(_p: WaState, fd: FormData): Promise<WaState> {
+  await requireRole(["admin"]);
+  const pin = String(fd.get("pin") ?? "").trim();
+  if (!/^\d{6}$/.test(pin)) return { error: "The PIN must be exactly 6 digits." };
+  const db = await createClient();
+  const { data: n } = await db.from("wa_numbers").select("phone_number_id, is_demo").eq("id", String(fd.get("id"))).maybeSingle();
+  if (!n || n.is_demo) return { error: "Demo numbers cannot be registered." };
+  try {
+    await registerNumber(await graphVersion(db), n.phone_number_id, pin);
+    return { ok: true, message: "Registered: this number can now send and receive through the system. Keep the PIN safe." };
   } catch (e) {
     return err(e);
   }

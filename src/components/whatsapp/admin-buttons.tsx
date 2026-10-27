@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { importNumbers, refreshNumberHealth, syncTemplates, updateNumber, updateNumberByMarket, type WaState } from "@/app/(app)/whatsapp/actions";
+import { importNumbers, refreshNumberHealth, registerNumberForApi, syncTemplates, updateNumber, updateNumberByMarket, type WaState } from "@/app/(app)/whatsapp/actions";
 
 function useAction(fn: () => Promise<WaState>) {
   const [pending, start] = useTransition();
@@ -49,6 +49,22 @@ export function HealthButton({ id }: { id: string }) {
   );
 }
 
+function RegisterForm({ id }: { id: string }) {
+  const [state, action, pending] = useActionState(registerNumberForApi, {});
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="cursor-pointer text-muted-foreground">Register with Meta (new number)</summary>
+      <form action={action} className="mt-2 flex flex-wrap items-center gap-2">
+        <input type="hidden" name="id" value={id} />
+        <Input name="pin" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="6-digit PIN" className="h-8 w-28" aria-label="Two-step PIN" autoComplete="off" />
+        <Button type="submit" size="xs" variant="outline" disabled={pending}>{pending ? "…" : "Register"}</Button>
+        <Result state={state} />
+      </form>
+      <p className="mt-1 text-muted-foreground">Choose a 6-digit PIN and keep it: Meta asks for it if the number is ever registered again.</p>
+    </details>
+  );
+}
+
 export type NumberRow = {
   id: string; label: string | null; display_phone: string; market: string | null; daily_broadcast_limit: number;
   broadcasts_paused: boolean; paused_reason: string | null; active: boolean; is_demo: boolean;
@@ -68,6 +84,7 @@ export function NumberEditRow({ n }: { n: NumberRow }) {
           <span>· {n.messaging_tier ?? "tier —"}</span>
           {!n.is_demo ? <HealthButton id={n.id} /> : null}
         </div>
+        {!n.is_demo ? <RegisterForm id={n.id} /> : null}
       </TableCell>
       <TableCell colSpan={2} className="whitespace-normal">
         <form action={action} className="flex flex-wrap items-center gap-2">

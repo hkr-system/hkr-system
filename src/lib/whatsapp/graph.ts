@@ -106,9 +106,22 @@ export async function listTemplates(v: string, waba: string) {
 }
 
 export function numberHealth(v: string, phoneNumberId: string) {
-  return graph<{ display_phone_number?: string; verified_name?: string; quality_rating?: string; messaging_limit_tier?: string }>(
-    v, `${phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier`,
+  return graph<{
+    display_phone_number?: string; verified_name?: string; quality_rating?: string; messaging_limit_tier?: string;
+    status?: string; name_status?: string; code_verification_status?: string;
+  }>(
+    v, `${phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier,status,name_status,code_verification_status`,
   );
+}
+
+// A number added in Meta must be "registered" for Cloud API once, with a 6-digit two-step PIN the admin chooses
+// (the same PIN is needed if the number is ever registered again).
+export function registerNumber(v: string, phoneNumberId: string, pin: string) {
+  return graph<{ success?: boolean }>(v, `${phoneNumberId}/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", pin }),
+  });
 }
 
 // Meta only sends a WhatsApp account's messages to the webhook of apps "subscribed" to that account.

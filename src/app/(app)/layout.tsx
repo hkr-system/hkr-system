@@ -6,6 +6,9 @@ import { MobileNav } from "@/components/shell/mobile-nav";
 import { Clocks } from "@/components/shell/clocks";
 import { UserMenu } from "@/components/shell/user-menu";
 import { NoAccess } from "@/components/no-access";
+import { NotificationsBell } from "@/components/shell/notifications-bell";
+import { createClient } from "@/lib/supabase/server";
+import { formatDateTime } from "@/lib/format";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -23,6 +26,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const items = sectionsFor(user.role).map(({ key, label, href }) => ({ key, label, href }));
+  const db = await createClient();
+  const [{ data: notes }, { count: unread }] = await Promise.all([
+    db.from("notifications").select("id, title, body, link, read_at, created_at").order("created_at", { ascending: false }).limit(10),
+    db.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
+  ]);
 
   return (
     <div className="flex min-h-svh">
@@ -39,7 +47,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
           <MobileNav items={items} />
           <Clocks />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationsBell unread={unread ?? 0}
+              notes={(notes ?? []).map((n) => ({ ...n, when: formatDateTime(n.created_at, user.timezone) }))} />
             <UserMenu name={user.fullName} email={user.email} roleLabel={ROLE_LABELS[user.role]} />
           </div>
         </header>

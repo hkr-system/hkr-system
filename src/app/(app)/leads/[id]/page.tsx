@@ -14,6 +14,8 @@ import { EventComposer, NextActionPanel, OwnerPanel, StagePanel } from "@/compon
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateLead } from "../actions";
+import { StartChat } from "@/components/whatsapp/start-chat";
+import { numberForMarket } from "@/lib/whatsapp/service";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -36,6 +38,12 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
     loadTeam(db),
   ]);
   if (!lead) notFound();
+  const [{ data: chats }, { data: waNumbers }, defaultNumber] = await Promise.all([
+    db.from("wa_conversations").select("id, last_message_at, last_message_preview, wa_numbers(label, display_phone)")
+      .eq("lead_id", lead.id).order("last_message_at", { ascending: false, nullsFirst: false }),
+    db.from("wa_numbers").select("id, label, display_phone").eq("active", true).eq("is_demo", false).order("label"),
+    numberForMarket(db, lead.market),
+  ]);
   const names = new Map(team.map((t) => [t.user_id, t.full_name]));
   const workers = team.filter((t) => t.role !== "account_specialist");
 
@@ -120,6 +128,24 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                   <OwnerPanel id={lead.id} owner={lead.owner_user_id} team={workers} />
                 </>
               )}
+            </CardContent>
+          </Card>
+          <Card data-testid="lead-whatsapp">
+            <CardHeader><CardTitle className="text-sm">WhatsApp</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 text-sm">
+              {(chats ?? []).map((c) => {
+                const n = Array.isArray(c.wa_numbers) ? c.wa_numbers[0] : c.wa_numbers;
+                return (
+                  <Link key={c.id} href={`/whatsapp?c=${c.id}`} className="rounded-md border p-2 hover:bg-muted/60">
+                    <span className="block text-xs text-muted-foreground">via {n?.label ?? n?.display_phone}</span>
+                    <span className="block truncate">{c.last_message_preview ?? "No messages yet"}</span>
+                  </Link>
+                );
+              })}
+              {lead.phone_e164 ? (
+                <StartChat leadId={lead.id} defaultNumber={defaultNumber}
+                  numbers={(waNumbers ?? []).map((n) => ({ id: n.id, label: `${n.label ?? "Number"} · ${n.display_phone}` }))} />
+              ) : <p className="text-xs text-muted-foreground">Add a phone number to chat on WhatsApp.</p>}
             </CardContent>
           </Card>
           <Card>

@@ -26,7 +26,7 @@ function Empty({ children }: { children: React.ReactNode }) {
 export default async function MyDayPage() {
   const access = await checkSection("leads");
   if (!access.allowed) return <NoAccess />;
-  if (access.readOnly) redirect("/leads/list");
+  if (access.readOnly) redirect("/leads");
   const { user } = access;
   const db = await createClient();
   const today = todayIn(user.timezone);

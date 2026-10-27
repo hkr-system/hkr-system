@@ -66,7 +66,7 @@ const users = [
       check(!!noAccess, `${u.name}: /settings shows No access`);
       await page.screenshot({ path: `${DIR}/${u.name}-settings.png` });
     }
-    await page.goto(BASE + '/leads');
+    await page.goto(BASE + '/leads/list');
     const ro = await page.getByText('Read-only for your role').count();
     check(u.name === 'atreyi' ? ro === 1 : ro === 0, `${u.name}: leads read-only badge = ${ro}`);
     // sign out

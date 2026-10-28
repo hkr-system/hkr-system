@@ -1,6 +1,7 @@
 // Tab bars of the Sales and Accounts sections (plain data: usable from server pages).
 export const SALES_TABS = [
   { href: "/sales", label: "Dashboard", exact: true },
+  { href: "/sales/mix", label: "Sales mix" },
   { href: "/orders", label: "All orders" },
   { href: "/orders/new", label: "New order", exact: true },
 ];

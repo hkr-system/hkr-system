@@ -34,14 +34,25 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
 
   const thisMonth = monthStart(today);
   const lastMonth = addMonths(thisMonth, -1);
-  const [rows, monthRows, { data: open }, { data: accounts }, team, { data: goals }] = await Promise.all([
+  const [rows, monthRows, { data: open }, { data: accounts }, team, { data: goals }, { data: cycle }] = await Promise.all([
     loadSales(db, from, to),
     loadSales(db, lastMonth, today),
     db.from("order_overview").select("id, status, total_usd, payment_awaiting, deposit_confirmed, balance_ok, eta_date").in("status", OPEN_ORDER_STATUSES),
     db.from("accounts").select("id, code, name, market"),
     loadTeam(db),
     db.from("sales_goals").select("month, owner_user_id, amount_usd").gte("month", addMonths(from, -1)),
+    db.from("order_cycle").select("order_date, ship_date, paid_on, fully_paid, outstanding, pays_in_eur, processing_days, cash_cycle_days, total_usd").limit(10000),
   ]);
+  // Order KPIs (Gabriel, Oct 27 2026): processing = deposit confirmed → shipped; cash cycle = invoice → fully paid
+  const cyc = cycle ?? [];
+  const inPeriod = (d: string | null) => Boolean(d) && d! >= from && d! <= to;
+  const made = cyc.filter((c) => inPeriod(c.order_date));
+  const avg = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const procDays = avg(cyc.filter((c) => inPeriod(c.ship_date)).map((c) => c.processing_days));
+  const cashDays = avg(cyc.filter((c) => inPeriod(c.paid_on)).map((c) => c.cash_cycle_days));
+  const pendingPay = cyc.filter((c) => Number(c.outstanding) > 0.004);
+  const toCollect = (eur: boolean) => pendingPay.filter((c) => Boolean(c.pays_in_eur) === eur).reduce((t, c) => t + Number(c.outstanding), 0);
+  const days = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)} days`);
   const acc = new Map((accounts ?? []).map((a) => [a.id, a]));
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
 
@@ -112,6 +123,16 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
         </div>
       </PageHeader>
       <SectionTabs tabs={SALES_TABS} />
+
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7" data-testid="order-kpis">
+        <StatTile label="Orders made" value={made.length} sub="invoiced, in the period" href="/orders?status=all" />
+        <StatTile label="Orders paid" value={made.filter((c) => c.fully_paid).length} sub="of those, fully paid" />
+        <StatTile label="Pending payment" value={pendingPay.length} sub="deposit or balance due, today" tone="attention" href="/orders" />
+        <StatTile label="To collect" value={usd(toCollect(false))} sub={toCollect(true) ? `+ ${money(toCollect(true), "EUR")} (EU partner)` : "money still due on invoiced orders"} />
+        <StatTile label="Avg processing" value={days(procDays)} sub="deposit confirmed → shipped" />
+        <StatTile label="Avg cash cycle" value={days(cashDays)} sub="invoice → fully paid" />
+        {seesRevenue ? <StatTile label="Average order" value={usd(made.length ? made.reduce((t, c) => t + Number(c.total_usd), 0) / made.length : 0)} sub="invoice total, period" /> : null}
+      </div>
 
       {seesRevenue ? (
         <div className="grid gap-4">

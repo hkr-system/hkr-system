@@ -41,7 +41,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
   const { data: a } = await db.from("accounts").select("*, intermediaries(name)").eq("id", id).maybeSingle();
   if (!a) notFound();
 
-  const [team, assign, contacts, orders, files, intermediaries, terms, chats, rmas, cns, portalUsers] = await Promise.all([
+  const [team, assign, contacts, orders, files, intermediaries, terms, chats, rmas, cns, portalUsers, cycle] = await Promise.all([
     loadTeam(db),
     loadAssignments(db, [id]),
     db.from("contacts").select("id, name, role, phone_e164, email, language, whatsapp_opt_in").eq("account_id", id).order("created_at"),
@@ -53,7 +53,21 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     db.from("rma_overview").select("id, number, status, units, units_not_found, credit_usd, cap_usd, created_at").eq("account_id", id).order("created_at", { ascending: false }),
     db.from("credit_notes").select("id, number, status, amount, currency, issued_on, applied_invoice_no").eq("account_id", id).order("created_at", { ascending: false }),
     db.from("portal_users").select("id, email, language, active, last_login_at, created_at, contacts(name)").eq("account_id", id).order("created_at"),
+    db.from("order_cycle").select("total_usd, order_date, outstanding, pays_in_eur, processing_days, cash_cycle_days, fully_paid").eq("account_id", id),
   ]);
+  const cyc = cycle.data ?? [];
+  const avgOf = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const yearAgo = new Date(Date.parse(todayIn(user.timezone)) - 365 * 86400_000).toISOString().slice(0, 10);
+  const last12 = cyc.filter((c) => c.order_date! >= yearAgo);
+  const stats = {
+    orders: cyc.length,
+    avgOrder: avgOf(cyc.map((c) => Number(c.total_usd))),
+    avgOrder12: avgOf(last12.map((c) => Number(c.total_usd))),
+    proc: avgOf(cyc.map((c) => c.processing_days)),
+    cash: avgOf(cyc.map((c) => c.cash_cycle_days)),
+    dueUsd: cyc.filter((c) => !c.pays_in_eur).reduce((t, c) => t + Number(c.outstanding), 0),
+    dueEur: cyc.filter((c) => c.pays_in_eur).reduce((t, c) => t + Number(c.outstanding), 0),
+  };
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const as = assign.get(id) ?? { owner: null, specialist: null };
   const orderRows = (orders.data ?? []) as unknown as OrderRow[];
@@ -97,6 +111,16 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             <CardContent className="px-0"><OrdersTable orders={open} showAccount={false} today={today} /></CardContent>
           </Card>
           <div className="grid content-start gap-4">
+            <Card data-testid="account-order-stats">
+              <CardHeader><CardTitle>Orders at a glance</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm" data-tabular>
+                <div><span className="block text-xs text-muted-foreground">Orders (invoiced)</span>{stats.orders}</div>
+                <div><span className="block text-xs text-muted-foreground">Average order</span>{stats.avgOrder === null ? "—" : money(stats.avgOrder)}<span className="block text-xs text-muted-foreground">last 12 months {stats.avgOrder12 === null ? "—" : money(stats.avgOrder12)}</span></div>
+                <div><span className="block text-xs text-muted-foreground">Avg processing (deposit → shipped)</span>{stats.proc === null ? "—" : `${stats.proc.toFixed(1)} days`}</div>
+                <div><span className="block text-xs text-muted-foreground">Avg cash cycle (invoice → paid)</span>{stats.cash === null ? "—" : `${stats.cash.toFixed(1)} days`}</div>
+                <div className="col-span-2"><span className="block text-xs text-muted-foreground">Still to collect</span><span className={stats.dueUsd + stats.dueEur > 0 ? "font-medium text-hkr-action" : ""}>{money(stats.dueUsd)}{stats.dueEur ? ` + ${money(stats.dueEur, "EUR")}` : ""}</span></div>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader><CardTitle>Set-up</CardTitle></CardHeader>
               <CardContent className="grid gap-1.5 text-sm">

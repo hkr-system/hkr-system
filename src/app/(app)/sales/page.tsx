@@ -34,7 +34,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
 
   const thisMonth = monthStart(today);
   const lastMonth = addMonths(thisMonth, -1);
-  const [rows, monthRows, { data: open }, { data: accounts }, team, { data: goals }, { data: cycle }] = await Promise.all([
+  const [rows, monthRows, { data: open }, { data: accounts }, team, { data: goals }, { data: cycle }, assign, { data: lines }] = await Promise.all([
     loadSales(db, from, to),
     loadSales(db, lastMonth, today),
     db.from("order_overview").select("id, status, total_usd, payment_awaiting, deposit_confirmed, balance_ok, eta_date").in("status", OPEN_ORDER_STATUSES),
@@ -42,6 +42,10 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
     loadTeam(db),
     db.from("sales_goals").select("month, owner_user_id, amount_usd").gte("month", addMonths(from, -1)),
     db.from("order_cycle").select("order_date, ship_date, paid_on, fully_paid, outstanding, pays_in_eur, processing_days, cash_cycle_days, total_usd").limit(10000),
+    user.role === "admin" ? loadAssignments(db) : Promise.resolve(null),
+    // units by model of the same orders as the revenue (status ≥ Invoiced, order date in the period)
+    db.from("order_lines").select("qty, unit_price_usd, skus(model, storage_gb, color), orders!inner(order_date, status)")
+      .gte("orders.order_date", from).lte("orders.order_date", to).neq("orders.status", "quoted").limit(20000),
   ]);
   // Order KPIs (Gabriel, Oct 27 2026): processing = deposit confirmed → shipped; cash cycle = invoice → fully paid
   const cyc = cycle ?? [];
@@ -98,12 +102,8 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
     hint: total ? `${Math.round((v / total) * 100)}% of revenue` : undefined,
   }));
   const byMarket = by((r) => acc.get(r.account_id)?.market ?? "—").map(([k, v]) => ({ label: k, value: Math.round(v) }));
-  const assign = user.role === "admin" ? await loadAssignments(db) : null;
   const byOwner = assign ? by((r) => names.get(assign.get(r.account_id)?.owner ?? "") ?? "No owner").map(([k, v]) => ({ label: k, value: Math.round(v) })) : [];
 
-  const { data: lines } = rows.length
-    ? await db.from("order_lines").select("qty, unit_price_usd, skus(model, storage_gb, color)").in("order_id", rows.map((r) => r.order_id))
-    : { data: [] };
   const models = new Map<string, number>();
   for (const l of lines ?? []) {
     const s = l.skus as { model: string; storage_gb: number; color: string } | null;

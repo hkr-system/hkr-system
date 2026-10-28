@@ -168,6 +168,10 @@ fixtures/                  (from Phase 3) real templates and sample files given 
   UI checks are convenience only; RLS is the real guard.
 - Menu visibility and read-only roles are defined once in `src/lib/nav.ts`.
 - Cache Components is OFF (`next.config.ts`): every page is per-user and rendered on request.
+- Speed (Gabriel, Oct 28 2026): `(app)/loading.tsx` and `portal/(main)/loading.tsx` show a skeleton the instant a link is
+  clicked; menu counters and the bell stream in (`components/shell/streamed.tsx`, inside <Suspense>) so a page never waits
+  for them. In pages, start every independent query in ONE `Promise.all` (no await chains). Vercel functions run in iad1,
+  next to Supabase (East US).
 - Times: store UTC; display Hong Kong (`Asia/Hong_Kong`) and El Salvador (`America/El_Salvador`).
 
 ## Commands

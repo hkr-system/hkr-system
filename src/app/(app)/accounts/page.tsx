@@ -39,7 +39,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
   const { from, to } = periodRange(period, today);
   const db = await createClient();
 
-  const [{ data: accounts }, { data: allOrders }, sales, team, { data: setting }, { data: rmaRows }, { data: cnRows }] = await Promise.all([
+  const [{ data: accounts }, { data: allOrders }, sales, team, { data: setting }, { data: rmaRows }, { data: cnRows }, assign] = await Promise.all([
     db.from("accounts").select("id, code, name, market, status").neq("status", "closed").order("code"),
     db.from("order_overview").select("account_id, status, order_date, payment_awaiting, deposit_confirmed, balance_ok, eta_date").limit(5000),
     loadSales(db, from, to),
@@ -47,12 +47,12 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
     db.from("settings").select("value").eq("key", "account_inactive_days").maybeSingle(),
     db.from("rma_overview").select("account_id, status, units, created_at").limit(5000),
     db.from("credit_notes").select("account_id, amount, currency, status, issued_on").in("status", ["issued", "applied"]).gte("issued_on", from).lte("issued_on", to),
+    loadAssignments(db),   // RLS already limits it to the accounts this user sees
   ]);
   const openRmasOf = (acc: string) => (rmaRows ?? []).filter((r) => r.account_id === acc && r.status !== "closed");
   const rmaUnitsIn = (acc: string) => (rmaRows ?? []).filter((r) => r.account_id === acc && r.created_at! >= from && r.created_at!.slice(0, 10) <= to).reduce((t, r) => t + Number(r.units ?? 0), 0);
   const cnIn = (acc: string) => (cnRows ?? []).filter((c) => c.account_id === acc).reduce((t, c) => t + Number(c.amount), 0);
   const inactiveDays = Number(setting?.value ?? 45);
-  const assign = await loadAssignments(db, (accounts ?? []).map((a) => a.id));
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const orders = allOrders ?? [];
   const showMargin = user.role !== "account_specialist";

@@ -30,13 +30,14 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
 
   // 15 months of history before January feed the suggestion (seasonality needs last year)
   const histFrom = addMonths(months[0], -15);
-  const [rows, team, { data: goals }, { data: history }, { data: projections }, { data: accounts }] = await Promise.all([
+  const [rows, team, { data: goals }, { data: history }, { data: projections }, { data: accounts }, assign] = await Promise.all([
     loadSales(db, histFrom, `${year}-12-31`),
     loadTeam(db),
     db.from("sales_goals").select("month, owner_user_id, amount_usd").gte("month", months[0]).lte("month", months[11]),
     db.from("sales_history").select("month, amount_usd").gte("month", histFrom),
     db.from("sales_projections").select("month, amount_usd, suggested_usd").gte("month", months[0]).lte("month", months[11]),
     db.from("accounts").select("id, code, name"),
+    loadAssignments(db),
   ]);
   const owners = team.filter((t) => t.role === "bd" || t.role === "admin");
   const system = new Map<string, number>();
@@ -63,7 +64,6 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
   const yearRev = yearRows.reduce((s, r) => s + r.total_usd, 0);
 
   const acc = new Map((accounts ?? []).map((a) => [a.id, a]));
-  const assign = await loadAssignments(db);
   const marginBy = (key: (r: (typeof yearRows)[number]) => string) => {
     const m = new Map<string, number>();
     for (const r of yearRows) m.set(key(r), (m.get(key(r)) ?? 0) + (r.margin_usd ?? 0));

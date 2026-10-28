@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 
-const PUBLIC_PATHS = ["/login", "/apply"];
+const PUBLIC_PATHS = ["/login", "/apply", "/portal/login", "/portal/auth"];
 
 // Runs before every page: refreshes the Supabase session cookie and sends
 // logged-out visitors to /login. Role checks happen in the pages (src/lib/auth.ts)
@@ -33,9 +33,13 @@ export async function updateSession(request: NextRequest) {
 
   if (!isLoggedIn && !isPublic) {
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
     loginUrl.search = "";
-    if (path !== "/") loginUrl.searchParams.set("next", path);
+    if (path === "/portal" || path.startsWith("/portal/")) {
+      loginUrl.pathname = "/portal/login";   // clients sign in with an email link
+    } else {
+      loginUrl.pathname = "/login";
+      if (path !== "/") loginUrl.searchParams.set("next", path);
+    }
     return redirectWithCookies(loginUrl, response);
   }
 

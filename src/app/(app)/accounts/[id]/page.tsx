@@ -13,6 +13,9 @@ import { NoAccess } from "@/components/no-access";
 import { AccountStatusBadge } from "@/components/accounts/badges";
 import { AccountForm } from "@/components/accounts/account-form";
 import { ContactsPanel } from "@/components/accounts/contacts-panel";
+import { PortalPanel } from "@/components/accounts/portal-panel";
+import { CnStatusBadge, Flag, RmaStatusBadge } from "@/components/rmas/badges";
+import type { RmaStatus } from "@/lib/rmas/constants";
 import { OrdersTable, type OrderRow } from "@/components/orders/orders-table";
 import { FileUpload } from "@/components/orders/file-upload";
 import { Button } from "@/components/ui/button";
@@ -23,7 +26,7 @@ export const metadata: Metadata = { title: "Account" };
 
 const TABS = [
   ["overview", "Overview"], ["contacts", "Contacts"], ["orders", "Orders"],
-  ["rmas", "RMAs"], ["price-lists", "Price lists"], ["files", "Files"], ["edit", "Set-up"],
+  ["rmas", "RMAs"], ["price-lists", "Price lists"], ["files", "Files"], ["portal", "Client portal"], ["edit", "Set-up"],
 ] as const;
 
 export default async function AccountPage({ params, searchParams }: PageProps<"/accounts/[id]">) {
@@ -38,7 +41,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
   const { data: a } = await db.from("accounts").select("*, intermediaries(name)").eq("id", id).maybeSingle();
   if (!a) notFound();
 
-  const [team, assign, contacts, orders, files, intermediaries, terms, chats] = await Promise.all([
+  const [team, assign, contacts, orders, files, intermediaries, terms, chats, rmas, cns, portalUsers] = await Promise.all([
     loadTeam(db),
     loadAssignments(db, [id]),
     db.from("contacts").select("id, name, role, phone_e164, email, language, whatsapp_opt_in").eq("account_id", id).order("created_at"),
@@ -47,6 +50,9 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     loadIntermediaries(db),
     loadTerms(db),
     db.from("wa_conversations").select("id, contact_name, contact_phone, last_inbound_at").eq("account_id", id).order("last_message_at", { ascending: false }).limit(5),
+    db.from("rma_overview").select("id, number, status, units, units_not_found, credit_usd, cap_usd, created_at").eq("account_id", id).order("created_at", { ascending: false }),
+    db.from("credit_notes").select("id, number, status, amount, currency, issued_on, applied_invoice_no").eq("account_id", id).order("created_at", { ascending: false }),
+    db.from("portal_users").select("id, email, language, active, last_login_at, created_at, contacts(name)").eq("account_id", id).order("created_at"),
   ]);
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const as = assign.get(id) ?? { owner: null, specialist: null };
@@ -138,7 +144,56 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
       ) : null}
 
       {tab === "rmas" ? (
-        <Card><CardContent className="py-8 text-sm text-muted-foreground">RMAs, the IMEI check and credit notes arrive in Phase 4.</CardContent></Card>
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle>RMAs ({rmas.data?.length ?? 0})</CardTitle>
+              <Button asChild size="sm" variant="outline"><Link href={`/rmas/new?account=${id}`}>New RMA</Link></Button>
+            </CardHeader>
+            <CardContent className="px-0">
+              <Table data-testid="account-rmas">
+                <TableHeader><TableRow><TableHead className="pl-4">RMA</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Units</TableHead><TableHead className="text-right">Credit / cap</TableHead><TableHead>Opened</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {(rmas.data ?? []).map((r) => (
+                    <TableRow key={r.id!}>
+                      <TableCell className="pl-4"><Link href={`/rmas/${r.id}`} className="font-mono text-xs hover:underline">{r.number}</Link></TableCell>
+                      <TableCell><RmaStatusBadge status={r.status as RmaStatus} />{r.units_not_found ? <span className="ml-1"><Flag tone="bad">{r.units_not_found} NOT FOUND</Flag></span> : null}</TableCell>
+                      <TableCell className="text-right" data-tabular>{r.units}</TableCell>
+                      <TableCell className={cn("text-right text-xs", Number(r.credit_usd) > Number(r.cap_usd) && Number(r.credit_usd) > 0 && "text-hkr-action")} data-tabular>{Number(r.credit_usd) ? money(r.credit_usd) : "—"} / {money(r.cap_usd)}</TableCell>
+                      <TableCell className="text-xs">{formatDateTime(r.created_at, user.timezone)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!rmas.data?.length ? <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">No RMAs.</TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle>Credit notes</CardTitle>
+              <Button asChild size="sm" variant="outline"><Link href={`/rmas/credit-notes/new?account=${id}`}>New</Link></Button>
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm" data-testid="account-cns">
+              {(cns.data ?? []).map((c) => (
+                <Link key={c.id} href={`/rmas/credit-notes/${c.id}`} className="flex flex-wrap items-center gap-2 hover:underline">
+                  <span className="font-mono text-xs">{c.number}</span><CnStatusBadge status={c.status} />
+                  <span className="ml-auto" data-tabular>{money(c.amount, c.currency)}</span>
+                </Link>
+              ))}
+              {!cns.data?.length ? <p className="text-muted-foreground">None.</p> : null}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+      {tab === "portal" ? (
+        <Card>
+          <CardHeader><CardTitle>Client portal</CardTitle></CardHeader>
+          <CardContent>
+            <PortalPanel accountId={id} defaultLang={a.language === "es" ? "es" : "en"} canManage={user.role !== "bd"}
+              contacts={(contacts.data ?? []).map((c) => ({ id: c.id, name: c.name, email: c.email }))}
+              users={(portalUsers.data ?? []).map((u) => ({ ...u, contact: (u.contacts as unknown as { name: string } | null)?.name ?? null }))} />
+          </CardContent>
+        </Card>
       ) : null}
       {tab === "price-lists" ? (
         <Card><CardContent className="py-8 text-sm text-muted-foreground">The client&apos;s price lists arrive in Phase 6.</CardContent></Card>

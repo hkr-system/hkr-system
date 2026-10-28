@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { SIDEBAR_COOKIE } from "@/components/shell/sidebar-cookie";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { Clocks } from "@/components/shell/clocks";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -17,8 +18,10 @@ import { sectionBadges } from "@/lib/section-badges";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
-  // Logged in but no role yet (or deactivated): nothing to show.
+  // Logged in but no role yet (or deactivated): nothing to show. A client goes to the portal.
   if (!user.role) {
+    const { data: portal } = await (await createClient()).from("portal_account").select("id").maybeSingle();
+    if (portal) redirect("/portal");
     return (
       <div className="min-h-svh">
         <header className="flex h-14 items-center justify-end border-b bg-background px-4">
@@ -43,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-svh">
       <AppSidebar items={items} initialCollapsed={sidebar.collapsed} initialWidth={sidebar.width} />
-      <RealtimeRefresh tables={["notifications", "payments", "wa_conversations"]} />
+      <RealtimeRefresh tables={["notifications", "payments", "wa_conversations", "rmas"]} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
           <MobileNav items={items} />

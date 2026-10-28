@@ -93,7 +93,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/whatsapp">
   return (
     <div className="grid h-[calc(100svh-10.5rem)] min-h-[520px] grid-cols-1 overflow-hidden rounded-xl border bg-background md:grid-cols-[320px_1fr]">
       <RealtimeRefresh tables={["wa_messages", "wa_conversations"]} />
-      <aside className={cn("flex min-h-0 flex-col border-r", selected && "hidden md:flex")}>
+      <aside className={cn("flex min-h-0 flex-col border-r", p("c") && "hidden md:flex")}>
         <InboxFilters numbers={(numbers ?? []).map((n) => ({ id: n.id, label: n.label ?? n.display_phone }))} />
         <ul className="min-h-0 flex-1 overflow-y-auto" data-testid="conversation-list">
           {convs.map((c) => (
@@ -121,7 +121,8 @@ export default async function InboxPage({ searchParams }: PageProps<"/whatsapp">
         </ul>
       </aside>
 
-      <section className={cn("flex min-h-0 min-w-0 flex-col", !selected && "hidden md:flex")}>
+      {/* phones: the list first; a chat opens full screen (?c=) with "← Back" to the list */}
+      <section className={cn("flex min-h-0 min-w-0 flex-col", !p("c") && "hidden md:flex")}>
         {selected ? (
           <>
             <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">

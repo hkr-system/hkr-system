@@ -87,7 +87,7 @@ export const DIFFERENCE_REASONS = [
 ] as const;
 
 // SOP §2.2/§2.3 document types
-export const FILE_KINDS: readonly { kind: FileKind; label: string; order: boolean }[] = [
+export const FILE_KINDS: readonly { kind: FileKind; label: string; order: boolean; rma?: boolean }[] = [
   { kind: "INV-HK", label: "Our invoice (INV-HK)", order: true },
   { kind: "INV-EU", label: "Intermediary invoice (INV-EU)", order: true },
   { kind: "PP-DEP", label: "Deposit proof (PP-DEP)", order: true },
@@ -99,6 +99,11 @@ export const FILE_KINDS: readonly { kind: FileKind; label: string; order: boolea
   { kind: "POD", label: "Proof of delivery (POD)", order: true },
   { kind: "CN", label: "Credit note (CN)", order: true },
   { kind: "OTHER", label: "Other", order: false },
+  // RMA folder documents (SOP §2.3: [code]_RMA-NN_FORM · _PRUEBAS · _VERIF · _CN · _TRK)
+  { kind: "FORM", label: "RMA request form (FORM)", order: false, rma: true },
+  { kind: "PRUEBAS", label: "Evidence photo / video (PRUEBAS)", order: false, rma: true },
+  { kind: "VERIF", label: "IMEI check (VERIF, internal)", order: false, rma: true },
+  { kind: "TRK", label: "Return tracking (TRK)", order: false, rma: true },
 ];
 
 export const MONEY = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

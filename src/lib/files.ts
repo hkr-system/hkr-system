@@ -27,3 +27,15 @@ export function sopFileName(accountCode: string, orderNumber: string | null, kin
 export function storagePath(accountId: string, orderNumber: string | null, fileName: string) {
   return orderNumber ? `${accountId}/orders/${orderNumber}/${fileName}` : `${accountId}/general/${fileName}`;
 }
+
+// RMA documents: <account_id>/rmas/RMA-NN/<CODE>_RMA-NN_<KIND>[_<last 6 IMEI digits>][_stamp].<ext>
+export function rmaFileName(rmaNumber: string, kind: FileKind, original: string, imei?: string | null, stamp = "") {
+  const parts = [rmaNumber.replace(/-RMA-/, "_RMA-"), kind === "OTHER" ? safe(original.replace(/\.[^.]+$/, "")) : kind];
+  if (imei) parts.push(imei.slice(-6));
+  if (stamp) parts.push(stamp);
+  return `${parts.join("_")}${ext(original)}`;
+}
+
+export function rmaStoragePath(accountId: string, rmaNumber: string, fileName: string) {
+  return `${accountId}/rmas/RMA-${rmaNumber.split("-RMA-")[1] ?? "00"}/${fileName}`;
+}

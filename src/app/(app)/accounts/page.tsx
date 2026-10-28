@@ -39,13 +39,18 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
   const { from, to } = periodRange(period, today);
   const db = await createClient();
 
-  const [{ data: accounts }, { data: allOrders }, sales, team, { data: setting }] = await Promise.all([
+  const [{ data: accounts }, { data: allOrders }, sales, team, { data: setting }, { data: rmaRows }, { data: cnRows }] = await Promise.all([
     db.from("accounts").select("id, code, name, market, status").neq("status", "closed").order("code"),
     db.from("order_overview").select("account_id, status, order_date, payment_awaiting, deposit_confirmed, balance_ok, eta_date").limit(5000),
     loadSales(db, from, to),
     loadTeam(db),
     db.from("settings").select("value").eq("key", "account_inactive_days").maybeSingle(),
+    db.from("rma_overview").select("account_id, status, units, created_at").limit(5000),
+    db.from("credit_notes").select("account_id, amount, currency, status, issued_on").in("status", ["issued", "applied"]).gte("issued_on", from).lte("issued_on", to),
   ]);
+  const openRmasOf = (acc: string) => (rmaRows ?? []).filter((r) => r.account_id === acc && r.status !== "closed");
+  const rmaUnitsIn = (acc: string) => (rmaRows ?? []).filter((r) => r.account_id === acc && r.created_at! >= from && r.created_at!.slice(0, 10) <= to).reduce((t, r) => t + Number(r.units ?? 0), 0);
+  const cnIn = (acc: string) => (cnRows ?? []).filter((c) => c.account_id === acc).reduce((t, c) => t + Number(c.amount), 0);
   const inactiveDays = Number(setting?.value ?? 45);
   const assign = await loadAssignments(db, (accounts ?? []).map((a) => a.id));
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
@@ -63,7 +68,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
       balanceDueReady: open.filter((o) => o.status === "ready_to_ship" && !o.balance_ok).length,
       depositDue: open.filter((o) => o.status === "invoiced" && Number(o.deposit_confirmed) <= 0).length,
       etaPending: open.filter((o) => ["deposit_paid", "in_preparation"].includes(o.status!) && !o.eta_date).length,
-      openRmas: 0, // Phase 4
+      openRmas: openRmasOf(a.id).length,
     }, today, inactiveDays);
     return {
       ...a, health, last, open: open.length, owner: names.get(assign.get(a.id)?.owner ?? "") ?? null,
@@ -71,6 +76,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
       margin: s.some((r) => r.margin_usd !== null) ? s.reduce((t, r) => t + (r.margin_usd ?? 0), 0) : null,
       discounts: s.reduce((t, r) => t + r.rma_discount_usd, 0),
       units: s.reduce((t, r) => t + r.pieces, 0),
+      openRmas: openRmasOf(a.id).length, rmaUnits: rmaUnitsIn(a.id), credits: cnIn(a.id),
     };
   }).sort((x, y) => HEALTH[x.health.level].order - HEALTH[y.health.level].order || y.revenue - x.revenue);
 
@@ -101,7 +107,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
           <StatTile label="Need attention" value={count("attention")} tone="attention" />
           <StatTile label={`Inactive (> ${inactiveDays} days)`} value={count("inactive")} tone="attention" />
           <StatTile label="With open orders" value={rows.filter((r) => r.open > 0).length} href="/orders" />
-          <StatTile label="With open RMAs" value="—" sub="Phase 4" />
+          <StatTile label="With open RMAs" value={rows.filter((r) => r.openRmas > 0).length} href="/rmas" />
         </div>
 
         <Card>
@@ -138,7 +144,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
                       <TableCell className="text-right" data-tabular>{r.revenue ? usd(r.revenue) : "—"}</TableCell>
                       {showMargin ? <TableCell className="text-right" data-tabular>{r.margin !== null ? `${usd(r.margin)}${r.revenue ? ` · ${((r.margin / r.revenue) * 100).toFixed(1)}%` : ""}` : "—"}</TableCell> : null}
                       <TableCell className="text-right" data-tabular>{r.discounts ? usd(r.discounts) : "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">Phase 4</TableCell>
+                      <TableCell className="text-xs">{r.openRmas ? <Link href={`/accounts/${r.id}?tab=rmas`} className="hover:underline">{r.openRmas} open</Link> : "—"}{r.credits ? <span className="block text-muted-foreground">CN {usd(r.credits)}</span> : null}</TableCell>
                       {user.role !== "bd" ? <TableCell className="text-xs">{r.owner ?? <span className="text-muted-foreground">No owner</span>}</TableCell> : null}
                     </TableRow>
                   );
@@ -158,8 +164,11 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
           ) : null}
           <Card><CardHeader><CardTitle className="text-sm">Discounts by account</CardTitle><CardDescription>RMA discount lines on orders</CardDescription></CardHeader>
             <CardContent><BarList rows={share("discounts")} format={compactUsd} empty="No discounts in this period" /></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-sm">Credit notes and RMAs</CardTitle><CardDescription>By account, this month</CardDescription></CardHeader>
-            <CardContent><p className="text-sm text-muted-foreground">Arrives with Phase 4 (RMAs, IMEI check, credit notes). This card fills automatically.</p></CardContent></Card>
+          <Card data-testid="cn-share"><CardHeader><CardTitle className="text-sm">Credit notes and RMAs</CardTitle><CardDescription>Credit notes issued in the period · RMA units reported</CardDescription></CardHeader>
+            <CardContent className="grid gap-4">
+              <BarList rows={rows.filter((r) => r.credits > 0).sort((a, b) => b.credits - a.credits).slice(0, 8).map((r) => ({ label: r.code, value: Math.round(r.credits), href: `/accounts/${r.id}?tab=rmas` }))} format={compactUsd} empty="No credit notes in this period" />
+              <BarList rows={rows.filter((r) => r.rmaUnits > 0).sort((a, b) => b.rmaUnits - a.rmaUnits).slice(0, 8).map((r) => ({ label: r.code, value: r.rmaUnits, hint: "RMA units", href: `/accounts/${r.id}?tab=rmas` }))} empty="No RMA units in this period" />
+            </CardContent></Card>
         </div>
       </div>
     </>

@@ -91,3 +91,21 @@ export async function unsubscribedSince(since: Date): Promise<string[]> {
   }
   return emails;
 }
+
+// Transactional email with attachments (brief Phase 4: "batch shipped" email). No-op without the key.
+export async function sendTransactionalEmail(input: {
+  sender: { email: string; name: string };
+  to: string[];
+  subject: string;
+  html: string;
+  attachments?: { name: string; content: Buffer }[];
+}): Promise<void> {
+  if (!brevoEnabled()) throw new Error("Brevo is not connected yet (BREVO_API_KEY is empty).");
+  await call("POST", "/smtp/email", {
+    sender: input.sender,
+    to: input.to.map((email) => ({ email })),
+    subject: input.subject,
+    htmlContent: input.html,
+    ...(input.attachments?.length ? { attachment: input.attachments.map((a) => ({ name: a.name, content: a.content.toString("base64") })) } : {}),
+  });
+}

@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 // and safer (no risk of caching one user's data for another).
 const nextConfig: NextConfig = {
   cacheComponents: false,
+  // Excel and PDF generators run as plain Node.js modules (credit notes, RMA batch files).
+  serverExternalPackages: ["@react-pdf/renderer", "exceljs"],
   experimental: {
     // Lead imports send up to 5,000 rows to a Server Action.
     serverActions: { bodySizeLimit: "4mb" },

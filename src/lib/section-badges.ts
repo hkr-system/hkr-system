@@ -9,9 +9,10 @@ import type { SectionKey } from "@/lib/nav";
 //   Sales    — admin: payments waiting for confirmation; others: orders needing action
 //   WhatsApp — open chats whose last message is from the client (unanswered)
 //   Leads    — unread "new lead" / "lead qualified" notices
-//   RMAs     — batch deadlines (Phase 4)
+//   RMAs     — admin: RMAs to approve + units to batch; specialist: RMAs to verify + units to batch;
+//              bd: her clients' RMAs waiting (requested / to verify / to approve)
 export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole): Promise<Partial<Record<SectionKey, number>>> {
-  const [orders, chats, leads] = await Promise.all([
+  const [orders, chats, leads, rmas] = await Promise.all([
     db.from("order_overview").select("status, payment_awaiting, deposit_confirmed, balance_ok")
       .in("status", ["invoiced", "ready_to_ship"]).limit(1000)
       .then(async (r) => {
@@ -27,6 +28,14 @@ export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole)
       .then((r) => (r.data ?? []).filter((c) => !c.last_outbound_at || c.last_inbound_at! > c.last_outbound_at).length),
     db.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null).in("kind", ["new_lead", "lead_qualified"])
       .then((r) => r.count ?? 0),
+    db.from("rma_overview").select("status, units_to_batch, intermediary_id").in("status", ["requested", "form_received", "verified", "approved", "awaiting_return", "credit_agreed"]).limit(2000)
+      .then((r) => {
+        const rows = r.data ?? [];
+        const toBatch = rows.filter((x) => x.intermediary_id).reduce((t, x) => t + Number(x.units_to_batch ?? 0), 0);
+        if (role === "admin") return rows.filter((x) => x.status === "verified").length + toBatch;
+        if (role === "account_specialist") return rows.filter((x) => x.status === "form_received").length + toBatch;
+        return rows.filter((x) => ["requested", "form_received", "verified"].includes(x.status!)).length;
+      }),
   ]);
-  return { orders, whatsapp: chats, leads };
+  return { orders, whatsapp: chats, leads, rmas };
 }

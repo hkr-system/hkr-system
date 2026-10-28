@@ -153,7 +153,8 @@ export async function deleteContact(id: string, accountId: string): Promise<Acti
 
 // Called by the upload component after the browser stored the file in the private bucket.
 export async function registerFile(input: {
-  accountId: string; orderId: string | null; kind: FileKind; path: string; fileName: string; mime: string; size: number;
+  accountId: string; orderId: string | null; rmaId?: string | null; rmaUnitId?: string | null;
+  kind: FileKind; path: string; fileName: string; mime: string; size: number;
 }): Promise<ActionState & { id?: string }> {
   const user = await requireRole(STAFF);
   if (!input.path.startsWith(`${input.accountId}/`)) return { error: "Wrong file location." };
@@ -161,19 +162,21 @@ export async function registerFile(input: {
   const db = await createClient();
   const { data, error } = await db.from("files").insert({
     account_id: input.accountId,
-    owner_table: input.orderId ? "orders" : "accounts",
-    owner_id: input.orderId ?? input.accountId,
+    owner_table: input.rmaId ? "rmas" : input.orderId ? "orders" : "accounts",
+    owner_id: input.rmaId ?? input.orderId ?? input.accountId,
+    rma_unit_id: input.rmaUnitId ?? null,
     kind: input.kind, storage_path: input.path, file_name: input.fileName,
     mime_type: input.mime || null, size_bytes: input.size,
   }).select("id").single();
   if (error) return { error: error.message };
-  if (input.orderId) {
+  if (input.orderId && !input.rmaId) {
     await db.from("order_events").insert({
       order_id: input.orderId, account_id: input.accountId, kind: "file", file_id: data.id,
       body: `${input.kind} uploaded: ${input.fileName}`, user_id: user.id,
     });
     revalidatePath(`/orders/${input.orderId}`);
   }
+  if (input.rmaId) revalidatePath(`/rmas/${input.rmaId}`);
   revalidatePath(`/accounts/${input.accountId}`);
   return { ok: true, id: data.id };
 }

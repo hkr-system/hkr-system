@@ -42,6 +42,12 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "account_assignments_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "account_assignments_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
@@ -116,6 +122,12 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "contacts_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "contacts_lead_id_fkey"
       columns: ["lead_id"]
 isOneToOne: false
@@ -123,16 +135,158 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"files": {
+                },"credit_note_lines": {
                   Row: {
-                    "account_id": string,"created_at": string,"created_by": string | null,"file_name": string,"id": string,"kind": Database["public"]['Enums']["file_kind"],"mime_type": string | null,"owner_id": string | null,"owner_table": string,"size_bytes": number | null,"storage_path": string,"updated_at": string
+                    "account_id": string,"created_at": string,"created_by": string | null,"credit_note_id": string,"description": string,"id": string,"qty": number,"sort_order": number,"unit_price": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"file_name": string,"id"?: string,"kind"?: Database["public"]['Enums']["file_kind"],"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string,"size_bytes"?: number | null,"storage_path": string,"updated_at"?: string
+                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"credit_note_id": string,"description": string,"id"?: string,"qty"?: number,"sort_order"?: number,"unit_price": number,"updated_at"?: string
                   }
                   Update: {
-                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"file_name"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["file_kind"],"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string,"size_bytes"?: number | null,"storage_path"?: string,"updated_at"?: string
+                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"credit_note_id"?: string,"description"?: string,"id"?: string,"qty"?: number,"sort_order"?: number,"unit_price"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_note_lines_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_lines_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_lines_credit_note_id_fkey"
+      columns: ["credit_note_id"]
+isOneToOne: false
+      referencedRelation: "credit_notes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_lines_credit_note_id_fkey"
+      columns: ["credit_note_id"]
+isOneToOne: false
+      referencedRelation: "portal_credit_notes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"credit_notes": {
+                  Row: {
+                    "account_id": string,"amount": number,"applied_invoice_no": string | null,"applied_on": string | null,"applied_order_id": string | null,"applied_to": Database["public"]['Enums']["credit_applied_to"],"approved_at": string | null,"approved_by": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"id": string,"in_favor_of": string | null,"invoice_no": string | null,"issued_on": string | null,"notes": string | null,"number": string,"order_id": string | null,"pdf_file_id": string | null,"reason": string | null,"rma_id": string | null,"status": Database["public"]['Enums']["credit_note_status"],"updated_at": string,"xlsx_file_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"amount"?: number,"applied_invoice_no"?: string | null,"applied_on"?: string | null,"applied_order_id"?: string | null,"applied_to"?: Database["public"]['Enums']["credit_applied_to"],"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"id"?: string,"in_favor_of"?: string | null,"invoice_no"?: string | null,"issued_on"?: string | null,"notes"?: string | null,"number"?: string,"order_id"?: string | null,"pdf_file_id"?: string | null,"reason"?: string | null,"rma_id"?: string | null,"status"?: Database["public"]['Enums']["credit_note_status"],"updated_at"?: string,"xlsx_file_id"?: string | null
+                  }
+                  Update: {
+                    "account_id"?: string,"amount"?: number,"applied_invoice_no"?: string | null,"applied_on"?: string | null,"applied_order_id"?: string | null,"applied_to"?: Database["public"]['Enums']["credit_applied_to"],"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"id"?: string,"in_favor_of"?: string | null,"invoice_no"?: string | null,"issued_on"?: string | null,"notes"?: string | null,"number"?: string,"order_id"?: string | null,"pdf_file_id"?: string | null,"reason"?: string | null,"rma_id"?: string | null,"status"?: Database["public"]['Enums']["credit_note_status"],"updated_at"?: string,"xlsx_file_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_notes_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_applied_order_id_fkey"
+      columns: ["applied_order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_applied_order_id_fkey"
+      columns: ["applied_order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_applied_order_id_fkey"
+      columns: ["applied_order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pdf_file_id_fkey"
+      columns: ["pdf_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pdf_file_id_fkey"
+      columns: ["pdf_file_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "portal_rmas"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rma_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rmas"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_xlsx_file_id_fkey"
+      columns: ["xlsx_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_xlsx_file_id_fkey"
+      columns: ["xlsx_file_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"files": {
+                  Row: {
+                    "account_id": string,"created_at": string,"created_by": string | null,"file_name": string,"id": string,"kind": Database["public"]['Enums']["file_kind"],"mime_type": string | null,"owner_id": string | null,"owner_table": string,"rma_unit_id": string | null,"size_bytes": number | null,"storage_path": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"file_name": string,"id"?: string,"kind"?: Database["public"]['Enums']["file_kind"],"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string,"rma_unit_id"?: string | null,"size_bytes"?: number | null,"storage_path": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"file_name"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["file_kind"],"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string,"rma_unit_id"?: string | null,"size_bytes"?: number | null,"storage_path"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -140,6 +294,24 @@ isOneToOne: false
       columns: ["account_id"]
 isOneToOne: false
       referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "files_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "files_rma_unit_id_fkey"
+      columns: ["rma_unit_id"]
+isOneToOne: false
+      referencedRelation: "portal_rma_units"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "files_rma_unit_id_fkey"
+      columns: ["rma_unit_id"]
+isOneToOne: false
+      referencedRelation: "rma_units"
       referencedColumns: ["id"]
     }
                   ]
@@ -162,6 +334,12 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "imei_master_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "imei_master_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: false
@@ -172,6 +350,12 @@ isOneToOne: false
       columns: ["order_id"]
 isOneToOne: false
       referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "imei_master_sku_id_fkey"
@@ -314,10 +498,22 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "order_events_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "order_events_file_fk"
       columns: ["file_id"]
 isOneToOne: false
       referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_events_file_fk"
+      columns: ["file_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "order_events_order_id_fkey"
@@ -330,6 +526,12 @@ isOneToOne: false
       columns: ["order_id"]
 isOneToOne: false
       referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_events_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
       referencedColumns: ["id"]
     }
                   ]
@@ -352,6 +554,12 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "order_lines_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "order_lines_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: false
@@ -362,6 +570,12 @@ isOneToOne: false
       columns: ["order_id"]
 isOneToOne: false
       referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "order_lines_sku_id_fkey"
@@ -409,6 +623,12 @@ isOneToOne: true
 isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "orders_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
     }
                   ]
                 },"orders_finance": {
@@ -435,6 +655,12 @@ isOneToOne: true
 isOneToOne: true
       referencedRelation: "orders"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "orders_finance_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: true
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
     }
                   ]
                 },"payments": {
@@ -456,6 +682,12 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "payments_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "payments_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: false
@@ -468,11 +700,61 @@ isOneToOne: false
       referencedRelation: "orders"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "payments_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "payments_proof_file_fk"
       columns: ["proof_file_id"]
 isOneToOne: false
       referencedRelation: "files"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_proof_file_fk"
+      columns: ["proof_file_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_users": {
+                  Row: {
+                    "account_id": string,"active": boolean,"contact_id": string | null,"created_at": string,"created_by": string | null,"email": string,"id": string,"language": string,"last_login_at": string | null,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"active"?: boolean,"contact_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"email": string,"id"?: string,"language"?: string,"last_login_at"?: string | null,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "account_id"?: string,"active"?: boolean,"contact_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string,"id"?: string,"language"?: string,"last_login_at"?: string | null,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "portal_users_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "portal_users_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "portal_users_contact_id_fkey"
+      columns: ["contact_id"]
+isOneToOne: false
+      referencedRelation: "contacts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "portal_users_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["user_id"]
     }
                   ]
                 },"profiles": {
@@ -488,6 +770,126 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"rma_batches": {
+                  Row: {
+                    "awb": string | null,"boxes": number | null,"carrier": string,"created_at": string,"created_by": string | null,"cutoff_date": string,"email_sent_at": string | null,"id": string,"intermediary_id": string,"label_name": string | null,"label_path": string | null,"notes": string | null,"pickup_date": string | null,"received_at": string | null,"shipped_at": string | null,"status": Database["public"]['Enums']["rma_batch_status"],"updated_at": string,"weight_kg": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "awb"?: string | null,"boxes"?: number | null,"carrier"?: string,"created_at"?: string,"created_by"?: string | null,"cutoff_date": string,"email_sent_at"?: string | null,"id"?: string,"intermediary_id": string,"label_name"?: string | null,"label_path"?: string | null,"notes"?: string | null,"pickup_date"?: string | null,"received_at"?: string | null,"shipped_at"?: string | null,"status"?: Database["public"]['Enums']["rma_batch_status"],"updated_at"?: string,"weight_kg"?: number | null
+                  }
+                  Update: {
+                    "awb"?: string | null,"boxes"?: number | null,"carrier"?: string,"created_at"?: string,"created_by"?: string | null,"cutoff_date"?: string,"email_sent_at"?: string | null,"id"?: string,"intermediary_id"?: string,"label_name"?: string | null,"label_path"?: string | null,"notes"?: string | null,"pickup_date"?: string | null,"received_at"?: string | null,"shipped_at"?: string | null,"status"?: Database["public"]['Enums']["rma_batch_status"],"updated_at"?: string,"weight_kg"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rma_batches_intermediary_id_fkey"
+      columns: ["intermediary_id"]
+isOneToOne: false
+      referencedRelation: "intermediaries"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"rma_units": {
+                  Row: {
+                    "account_id": string,"batch_id": string | null,"battery_swollen": boolean,"check_note": string | null,"claimed_before": string | null,"color": string | null,"created_at": string,"created_by": string | null,"credit_fixed_usd": number | null,"credit_pct": number | null,"credit_usd": number | null,"detected_on": string | null,"fault_category": string,"fault_text": string | null,"hkr_notes": string | null,"id": string,"imei": string,"imei_check": Database["public"]['Enums']["imei_check"],"imei_master_id": string | null,"model": string | null,"origin_order_id": string | null,"physical_damage": boolean,"resolution": Database["public"]['Enums']["rma_resolution"],"rma_id": string,"shipped_on": string | null,"sort_order": number,"source": Database["public"]['Enums']["rma_source"],"storage_gb": number | null,"unit_price_usd": number | null,"unit_status": Database["public"]['Enums']["rma_unit_status"],"updated_at": string,"warranty_ok": boolean | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"batch_id"?: string | null,"battery_swollen"?: boolean,"check_note"?: string | null,"claimed_before"?: string | null,"color"?: string | null,"created_at"?: string,"created_by"?: string | null,"credit_fixed_usd"?: number | null,"credit_pct"?: number | null,"credit_usd"?: never,"detected_on"?: string | null,"fault_category": string,"fault_text"?: string | null,"hkr_notes"?: string | null,"id"?: string,"imei": string,"imei_check"?: Database["public"]['Enums']["imei_check"],"imei_master_id"?: string | null,"model"?: string | null,"origin_order_id"?: string | null,"physical_damage"?: boolean,"resolution"?: Database["public"]['Enums']["rma_resolution"],"rma_id": string,"shipped_on"?: string | null,"sort_order"?: number,"source"?: Database["public"]['Enums']["rma_source"],"storage_gb"?: number | null,"unit_price_usd"?: number | null,"unit_status"?: Database["public"]['Enums']["rma_unit_status"],"updated_at"?: string,"warranty_ok"?: boolean | null
+                  }
+                  Update: {
+                    "account_id"?: string,"batch_id"?: string | null,"battery_swollen"?: boolean,"check_note"?: string | null,"claimed_before"?: string | null,"color"?: string | null,"created_at"?: string,"created_by"?: string | null,"credit_fixed_usd"?: number | null,"credit_pct"?: number | null,"credit_usd"?: never,"detected_on"?: string | null,"fault_category"?: string,"fault_text"?: string | null,"hkr_notes"?: string | null,"id"?: string,"imei"?: string,"imei_check"?: Database["public"]['Enums']["imei_check"],"imei_master_id"?: string | null,"model"?: string | null,"origin_order_id"?: string | null,"physical_damage"?: boolean,"resolution"?: Database["public"]['Enums']["rma_resolution"],"rma_id"?: string,"shipped_on"?: string | null,"sort_order"?: number,"source"?: Database["public"]['Enums']["rma_source"],"storage_gb"?: number | null,"unit_price_usd"?: number | null,"unit_status"?: Database["public"]['Enums']["rma_unit_status"],"updated_at"?: string,"warranty_ok"?: boolean | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rma_units_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_batch_id_fkey"
+      columns: ["batch_id"]
+isOneToOne: false
+      referencedRelation: "rma_batches"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_imei_master_id_fkey"
+      columns: ["imei_master_id"]
+isOneToOne: false
+      referencedRelation: "imei_master"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_origin_order_id_fkey"
+      columns: ["origin_order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_origin_order_id_fkey"
+      columns: ["origin_order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_origin_order_id_fkey"
+      columns: ["origin_order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "portal_rmas"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rma_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rmas"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"rmas": {
+                  Row: {
+                    "account_id": string,"approved_at": string | null,"approved_by": string | null,"channel": Database["public"]['Enums']["rma_channel"],"client_notes": string | null,"closed_at": string | null,"contact_info": string | null,"contact_name": string | null,"created_at": string,"created_by": string | null,"id": string,"internal_notes": string | null,"number": string,"order_refs": string | null,"status": Database["public"]['Enums']["rma_status"],"submitted_at": string | null,"units_location": Database["public"]['Enums']["units_location"] | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"approved_at"?: string | null,"approved_by"?: string | null,"channel"?: Database["public"]['Enums']["rma_channel"],"client_notes"?: string | null,"closed_at"?: string | null,"contact_info"?: string | null,"contact_name"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"internal_notes"?: string | null,"number"?: string,"order_refs"?: string | null,"status"?: Database["public"]['Enums']["rma_status"],"submitted_at"?: string | null,"units_location"?: Database["public"]['Enums']["units_location"] | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"approved_at"?: string | null,"approved_by"?: string | null,"channel"?: Database["public"]['Enums']["rma_channel"],"client_notes"?: string | null,"closed_at"?: string | null,"contact_info"?: string | null,"contact_name"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"internal_notes"?: string | null,"number"?: string,"order_refs"?: string | null,"status"?: Database["public"]['Enums']["rma_status"],"submitted_at"?: string | null,"units_location"?: Database["public"]['Enums']["units_location"] | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rmas_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rmas_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"sales_goals": {
                   Row: {
@@ -656,6 +1058,12 @@ isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "wa_conversations_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "wa_conversations_assigned_user_id_fkey"
       columns: ["assigned_user_id"]
 isOneToOne: false
@@ -758,12 +1166,219 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "orders_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_account": {
+                  Row: {
+                    "code": string,"country": string | null,"currency": Database["public"]['Enums']["currency_code"],"id": string,"intermediary_name": string | null,"language": string,"legal_name": string | null,"market": Database["public"]['Enums']["market"] | null,"name": string,"payment_method": Database["public"]['Enums']["payment_method"]
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
+                },"portal_credit_notes": {
+                  Row: {
+                    "amount": number,"applied_invoice_no": string | null,"applied_on": string | null,"applied_to": Database["public"]['Enums']["credit_applied_to"],"currency": Database["public"]['Enums']["currency_code"],"id": string,"invoice_no": string | null,"issued_on": string | null,"number": string,"pdf_file_id": string | null,"rma_id": string | null,"rma_number": string | null,"status": Database["public"]['Enums']["credit_note_status"]
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_notes_pdf_file_id_fkey"
+      columns: ["pdf_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pdf_file_id_fkey"
+      columns: ["pdf_file_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "portal_rmas"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rma_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rmas"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_files": {
+                  Row: {
+                    "created_at": string,"file_name": string,"id": string,"kind": string | null,"mime_type": string | null,"owner_id": string | null,"owner_table": string,"rma_unit_id": string | null,"size_bytes": number | null,"storage_path": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                           "created_at"?: string | null,"file_name"?: string | null,"id"?: string | null,"kind"?: never,"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string | null,"rma_unit_id"?: string | null,"size_bytes"?: number | null,"storage_path"?: string | null
+                         }
+                        Update: {
+                           "created_at"?: string | null,"file_name"?: string | null,"id"?: string | null,"kind"?: never,"mime_type"?: string | null,"owner_id"?: string | null,"owner_table"?: string | null,"rma_unit_id"?: string | null,"size_bytes"?: number | null,"storage_path"?: string | null
+                         }
+                        Relationships: [
+                    {
+      foreignKeyName: "files_rma_unit_id_fkey"
+      columns: ["rma_unit_id"]
+isOneToOne: false
+      referencedRelation: "portal_rma_units"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "files_rma_unit_id_fkey"
+      columns: ["rma_unit_id"]
+isOneToOne: false
+      referencedRelation: "rma_units"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_imeis": {
+                  Row: {
+                    "color": string | null,"imei": string,"model": string | null,"order_id": string | null,"order_number": string,"shipped_at": string | null,"storage_gb": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_order_lines": {
+                  Row: {
+                    "battery_new": boolean,"color": string | null,"item": string | null,"model": string | null,"order_id": string,"qty": number,"sort_order": number,"storage_gb": number | null,"unit_price_usd": number
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_orders": {
+                  Row: {
+                    "balance_confirmed": number | null,"balance_pending": number | null,"battery_line_usd": number,"courier": string | null,"customs_usd": number,"delivered_date": string | null,"deposit_confirmed": number | null,"deposit_payable": number | null,"eta_date": string | null,"freight_usd": number,"hk_invoice_no": string | null,"id": string,"imei_count": number | null,"number": string,"order_date": string,"partner_invoice_eur": number | null,"partner_invoice_no": string | null,"payable_total": number | null,"payment_awaiting": boolean | null,"payment_method": Database["public"]['Enums']["payment_method"],"pays_in_eur": boolean | null,"pieces": number,"rma_discount_usd": number,"ship_date": string | null,"status": Database["public"]['Enums']["order_status"],"subtotal_usd": number,"total_usd": number,"tracking": string | null,"usdt_fee_usd": number
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
+                },"portal_rma_units": {
+                  Row: {
+                    "battery_swollen": boolean,"color": string | null,"credit_usd": number | null,"detected_on": string | null,"evidence_count": number | null,"fault_category": string,"fault_text": string | null,"id": string,"imei": string,"imei_found": boolean | null,"model": string | null,"physical_damage": boolean,"resolution": Database["public"]['Enums']["rma_resolution"] | null,"rma_id": string,"sort_order": number,"source": Database["public"]['Enums']["rma_source"],"storage_gb": number | null,"unit_status": Database["public"]['Enums']["rma_unit_status"],"warranty_ok": boolean | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "rma_units_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "portal_rmas"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rma_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rmas"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_rmas": {
+                  Row: {
+                    "approved_at": string | null,"channel": Database["public"]['Enums']["rma_channel"],"client_notes": string | null,"closed_at": string | null,"created_at": string,"credit_usd": number | null,"id": string,"number": string,"order_refs": string | null,"status": Database["public"]['Enums']["rma_status"],"submitted_at": string | null,"units": number | null,"units_location": Database["public"]['Enums']["units_location"] | null,"units_without_evidence": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                           "approved_at"?: string | null,"channel"?: Database["public"]['Enums']["rma_channel"] | null,"client_notes"?: string | null,"closed_at"?: string | null,"created_at"?: string | null,"credit_usd"?: never,"id"?: string | null,"number"?: string | null,"order_refs"?: string | null,"status"?: Database["public"]['Enums']["rma_status"] | null,"submitted_at"?: string | null,"units"?: never,"units_location"?: Database["public"]['Enums']["units_location"] | null,"units_without_evidence"?: never
+                         }
+                        Update: {
+                           "approved_at"?: string | null,"channel"?: Database["public"]['Enums']["rma_channel"] | null,"client_notes"?: string | null,"closed_at"?: string | null,"created_at"?: string | null,"credit_usd"?: never,"id"?: string | null,"number"?: string | null,"order_refs"?: string | null,"status"?: Database["public"]['Enums']["rma_status"] | null,"submitted_at"?: string | null,"units"?: never,"units_location"?: Database["public"]['Enums']["units_location"] | null,"units_without_evidence"?: never
+                         }
+                        Relationships: [
+                    
+                  ]
+                },"rma_overview": {
+                  Row: {
+                    "account_code": string,"account_id": string,"account_name": string,"approved_at": string | null,"cap_usd": number | null,"channel": Database["public"]['Enums']["rma_channel"],"closed_at": string | null,"created_at": string,"credit_usd": number | null,"id": string,"intermediary_id": string | null,"market": Database["public"]['Enums']["market"] | null,"number": string,"status": Database["public"]['Enums']["rma_status"],"submitted_at": string | null,"units": number | null,"units_claimed_before": number | null,"units_location": Database["public"]['Enums']["units_location"] | null,"units_not_found": number | null,"units_ours": number | null,"units_out_of_warranty": number | null,"units_pending": number | null,"units_return": number | null,"units_swollen": number | null,"units_testing": number | null,"units_to_batch": number | null,"units_without_evidence": number | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "accounts_intermediary_id_fkey"
+      columns: ["intermediary_id"]
+isOneToOne: false
+      referencedRelation: "intermediaries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rmas_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rmas_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
     }
                   ]
                 }
           }
           Functions: {
-            "can_see_contact_owner":
+            "can_manage_portal":
+{ Args: { "p_account": string }; Returns: boolean
+                           },
+"can_see_contact_owner":
 { Args: { "p_account": string,"p_lead": string }; Returns: boolean
                            },
 "can_see_conversation":
@@ -800,6 +1415,36 @@ isOneToOne: false
                            },
 "order_recalc":
 { Args: { "p_order": string }; Returns: undefined
+                           },
+"portal_account_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"portal_add_evidence":
+{ Args: { "p_mime": string,"p_name": string,"p_path": string,"p_size": number,"p_unit": string }; Returns: string
+                           },
+"portal_check_imei":
+{ Args: { "p_imei": string }; Returns: Json
+                           },
+"portal_create_rma":
+{ Args: { "p_contact_info": string,"p_contact_name": string,"p_location": string,"p_notes": string,"p_order_refs": string,"p_units": Json }; Returns: Json
+                           },
+"portal_file_kind_visible":
+{ Args: { "p_kind": string }; Returns: boolean
+                           },
+"portal_storage_can_read":
+{ Args: { "p_name": string }; Returns: boolean
+                           },
+"portal_storage_can_upload":
+{ Args: { "p_name": string }; Returns: boolean
+                           },
+"portal_submit_rma":
+{ Args: { "p_rma": string }; Returns: Json
+                           },
+"portal_touch":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"rma_fault_categories":
+{ Args: Record<PropertyKey, never>; Returns: (string)[]
                            },
 "sales_orders":
 { Args: { "p_from": string,"p_to": string }; Returns: {
@@ -839,7 +1484,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
+            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","credit_applied_to": "next_invoice"|"order_balance"|"refund","credit_note_status": "draft"|"approved"|"issued"|"applied"|"cancelled","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER"|"FORM"|"PRUEBAS"|"VERIF"|"TRK","imei_check": "ours"|"not_found","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","rma_batch_status": "open"|"shipped"|"received","rma_channel": "portal"|"internal"|"import","rma_resolution": "pending"|"return_hk"|"repair_credit"|"credit_note"|"replacement"|"not_covered","rma_source": "testing"|"end_customer","rma_status": "requested"|"form_received"|"verified"|"approved"|"awaiting_return"|"credit_agreed"|"in_batch"|"received_hk"|"closed","rma_unit_status": "reported"|"verified"|"awaiting_shipment"|"shipped_to_hk"|"received_hk"|"returned_to_client"|"credited"|"rejected"|"closed","units_location": "with_client"|"at_intermediary"|"at_end_customer","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -959,7 +1604,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
+            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"credit_applied_to": ["next_invoice", "order_balance", "refund"],"credit_note_status": ["draft", "approved", "issued", "applied", "cancelled"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER", "FORM", "PRUEBAS", "VERIF", "TRK"],"imei_check": ["ours", "not_found"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"rma_batch_status": ["open", "shipped", "received"],"rma_channel": ["portal", "internal", "import"],"rma_resolution": ["pending", "return_hk", "repair_credit", "credit_note", "replacement", "not_covered"],"rma_source": ["testing", "end_customer"],"rma_status": ["requested", "form_received", "verified", "approved", "awaiting_return", "credit_agreed", "in_batch", "received_hk", "closed"],"rma_unit_status": ["reported", "verified", "awaiting_shipment", "shipped_to_hk", "received_hk", "returned_to_client", "credited", "rejected", "closed"],"units_location": ["with_client", "at_intermediary", "at_end_customer"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
           }
         }
 } as const

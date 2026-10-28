@@ -52,7 +52,9 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
 | 3 Accounts, orders, payments | Built (Oct 27 2026) except invoices: accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoice PDF/xlsx waits for the fixture invoices |
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
-| 4–7 | Not started |
+| 4 RMAs + client portal | Built (Oct 27 2026): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
+| Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
+| 5–7 | Not started (Phase 5 sales mix partly pulled forward) |
 
 ## Folder layout
 
@@ -69,7 +71,13 @@ src/
     api/cron/              Vercel Cron routes (need Authorization: Bearer CRON_SECRET)
     (app)/leads/           Overview dashboard (page.tsx), my-day/, list/, [id]/, board/, new/, import/, actions.ts
     (app)/whatsapp/        inbox (page.tsx, ?c=<conversation>), broadcasts/, templates/, numbers/, actions.ts
-    (app)/sales/           Sales dashboard (menu "Sales" = section key "orders"; order pages stay under /orders)
+    (app)/sales/           Sales dashboard (menu "Sales" = section key "orders"; order pages stay under /orders); mix/ = sales mix
+    (app)/rmas/            list (page.tsx), [id]/, new/ (typed or xlsx form import), batches/ (EU Friday batch), credit-notes/ (list, [id], new),
+                           analytics/ (admin), actions.ts
+    portal/                CLIENT PORTAL (outside (app)): login/ (email link), auth/confirm (token-hash or code), (main)/ = layout +
+                           home, orders/[id], rmas/ (list, [id] add evidence, new = request form), price-list, terms; actions.ts
+    api/portal/            files/[id] (portal_files view) · orders/[id]/imeis (xlsx)
+    api/credit-notes/[id]/[pdf|xlsx] · api/rmas/batches/[id]/[xlsx|label]
     (app)/finance/         admin: monthly plan (goals company + per owner, history, projection), actions.ts
     (app)/accounts/        overview/health (page.tsx), list/, new/ (wizard P1), [id]/ (?tab=overview|contacts|orders|rmas|price-lists|files|edit), actions.ts
     (app)/orders/          list (attention filters, KPIs), new/, [id]/ (detail: next action, payments, shipping), [id]/edit/, actions.ts
@@ -91,7 +99,7 @@ src/
     auth.ts                getCurrentUser(), checkSection(), requireRole()  ← the only auth entry points
     nav.ts                 SECTIONS: menu items, which roles see them, read-only roles, phase
     roles.ts               AppRole type and labels
-    supabase/admin.ts      secret-key client: ONLY for /apply and cron jobs (bypasses RLS)
+    supabase/admin.ts      secret-key client: ONLY for /apply, cron jobs and the Auth admin calls of portal invites (after an RLS check)
     leads/                 constants (stages, form options), countries (ISO + market), normalize,
                            scoring (pure, unit-tested), record (clean input → columns), import,
                            service (load settings/team), brevo-sync
@@ -101,6 +109,10 @@ src/
     orders/                constants (statuses, labels, next actions, file kinds, money), calc (totals = SQL order_recalc,
                            unit-tested), imei (Luhn parsing, unit-tested), service (terms, SKUs, assignments, form accounts)
     accounts/code.ts       client code AAA-CC-NNN suggestion (unit-tested)
+    rmas/                  constants (statuses EN/ES, resolutions, fault categories), cutoff (Friday 12:00 Amsterdam), form-import
+                           (RMA Request Form xlsx) — unit-tested; batch (loader), tabs
+    documents/             credit-note (xlsx in the template grid + loader), credit-note-pdf (@react-pdf/renderer), rma-batch (Excel)
+    portal/                texts (all portal copy EN/ES, SOP terms), session (getPortalContext: client account + language)
     sales/                 series (day/week/month buckets), projection (suggestion), health (account health) —
                            all unit-tested; load (sales_orders rpc, periods); tabs (tab bars)
     section-badges.ts      red counters per menu item (live counts of pending work)
@@ -115,6 +127,9 @@ supabase/
   migrations/              one SQL file per change, never edited after it ran on the hosted project
   seed.sql                 demo data (safe on hosted project, no passwords)
   seed_phase3_history.sql  ~36 closed demo orders over 11 months for the dashboards (safe on hosted)
+  seed_phase4.sql          3 demo RMAs, 1 open Global Connect batch, 2 credit notes, demo payments for history orders (safe on hosted)
+  seed_local_portal.sql    LOCAL ONLY: client logins daan@example.com (AMS-NL-901, EN) and carlos@example.com (MEX-MX-903, ES)
+  templates/magic_link.html  portal sign-in email (token-hash link: works on any device) — paste it in the hosted project too
   seed_phase3.sql          Phase 3 demo accounts (codes 9xx, is_demo) + 12 orders, payments, IMEIs (safe on hosted)
   seed_local_users.sql     LOCAL ONLY: creates demo Auth users with password LocalDemo-2026!
   tests/database/          pgTAP tests (npm run test:db)
@@ -171,6 +186,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `npm run test:e2e` | browser test per role (app running on :3000 against local Supabase) |
 | `node tests/e2e/leads.cjs` | Phase 1 browser test (run right after `npm run db:reset`; it changes data) |
 | `node tests/e2e/dashboards.cjs` | Sales / Accounts / Finance dashboards per role (after db:reset) |
+| `node tests/e2e/rmas.cjs` | Phase 4 + portal browser test (after db:reset): RMAs, credit note PDF, batch, portal login by link, RMA request on a phone |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
@@ -346,6 +362,34 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   Awaiting shipment, Shipped to HK, Received in HK, Returned to client, Credited, Rejected, Closed).
 - Credit cap = invoice value × 1 % (SOP): above it → red warning; admin can still approve.
 - Fault categories: the 12 of the RMA Request Form (see the project doc).
+
+## Client portal — technical rules (Oct 27 2026)
+
+- Clients have NO app_role (profiles.role null) → every staff policy (is_staff, has_account_access) is false for them.
+  They read ONLY through the portal_* views (no security_invoker on purpose, filtered by `portal_account_id()`, client-safe
+  columns) and write ONLY through portal_create_rma / portal_add_evidence / portal_submit_rma / portal_check_imei.
+  A view reading another security_invoker view would apply the client's RLS → compute from base tables instead.
+- Logins are created only from Accounts → <account> → Client portal (admin + specialist): Auth admin createUser + portal_users.
+  Sign-ups are OFF (`[auth] enable_signup = false`; `[auth.email] enable_signup` must stay TRUE or email sign-in dies).
+  Hosted: Authentication → Sign In / Providers → "Allow new users to sign up" OFF; Email templates → Magic link = templates/magic_link.html.
+- Sign-in: email link (needs custom SMTP on hosted — Supabase's built-in mailer only reaches team members) or
+  "Copy sign-in link" (generateLink, 1 hour) sent by WhatsApp. Disabling a login also bans it in Auth.
+- Evidence: client uploads to account-files/<account>/rmas/RMA-NN/ (storage policy portal_storage_can_upload, RMA ≤ verified).
+- Portal shows order files of kinds INV-HK, INV-EU, IMEI, TRK*, POD, CN and RMA FORM/PRUEBAS; credit notes only when issued.
+
+## Sales KPIs (Gabriel, Oct 27 2026)
+
+- View `order_cycle` (orders ≥ Invoiced): processing time = deposit confirmed → shipped; cash cycle = invoice → fully paid
+  (invoice date = the Invoiced status event, else order date); "to collect" = payable − confirmed payments of unpaid orders.
+- /sales shows orders made (period), paid, pending payment (today), to collect (USD + EUR), avg processing, avg cash cycle,
+  average order (not for the specialist). The account page shows the same per client ("Orders at a glance").
+- /sales/mix: best models and configurations, price by model (admin also margin), prices accepted by each client vs the
+  average. Price vs the list offered and "how much more we can charge" (SOP §5.3 R_c / Extra_c) come with Phase 6, admin only.
+
+## Mobile (Gabriel, Oct 27 2026)
+
+- Every screen must work at phone width (390 px): no page-level horizontal scroll (tables scroll inside their card),
+  WhatsApp inbox shows the list first on phones. The portal RMA form keeps the send button sticky at the bottom.
 
 ## Open questions (ask before the phase that needs them)
 

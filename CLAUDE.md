@@ -52,7 +52,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
 | 3 Accounts, orders, payments | Built (Oct 27 2026) except invoices: accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoice PDF/xlsx waits for the fixture invoices |
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
-| 4 RMAs + client portal | Built (Oct 27 2026): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
+| 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
 | 5–7 | Not started (Phase 5 sales mix partly pulled forward) |
 
@@ -371,7 +371,8 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   A view reading another security_invoker view would apply the client's RLS → compute from base tables instead.
 - Logins are created only from Accounts → <account> → Client portal (admin + specialist): Auth admin createUser + portal_users.
   Sign-ups are OFF (`[auth] enable_signup = false`; `[auth.email] enable_signup` must stay TRUE or email sign-in dies).
-  Hosted: Authentication → Sign In / Providers → "Allow new users to sign up" OFF; Email templates → Magic link = templates/magic_link.html.
+  Hosted (done Oct 28 2026): "Allow new users to sign up" OFF; Site URL = https://hkr-system.vercel.app.
+  Email template "Magic link" = templates/magic_link.html can only be edited AFTER custom SMTP (Brevo) is set up — pending.
 - Sign-in: email link (needs custom SMTP on hosted — Supabase's built-in mailer only reaches team members) or
   "Copy sign-in link" (generateLink, 1 hour) sent by WhatsApp. Disabling a login also bans it in Auth.
 - Evidence: client uploads to account-files/<account>/rmas/RMA-NN/ (storage policy portal_storage_can_upload, RMA ≤ verified).

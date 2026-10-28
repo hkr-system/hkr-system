@@ -140,6 +140,7 @@ const png = () => {
   let sentNumber = null;
   {
     const { ctx, page } = await portalLogin(browser, 'daan@example.com', { width: 390, height: 844 });
+    check((await page.textContent('[data-testid=portal-title]')).includes('Daan'), 'client is greeted by their contact name');
     await page.screenshot({ path: `${DIR}/portal-home-mobile.png`, fullPage: true });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(overflow <= 1, `portal home has no horizontal scroll on a phone (${overflow}px)`);

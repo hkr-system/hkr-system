@@ -15,14 +15,13 @@ export const getPortalContext = cache(async () => {
   if (!claims?.claims?.sub) redirect("/portal/login");
   const [{ data: account }, { data: pu }] = await Promise.all([
     db.from("portal_account").select("*").maybeSingle(),
-    db.from("portal_users").select("email, language, contact_id, contacts(name)").eq("user_id", claims.claims.sub).maybeSingle(),
+    db.from("portal_me").select("email, language, contact_name").maybeSingle(),
   ]);
   if (!account || !pu) redirect("/portal/login?error=noaccess");
   const jar = await cookies();
   const pref = jar.get(PORTAL_LANG_COOKIE)?.value;
   const lang: PortalLang = pref === "es" || pref === "en" ? pref : pu.language === "es" ? "es" : "en";
-  const contact = (pu.contacts as unknown as { name: string } | null)?.name ?? null;
-  return { db, account, email: pu.email, contactName: contact, lang, t: PORTAL_TEXT[lang] };
+  return { db, account, email: pu.email ?? "", contactName: pu.contact_name ?? null, lang, t: PORTAL_TEXT[lang] };
 });
 
 export function portalMoney(v: number | string | null | undefined, currency: "USD" | "EUR" = "USD") {

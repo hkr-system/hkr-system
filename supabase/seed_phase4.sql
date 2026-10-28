@@ -103,3 +103,30 @@ begin
   insert into public.credit_note_lines (credit_note_id, description, qty, unit_price, sort_order)
   values (v_cn, 'Repair credit — screen / battery / signal (4 units)', 4, 150, 1);
 end $$;
+
+-- Demo payments for the closed history orders (deposit 2 days after the order, balance the day
+-- before shipping), so the processing time and cash cycle KPIs have data. Demo accounts only.
+do $$
+declare
+  o record; v_dep uuid; v_bal uuid; v_deposit numeric;
+begin
+  for o in
+    select ord.id, ord.order_date, ord.ship_date, ord.total_usd
+      from public.orders ord join public.accounts a on a.id = ord.account_id
+     where a.is_demo and ord.status = 'closed' and ord.notes = 'Demo history order'
+       and not exists (select 1 from public.payments p where p.order_id = ord.id)
+  loop
+    v_deposit := round(o.total_usd * 0.10, 2);
+    insert into public.payments (order_id, type, amount, method, received_at, reference)
+    values (o.id, 'deposit', v_deposit, 'wire', o.order_date + 2, 'DEMO') returning id into v_dep;
+    insert into public.payments (order_id, type, amount, method, received_at, reference)
+    values (o.id, 'balance', o.total_usd - v_deposit, 'wire', greatest(o.ship_date - 1, o.order_date + 3), 'DEMO') returning id into v_bal;
+    update public.payments set status = 'confirmed' where id in (v_dep, v_bal);
+    update public.payments set confirmed_at = (o.order_date + 2)::timestamptz + interval '10 hours' where id = v_dep;
+    update public.payments set confirmed_at = (greatest(o.ship_date - 1, o.order_date + 3))::timestamptz + interval '10 hours' where id = v_bal;
+  end loop;
+  -- the confirmations above are history: no "payment to confirm" bells for them
+  update public.notifications set read_at = coalesce(read_at, now())
+   where kind = 'payment_to_confirm' and read_at is null
+     and not exists (select 1 from public.payments p where p.status = 'awaiting_confirmation' and '/orders/' || p.order_id = link);
+end $$;

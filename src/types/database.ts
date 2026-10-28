@@ -201,6 +201,12 @@ isOneToOne: false
       foreignKeyName: "credit_notes_applied_order_id_fkey"
       columns: ["applied_order_id"]
 isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_applied_order_id_fkey"
+      columns: ["applied_order_id"]
+isOneToOne: false
       referencedRelation: "order_overview"
       referencedColumns: ["id"]
     },{
@@ -214,6 +220,12 @@ isOneToOne: false
       columns: ["applied_order_id"]
 isOneToOne: false
       referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "credit_notes_order_id_fkey"
@@ -338,6 +350,12 @@ isOneToOne: false
       columns: ["account_id"]
 isOneToOne: false
       referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "imei_master_order_id_fkey"
@@ -519,6 +537,12 @@ isOneToOne: false
       foreignKeyName: "order_events_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_events_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
       referencedRelation: "order_overview"
       referencedColumns: ["id"]
     },{
@@ -558,6 +582,12 @@ isOneToOne: false
       columns: ["account_id"]
 isOneToOne: false
       referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "order_lines_order_id_fkey"
@@ -647,6 +677,12 @@ isOneToOne: false
       foreignKeyName: "orders_finance_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: true
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "orders_finance_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: true
       referencedRelation: "order_overview"
       referencedColumns: ["id"]
     },{
@@ -686,6 +722,12 @@ isOneToOne: false
       columns: ["account_id"]
 isOneToOne: false
       referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "payments_order_id_fkey"
@@ -826,6 +868,12 @@ isOneToOne: false
       columns: ["imei_master_id"]
 isOneToOne: false
       referencedRelation: "imei_master"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rma_units_origin_order_id_fkey"
+      columns: ["origin_order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "rma_units_origin_order_id_fkey"
@@ -1154,7 +1202,27 @@ isOneToOne: false
                 }
           }
           Views: {
-            "order_overview": {
+            "order_cycle": {
+                  Row: {
+                    "account_id": string,"cash_cycle_days": number | null,"confirmed": number | null,"deposit_on": string | null,"fully_paid": boolean | null,"id": string,"invoiced_on": string | null,"number": string,"order_date": string,"outstanding": number | null,"paid_on": string | null,"payable": number | null,"pays_in_eur": boolean | null,"pieces": number,"processing_days": number | null,"ship_date": string | null,"status": Database["public"]['Enums']["order_status"],"total_usd": number
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "orders_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "orders_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"order_overview": {
                   Row: {
                     "account_code": string,"account_id": string,"account_name": string,"balance_confirmed": number | null,"balance_ok": boolean | null,"delivery_setup": Database["public"]['Enums']["delivery_setup"],"deposit_confirmed": number | null,"deposit_payable": number | null,"eta_date": string | null,"id": string,"imei_count": number | null,"label_ok": boolean | null,"market": Database["public"]['Enums']["market"] | null,"number": string,"order_date": string,"payable_total": number | null,"payment_awaiting": boolean | null,"pays_in_eur": boolean | null,"pieces": number,"status": Database["public"]['Enums']["order_status"],"total_usd": number,"updated_at": string
                   }
@@ -1256,6 +1324,12 @@ isOneToOne: false
       foreignKeyName: "imei_master_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "imei_master_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
       referencedRelation: "order_overview"
       referencedColumns: ["id"]
     },{
@@ -1272,6 +1346,14 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"portal_me": {
+                  Row: {
+                    "contact_name": string | null,"email": string,"language": string
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
                 },"portal_order_lines": {
                   Row: {
                     "battery_new": boolean,"color": string | null,"item": string | null,"model": string | null,"order_id": string,"qty": number,"sort_order": number,"storage_gb": number | null,"unit_price_usd": number
@@ -1279,6 +1361,12 @@ isOneToOne: false
                   ComputedFields: never
                   Relationships: [
                     {
+      foreignKeyName: "order_lines_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "order_lines_order_id_fkey"
       columns: ["order_id"]
 isOneToOne: false

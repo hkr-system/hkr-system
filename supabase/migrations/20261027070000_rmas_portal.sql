@@ -965,6 +965,14 @@ select c.id, c.number, c.rma_id, r.number as rma_number, c.invoice_no, c.currenc
   from public.credit_notes c left join public.rmas r on r.id = c.rma_id
  where c.account_id = public.portal_account_id() and c.status in ('issued', 'applied');
 
+-- the signed-in client's own login (contacts stay closed to clients)
+create view public.portal_me as
+select pu.email, pu.language, c.name as contact_name
+  from public.portal_users pu left join public.contacts c on c.id = pu.contact_id
+ where pu.user_id = (select auth.uid()) and pu.account_id = public.portal_account_id();
+
+revoke all on public.portal_me from anon, public;
+grant select on public.portal_me to authenticated;
 revoke all on public.portal_account, public.portal_orders, public.portal_order_lines, public.portal_imeis,
               public.portal_files, public.portal_rmas, public.portal_rma_units, public.portal_credit_notes
   from anon, public;
@@ -1210,3 +1218,39 @@ create policy batch_files_update on storage.objects
   for update to authenticated
   using (bucket_id = 'account-files' and split_part(name, '/', 1) = 'batches'
          and (select public.current_app_role()) in ('admin', 'account_specialist'));
+
+-- -----------------------------------------------------------------------------
+-- 10. Order cycle for the Sales KPIs (Gabriel, Oct 27 2026): orders made / paid / pending
+--     payment, money still to collect, processing time (deposit confirmed → shipped) and
+--     cash cycle (invoice → fully paid). security_invoker: each user sees their own orders.
+-- -----------------------------------------------------------------------------
+create view public.order_cycle
+with (security_invoker = true)
+as
+with base as (
+  select o.id, o.account_id, o.number, o.status, o.order_date, o.ship_date, o.pieces, o.total_usd,
+         (o.partner_invoice_eur is not null) as pays_in_eur,
+         coalesce(o.partner_invoice_eur, o.total_usd) as payable,
+         coalesce((select min(e.created_at)::date from public.order_events e
+                    where e.order_id = o.id and e.to_status = 'invoiced'), o.order_date) as invoiced_on,
+         (select min(p.confirmed_at)::date from public.payments p
+           where p.order_id = o.id and p.type = 'deposit' and p.status = 'confirmed') as deposit_on,
+         coalesce((select sum(p.amount) from public.payments p
+                    where p.order_id = o.id and p.status = 'confirmed'), 0) as confirmed,
+         (select max(p.confirmed_at)::date from public.payments p
+           where p.order_id = o.id and p.status = 'confirmed') as last_payment_on
+    from public.orders o
+   where o.status >= 'invoiced'
+)
+select b.id, b.account_id, b.number, b.status, b.order_date, b.ship_date, b.pieces, b.total_usd, b.pays_in_eur, b.payable,
+       b.invoiced_on, b.deposit_on, b.confirmed,
+       (b.status >= 'balance_paid' or b.confirmed >= b.payable - 0.01) as fully_paid,
+       case when b.status >= 'balance_paid' or b.confirmed >= b.payable - 0.01 then b.last_payment_on end as paid_on,
+       case when b.status >= 'balance_paid' then 0 else greatest(b.payable - b.confirmed, 0) end as outstanding,
+       case when b.deposit_on is not null and b.ship_date is not null and b.ship_date >= b.deposit_on
+            then b.ship_date - b.deposit_on end as processing_days,
+       case when (b.status >= 'balance_paid' or b.confirmed >= b.payable - 0.01) and b.last_payment_on is not null
+            then greatest(b.last_payment_on - b.invoiced_on, 0) end as cash_cycle_days
+  from base b;
+revoke all on public.order_cycle from anon;
+grant select on public.order_cycle to authenticated;

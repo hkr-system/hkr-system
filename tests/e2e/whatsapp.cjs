@@ -89,7 +89,13 @@ async function webhook(from, name, body, id) {
     const after = (await th.boundingBox()).width;
     check(after > before + 100, `column widened by dragging (${Math.round(before)} → ${Math.round(after)})`);
     await page.reload();
-    const kept = (await page.locator('[data-testid=leads-table] th').nth(1).boundingBox()).width;
+    // widths are applied after hydration (the page now streams in), so allow it a moment
+    let kept = 0;
+    for (let i = 0; i < 30; i++) {
+      kept = (await page.locator('[data-testid=leads-table] th').nth(1).boundingBox()).width;
+      if (Math.abs(kept - after) < 4) break;
+      await page.waitForTimeout(200);
+    }
     check(Math.abs(kept - after) < 4, 'column width remembered after reload');
 
     // overview
@@ -114,8 +120,14 @@ async function webhook(from, name, body, id) {
     await page.click('button:has-text("Count recipients")');
     await page.waitForSelector('[data-testid=audience]');
     check((await page.textContent('[data-testid=audience]')).match(/^\d+ will receive/), 'audience counted');
+    await page.waitForSelector('[data-testid=cost-total]');
+    const formCost = await page.textContent('[data-testid=cost-total]');
+    check(/US\$\d/.test(formCost) && (await page.textContent('[data-testid=cost-estimate]')).includes('Netherlands'),
+      `estimated cost shown before saving (${formCost.trim()})`);
+    await page.screenshot({ path: `${DIR}/broadcast-cost.png`, fullPage: true });
     await page.click('button:has-text("Save draft")');
     await page.waitForURL('**/whatsapp/broadcasts/*');
+    check((await page.textContent('[data-testid=cost-total]')) === formCost, 'same estimated cost on the broadcast page');
     const actions = await page.textContent('[data-testid=broadcast-actions]');
     check(actions.includes('Submit for approval') && !actions.includes('Approve'), 'bd can submit but not approve');
     await page.click('button:has-text("Submit for approval")');

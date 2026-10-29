@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BROADCAST_STATUS_LABEL as STATUS_LABEL } from "@/lib/whatsapp/labels";
+import { loadMessageRates } from "@/lib/whatsapp/broadcasts";
+import { estimateCost } from "@/lib/whatsapp/pricing";
+import { CostEstimateView } from "@/components/whatsapp/cost-estimate";
 
 export const metadata: Metadata = { title: "Broadcast" };
 
@@ -21,15 +24,19 @@ export default async function BroadcastPage({ params }: PageProps<"/whatsapp/bro
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const db = await createClient();
-  const [{ data: b }, { data: recipients }] = await Promise.all([
+  const [{ data: b }, { data: recipients }, { data: billable }, rates] = await Promise.all([
     db.from("wa_broadcasts").select("*, wa_numbers(label, display_phone, broadcasts_paused, paused_reason, daily_broadcast_limit), wa_templates(name, language, category, components)").eq("id", id).maybeSingle(),
     db.from("wa_broadcast_recipients").select("id, phone, status, skip_reason, error_title, sent_at, leads(id, company)").eq("broadcast_id", id).order("status").limit(1000),
+    // recipients Meta charges (or will charge): everything except skipped and failed
+    db.from("wa_broadcast_recipients").select("phone").eq("broadcast_id", id).not("status", "in", "(skipped,failed)").limit(20000),
+    loadMessageRates(db),
   ]);
   if (!b) notFound();
   const n = (Array.isArray(b.wa_numbers) ? b.wa_numbers[0] : b.wa_numbers) as { label: string | null; display_phone: string; broadcasts_paused: boolean; paused_reason: string | null; daily_broadcast_limit: number } | null;
   const t = (Array.isArray(b.wa_templates) ? b.wa_templates[0] : b.wa_templates) as { name: string; language: string; category: string; components: unknown } | null;
   const seg = (b.segment ?? {}) as { tiers?: string[]; markets?: string[]; stages?: string[] };
   const tz = access.user.timezone;
+  const cost = estimateCost((billable ?? []).map((r) => r.phone), t?.category ?? "UTILITY", rates);
   const stats = [["Queued", b.count_queued], ["Sent", b.count_sent], ["Delivered", b.count_delivered], ["Read", b.count_read], ["Failed", b.count_failed], ["Skipped", b.count_skipped]] as const;
 
   return (
@@ -60,6 +67,7 @@ export default async function BroadcastPage({ params }: PageProps<"/whatsapp/bro
           <CardContent className="grid gap-2 text-sm">
             <p className="rounded-md bg-muted p-3 whitespace-pre-wrap">{t ? fillBody(t.components, ((b.variables ?? []) as { source: string; value?: string }[]).map((v) => v.source === "text" ? v.value ?? "" : `[${v.source.replace("_", " ")}]`)) : ""}</p>
             {b.header_filename ? <p className="text-xs text-muted-foreground">Header file: {b.header_filename}</p> : null}
+            <CostEstimateView cost={cost} title={["draft", "pending_approval", "approved"].includes(b.status) ? "Estimated cost" : "Estimated cost (sent + still queued)"} />
             <p className="text-xs text-muted-foreground">
               Audience: tiers {seg.tiers?.join(", ") || "all"} · markets {seg.markets?.join(", ") || "all"} · stages {seg.stages?.join(", ") || "all"} ·
               daily limit {n?.daily_broadcast_limit} per number

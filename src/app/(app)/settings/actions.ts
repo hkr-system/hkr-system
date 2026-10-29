@@ -109,3 +109,27 @@ export async function updateOwnerByMarket(_prev: SettingState, formData: FormDat
   revalidatePath("/settings");
   return { ok: true };
 }
+
+// --- WhatsApp message prices (broadcast cost estimate, Oct 28 2026) ----------
+// One row per Meta market: rate_<market>_<category>. Empty = no price for that market/category.
+export async function updateMessageRates(_prev: SettingState, formData: FormData): Promise<SettingState> {
+  await requireRole(["admin"]);
+  const { META_MARKET_LABELS } = await import("@/lib/whatsapp/pricing");
+  const asOf = String(formData.get("as_of") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return { error: "Enter the date the prices were checked." };
+  const rates: Record<string, Record<string, number>> = {};
+  for (const m of Object.keys(META_MARKET_LABELS)) {
+    for (const cat of ["marketing", "utility", "authentication"]) {
+      const raw = String(formData.get(`rate_${m}_${cat}`) ?? "").trim().replace(",", ".");
+      if (!raw) continue;
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0 || n > 5) return { error: `${META_MARKET_LABELS[m]} · ${cat}: enter a price in US$ (e.g. 0.0635).` };
+      (rates[m] ??= {})[cat] = n;
+    }
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("settings").update({ value: { currency: "USD", as_of: asOf, rates } }).eq("key", "wa_message_rates");
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { ok: true };
+}

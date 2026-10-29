@@ -186,7 +186,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `npm run db:reset` | rebuild local database from migrations + seeds |
 | `npm run db:types` | regenerate `src/types/database.ts` from the local database |
 | `npm run test:db` | pgTAP security tests |
-| `npm test` | unit tests (vitest: scoring, countries, phones) |
+| `npm test` | unit tests (vitest: scoring, countries, phones, WhatsApp pricing…) |
 | `npm run test:e2e` | browser test per role (app running on :3000 against local Supabase) |
 | `node tests/e2e/leads.cjs` | Phase 1 browser test (run right after `npm run db:reset`; it changes data) |
 | `node tests/e2e/dashboards.cjs` | Sales / Accounts / Finance dashboards per role (after db:reset) |
@@ -298,6 +298,12 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   broadcast replies (creator), new form/WhatsApp leads (owner or admin + bd). Accounts needing attention and
   RMA batches ready are to be added in Phases 3–4 (Gabriel's request Oct 27).
 - Leads overview "closest to converting": Sample/Proposal, then Meeting, then Qualified; then tier, score.
+- Broadcast cost estimate (Gabriel, Oct 28 2026): "Count recipients and cost" in the form and the broadcast page show
+  recipients × Meta list price per market (`src/lib/whatsapp/pricing.ts`, unit-tested). Market = Meta pricing market of the
+  phone's CALLING CODE (+44 → UK; only +1/+7 split by area code; Meta groups like "Rest of Western Europe"; unlisted → Other).
+  Prices: setting `wa_message_rates` (USD per delivered message, marketing/utility/authentication, `as_of`), not confidential
+  (bd sees the estimate), edited by admin in Settings → WhatsApp message prices; seeded with Meta's rates read 28 Oct 2026.
+  Skipped (US marketing) and failed recipients are not counted. Meta may add taxes; client replies are free.
 
 ## Accounts and orders rules (Phase 3, Oct 27 2026)
 

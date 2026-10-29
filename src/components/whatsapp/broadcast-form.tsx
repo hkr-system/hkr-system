@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/native-select";
 import { MARKETS, STAGES, TIERS, type LeadStage, type LeadTier, type Market } from "@/lib/leads/constants";
 import { bodyVariableCount, fillBody, headerFormat } from "@/lib/whatsapp/templates";
 import { createBroadcast, previewAudience } from "@/app/(app)/whatsapp/broadcasts/actions";
+import { CostEstimateView } from "@/components/whatsapp/cost-estimate";
 
 type Tpl = { id: string; name: string; language: string; category: string; components: unknown };
 
@@ -32,7 +33,7 @@ export function BroadcastForm({ numbers, templates }: { numbers: { id: string; l
   const [markets, setMarkets] = useState<Market[]>([]);
   const [stages, setStages] = useState<LeadStage[]>([]);
   const [sources, setSources] = useState<string[]>([]);
-  const [audience, setAudience] = useState<{ queued: number; skipped: number } | null>(null);
+  const [audience, setAudience] = useState<Awaited<ReturnType<typeof previewAudience>> | null>(null);
   const [checking, start] = useTransition();
   const tpl = templates.find((t) => t.id === tplId);
   const count = tpl ? bodyVariableCount(tpl.components) : 0;
@@ -91,16 +92,17 @@ export function BroadcastForm({ numbers, templates }: { numbers: { id: string; l
 
       <div className="grid gap-3 rounded-lg border p-3">
         <Label>Audience (opted-in, not disqualified, with a phone)</Label>
-        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Tier (empty = all)</span><Checks name="tiers" options={TIERS} value={tiers} onChange={setTiers} /></div>
-        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Market (empty = all)</span><Checks name="markets" options={MARKETS} value={markets} onChange={setMarkets} /></div>
-        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Stage (empty = all)</span><Checks name="stages" options={STAGES} value={stages} onChange={setStages} /></div>
+        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Tier (empty = all)</span><Checks name="tiers" options={TIERS} value={tiers} onChange={(v) => { setTiers(v); setAudience(null); }} /></div>
+        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Market (empty = all)</span><Checks name="markets" options={MARKETS} value={markets} onChange={(v) => { setMarkets(v); setAudience(null); }} /></div>
+        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Stage (empty = all)</span><Checks name="stages" options={STAGES} value={stages} onChange={(v) => { setStages(v); setAudience(null); }} /></div>
         <div className="flex items-center gap-3">
           <Button type="button" variant="outline" size="sm" disabled={checking}
             onClick={() => start(async () => setAudience(await previewAudience({ tiers, markets, stages }, tplId)))}>
-            {checking ? "Counting…" : "Count recipients"}
+            {checking ? "Counting…" : "Count recipients and cost"}
           </Button>
           {audience ? <span className="text-sm" data-testid="audience">{audience.queued} will receive it{audience.skipped ? `, ${audience.skipped} skipped (US numbers)` : ""}.</span> : null}
         </div>
+        {audience ? <CostEstimateView cost={audience.cost} /> : null}
       </div>
 
       <div className="grid gap-1.5 sm:w-72">

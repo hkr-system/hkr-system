@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SettingRow } from "./setting-row";
 import { OwnerByMarketForm, ScoringRuleRow, TargetCountriesForm } from "./lead-settings";
 import { countryName } from "@/lib/leads/countries";
+import { META_MARKET_LABELS } from "@/lib/whatsapp/pricing";
+import { MessageRatesForm } from "./message-rates";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -24,7 +26,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Edited with their own controls further down the page.
-const SPECIAL_KEYS = ["lead_target_countries", "lead_owner_by_market"];
+const SPECIAL_KEYS = ["lead_target_countries", "lead_owner_by_market", "wa_message_rates"];
 
 export default async function SettingsPage() {
   const access = await checkSection("settings");
@@ -141,6 +143,23 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <OwnerByMarketForm value={ownerByMarket} team={(users.data ?? []).filter((u) => u.active && (u.role === "admin" || u.role === "bd")).map((u) => ({ user_id: u.user_id, full_name: u.full_name || u.email }))} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>WhatsApp message prices</CardTitle>
+            <CardDescription>
+              Meta’s price in US$ per delivered template message, by the client’s country (Meta groups some countries,
+              e.g. “Rest of Western Europe”). Used for the estimated cost of broadcasts. Check them on Meta’s pricing page
+              (whatsappbusiness.com → Pricing, currency USD) when Meta announces new rates, usually 1 Jan / 1 Apr / 1 Jul / 1 Oct.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MessageRatesForm
+              value={(settingValue("wa_message_rates") ?? null) as never}
+              markets={Object.entries(META_MARKET_LABELS).map(([code, label]) => ({ code, label })).sort((a, b) => a.label.localeCompare(b.label))}
+            />
           </CardContent>
         </Card>
 

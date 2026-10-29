@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { LeadStage, LeadTier, Market } from "@/lib/leads/constants";
+import type { MessageRates } from "./pricing";
 
 type DB = SupabaseClient<Database>;
 export type Segment = { tiers?: LeadTier[]; markets?: Market[]; stages?: LeadStage[] };
@@ -30,4 +31,11 @@ export function planRecipients(leads: { id: string; phone_e164: string | null }[
     rows.push({ lead_id: l.id, phone: l.phone_e164, status: usMarketing ? "skipped" : "queued", skip_reason: usMarketing ? US_MARKETING_SKIP : null });
   }
   return rows;
+}
+
+// Meta list prices (settings.wa_message_rates). Null when the setting is missing.
+export async function loadMessageRates(db: DB): Promise<MessageRates | null> {
+  const { data } = await db.from("settings").select("value").eq("key", "wa_message_rates").maybeSingle();
+  const v = data?.value as MessageRates | null | undefined;
+  return v && typeof v === "object" && v.rates ? v : null;
 }

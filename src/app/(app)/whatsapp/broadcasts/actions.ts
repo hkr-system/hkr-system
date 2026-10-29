@@ -9,7 +9,8 @@ import { MARKETS, STAGES, TIERS, type LeadStage, type LeadTier, type Market } fr
 import { uploadMedia, whatsappConfigured } from "@/lib/whatsapp/graph";
 import { graphVersion } from "@/lib/whatsapp/service";
 import { headerFormat } from "@/lib/whatsapp/templates";
-import { planRecipients, segmentLeads, type Segment } from "@/lib/whatsapp/broadcasts";
+import { loadMessageRates, planRecipients, segmentLeads, type Segment } from "@/lib/whatsapp/broadcasts";
+import { estimateCost, type CostEstimate } from "@/lib/whatsapp/pricing";
 
 export type BcState = { error?: string; ok?: boolean; message?: string };
 const WORKERS = ["admin", "bd"] as const;
@@ -22,12 +23,18 @@ function readSegment(fd: FormData): Segment {
   };
 }
 
-export async function previewAudience(segment: Segment, templateId: string) {
+export async function previewAudience(segment: Segment, templateId: string): Promise<{ queued: number; skipped: number; cost: CostEstimate }> {
   await requireRole(WORKERS);
   const db = await createClient();
-  const { data: tpl } = await db.from("wa_templates").select("category").eq("id", templateId).maybeSingle();
-  const rows = planRecipients(await segmentLeads(db, segment), tpl?.category ?? "UTILITY");
-  return { queued: rows.filter((r) => r.status === "queued").length, skipped: rows.filter((r) => r.status === "skipped").length };
+  const [{ data: tpl }, leads, rates] = await Promise.all([
+    db.from("wa_templates").select("category").eq("id", templateId).maybeSingle(),
+    segmentLeads(db, segment),
+    loadMessageRates(db),
+  ]);
+  const category = tpl?.category ?? "UTILITY";
+  const rows = planRecipients(leads, category);
+  const queued = rows.filter((r) => r.status === "queued");
+  return { queued: queued.length, skipped: rows.length - queued.length, cost: estimateCost(queued.map((r) => r.phone), category, rates) };
 }
 
 export async function createBroadcast(_p: BcState, fd: FormData): Promise<BcState> {

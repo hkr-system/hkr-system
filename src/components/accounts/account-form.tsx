@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export type AccountValues = {
   id?: string; code?: string; name?: string; legal_name?: string | null; country?: string | null; market?: string | null;
-  vat_eori?: string | null; billing_entity?: BillingEntity; intermediary_id?: string | null; payment_method?: PaymentMethod;
+  vat_eori?: string | null; billing_address?: string | null; company_ids?: string | null; billing_entity?: BillingEntity; intermediary_id?: string | null; payment_method?: PaymentMethod;
   delivery_setup?: DeliverySetup; invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; show_note?: boolean };
   status?: AccountStatus; language?: string; tier?: string | null; drive_folder_url?: string | null;
   whatsapp_group_note?: string | null; notes?: string | null; owner?: string | null; specialist?: string | null;
@@ -88,6 +88,12 @@ export function AccountForm({ mode, values = {}, intermediaries, team, isAdmin, 
             className="font-mono uppercase" data-testid="account-code" />
         </Field>
         <Field label="VAT / EORI (EU)"><Input name="vat_eori" defaultValue={values.vat_eori ?? ""} /></Field>
+        <Field label="Address of the invoiced entity" hint="One line each, as it goes on the invoice (street, city + postcode, country)." className="sm:col-span-2">
+          <Textarea name="billing_address" rows={3} defaultValue={values.billing_address ?? ""} placeholder={"Street and number\nPostcode City, Region\nCountry"} />
+        </Field>
+        <Field label="Other company IDs on the invoice" hint="Optional, one per line (e.g. EIN: …, NIT: …, KVK/CoC: …)." className="sm:col-span-2">
+          <Textarea name="company_ids" rows={2} defaultValue={values.company_ids ?? ""} />
+        </Field>
         {mode === "edit" ? (
           <Field label="Status">
             <NativeSelect name="status" defaultValue={values.status ?? "onboarding"}>

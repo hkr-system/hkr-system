@@ -32,6 +32,8 @@ function setupFields(fd: FormData) {
     country,
     market: (str(fd, "market") || marketForCountry(country)) as "EU" | "LATAM" | "US" | "ROW" | null,
     vat_eori: opt(fd, "vat_eori"),
+    billing_address: opt(fd, "billing_address"),
+    company_ids: opt(fd, "company_ids"),
     billing_entity: (str(fd, "billing_entity") || "ever_state") as BillingEntity,
     intermediary_id: intermediary,
     // SOP §2.4: with an EU intermediary invoice the client pays EUR, otherwise USD

@@ -12,6 +12,7 @@ import { OwnerByMarketForm, ScoringRuleRow, TargetCountriesForm } from "./lead-s
 import { countryName } from "@/lib/leads/countries";
 import { META_MARKET_LABELS } from "@/lib/whatsapp/pricing";
 import { MessageRatesForm } from "./message-rates";
+import { InvoiceIssuerForm, type IssuerValue } from "./invoice-issuer";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -21,12 +22,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   promotions: "Weekly promotions",
   leads: "Lead scoring",
   landing: "Landing page (/apply)",
+  invoices: "Invoices — fixed texts",
 };
 
 const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Edited with their own controls further down the page.
-const SPECIAL_KEYS = ["lead_target_countries", "lead_owner_by_market", "wa_message_rates"];
+const SPECIAL_KEYS = ["lead_target_countries", "lead_owner_by_market", "wa_message_rates", "invoice_issuers"];
 
 export default async function SettingsPage() {
   const access = await checkSection("settings");
@@ -143,6 +145,22 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <OwnerByMarketForm value={ownerByMarket} team={(users.data ?? []).filter((u) => u.active && (u.role === "admin" || u.role === "bd")).map((u) => ({ user_id: u.user_id, full_name: u.full_name || u.email }))} />
+          </CardContent>
+        </Card>
+
+        <Card id="invoices">
+          <CardHeader>
+            <CardTitle>Invoices — company details</CardTitle>
+            <CardDescription>
+              Printed on every invoice of that billing entity: exporter block, signer, phones, the bank block (wire) or the USDT
+              block (USDT orders) and the company stamp (approved invoices only). Kept in the database, never in the code.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {([["ever_state", "Ever State Electronics Technology"], ["streamline_fze", "Streamline FZE (Dubai)"]] as const).map(([key, label]) => (
+              <InvoiceIssuerForm key={key} entity={key} label={label}
+                value={(((settingValue("invoice_issuers") ?? {}) as Record<string, IssuerValue>)[key] ?? {})} />
+            ))}
           </CardContent>
         </Card>
 

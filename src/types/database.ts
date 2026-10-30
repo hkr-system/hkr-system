@@ -57,14 +57,14 @@ isOneToOne: false
                   ]
                 },"accounts": {
                   Row: {
-                    "billing_entity": Database["public"]['Enums']["billing_entity"],"code": string,"country": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"delivery_setup": Database["public"]['Enums']["delivery_setup"],"drive_folder_url": string | null,"id": string,"intermediary_id": string | null,"invoice_format": NonNullable<Json>,"is_demo": boolean,"language": string,"legal_name": string | null,"market": Database["public"]['Enums']["market"] | null,"name": string,"notes": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"status": Database["public"]['Enums']["account_status"],"tier": string | null,"updated_at": string,"vat_eori": string | null,"whatsapp_group_note": string | null
+                    "billing_address": string | null,"billing_entity": Database["public"]['Enums']["billing_entity"],"code": string,"company_ids": string | null,"country": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"delivery_setup": Database["public"]['Enums']["delivery_setup"],"drive_folder_url": string | null,"id": string,"intermediary_id": string | null,"invoice_format": NonNullable<Json>,"is_demo": boolean,"language": string,"legal_name": string | null,"market": Database["public"]['Enums']["market"] | null,"name": string,"notes": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"status": Database["public"]['Enums']["account_status"],"tier": string | null,"updated_at": string,"vat_eori": string | null,"whatsapp_group_note": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "billing_entity"?: Database["public"]['Enums']["billing_entity"],"code": string,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"drive_folder_url"?: string | null,"id"?: string,"intermediary_id"?: string | null,"invoice_format"?: NonNullable<Json>,"is_demo"?: boolean,"language"?: string,"legal_name"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"name": string,"notes"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"status"?: Database["public"]['Enums']["account_status"],"tier"?: string | null,"updated_at"?: string,"vat_eori"?: string | null,"whatsapp_group_note"?: string | null
+                    "billing_address"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"code": string,"company_ids"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"drive_folder_url"?: string | null,"id"?: string,"intermediary_id"?: string | null,"invoice_format"?: NonNullable<Json>,"is_demo"?: boolean,"language"?: string,"legal_name"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"name": string,"notes"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"status"?: Database["public"]['Enums']["account_status"],"tier"?: string | null,"updated_at"?: string,"vat_eori"?: string | null,"whatsapp_group_note"?: string | null
                   }
                   Update: {
-                    "billing_entity"?: Database["public"]['Enums']["billing_entity"],"code"?: string,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"drive_folder_url"?: string | null,"id"?: string,"intermediary_id"?: string | null,"invoice_format"?: NonNullable<Json>,"is_demo"?: boolean,"language"?: string,"legal_name"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"name"?: string,"notes"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"status"?: Database["public"]['Enums']["account_status"],"tier"?: string | null,"updated_at"?: string,"vat_eori"?: string | null,"whatsapp_group_note"?: string | null
+                    "billing_address"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"code"?: string,"company_ids"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"drive_folder_url"?: string | null,"id"?: string,"intermediary_id"?: string | null,"invoice_format"?: NonNullable<Json>,"is_demo"?: boolean,"language"?: string,"legal_name"?: string | null,"market"?: Database["public"]['Enums']["market"] | null,"name"?: string,"notes"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"status"?: Database["public"]['Enums']["account_status"],"tier"?: string | null,"updated_at"?: string,"vat_eori"?: string | null,"whatsapp_group_note"?: string | null
                   }
                   Relationships: [
                     {
@@ -396,6 +396,80 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"invoices": {
+                  Row: {
+                    "account_id": string,"approved_at": string | null,"approved_by": string | null,"billing_entity": Database["public"]['Enums']["billing_entity"],"consignee": string,"created_at": string,"created_by": string | null,"file_pdf_id": string | null,"file_xlsx_id": string | null,"id": string,"invoice_date": string,"lines": NonNullable<Json>,"notify": NonNullable<Json>,"number": string,"order_id": string,"payment_method": Database["public"]['Enums']["payment_method"],"sent_at": string | null,"sent_by": string | null,"ship_to": string,"shipment": NonNullable<Json>,"status": Database["public"]['Enums']["invoice_status"],"total_usd": number,"updated_at": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"approved_at"?: string | null,"approved_by"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"consignee"?: string,"created_at"?: string,"created_by"?: string | null,"file_pdf_id"?: string | null,"file_xlsx_id"?: string | null,"id"?: string,"invoice_date"?: string,"lines"?: NonNullable<Json>,"notify"?: NonNullable<Json>,"number"?: string,"order_id": string,"payment_method"?: Database["public"]['Enums']["payment_method"],"sent_at"?: string | null,"sent_by"?: string | null,"ship_to"?: string,"shipment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["invoice_status"],"total_usd"?: number,"updated_at"?: string,"version"?: number
+                  }
+                  Update: {
+                    "account_id"?: string,"approved_at"?: string | null,"approved_by"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"consignee"?: string,"created_at"?: string,"created_by"?: string | null,"file_pdf_id"?: string | null,"file_xlsx_id"?: string | null,"id"?: string,"invoice_date"?: string,"lines"?: NonNullable<Json>,"notify"?: NonNullable<Json>,"number"?: string,"order_id"?: string,"payment_method"?: Database["public"]['Enums']["payment_method"],"sent_at"?: string | null,"sent_by"?: string | null,"ship_to"?: string,"shipment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["invoice_status"],"total_usd"?: number,"updated_at"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoices_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_file_pdf_id_fkey"
+      columns: ["file_pdf_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_file_pdf_id_fkey"
+      columns: ["file_pdf_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_file_xlsx_id_fkey"
+      columns: ["file_xlsx_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_file_xlsx_id_fkey"
+      columns: ["file_xlsx_id"]
+isOneToOne: false
+      referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"lead_events": {
                   Row: {
@@ -1484,6 +1558,9 @@ isOneToOne: false
 "has_account_access":
 { Args: { "p_account_id": string }; Returns: boolean
                            },
+"invoice_next_number":
+{ Args: { "p_date": string }; Returns: string
+                           },
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
@@ -1572,7 +1649,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","credit_applied_to": "next_invoice"|"order_balance"|"refund","credit_note_status": "draft"|"approved"|"issued"|"applied"|"cancelled","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER"|"FORM"|"PRUEBAS"|"VERIF"|"TRK","imei_check": "ours"|"not_found","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","rma_batch_status": "open"|"shipped"|"received","rma_channel": "portal"|"internal"|"import","rma_resolution": "pending"|"return_hk"|"repair_credit"|"credit_note"|"replacement"|"not_covered","rma_source": "testing"|"end_customer","rma_status": "requested"|"form_received"|"verified"|"approved"|"awaiting_return"|"credit_agreed"|"in_batch"|"received_hk"|"closed","rma_unit_status": "reported"|"verified"|"awaiting_shipment"|"shipped_to_hk"|"received_hk"|"returned_to_client"|"credited"|"rejected"|"closed","units_location": "with_client"|"at_intermediary"|"at_end_customer","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
+            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","credit_applied_to": "next_invoice"|"order_balance"|"refund","credit_note_status": "draft"|"approved"|"issued"|"applied"|"cancelled","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER"|"FORM"|"PRUEBAS"|"VERIF"|"TRK","imei_check": "ours"|"not_found","invoice_status": "draft"|"approved"|"sent"|"void","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","rma_batch_status": "open"|"shipped"|"received","rma_channel": "portal"|"internal"|"import","rma_resolution": "pending"|"return_hk"|"repair_credit"|"credit_note"|"replacement"|"not_covered","rma_source": "testing"|"end_customer","rma_status": "requested"|"form_received"|"verified"|"approved"|"awaiting_return"|"credit_agreed"|"in_batch"|"received_hk"|"closed","rma_unit_status": "reported"|"verified"|"awaiting_shipment"|"shipped_to_hk"|"received_hk"|"returned_to_client"|"credited"|"rejected"|"closed","units_location": "with_client"|"at_intermediary"|"at_end_customer","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1692,7 +1769,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"credit_applied_to": ["next_invoice", "order_balance", "refund"],"credit_note_status": ["draft", "approved", "issued", "applied", "cancelled"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER", "FORM", "PRUEBAS", "VERIF", "TRK"],"imei_check": ["ours", "not_found"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"rma_batch_status": ["open", "shipped", "received"],"rma_channel": ["portal", "internal", "import"],"rma_resolution": ["pending", "return_hk", "repair_credit", "credit_note", "replacement", "not_covered"],"rma_source": ["testing", "end_customer"],"rma_status": ["requested", "form_received", "verified", "approved", "awaiting_return", "credit_agreed", "in_batch", "received_hk", "closed"],"rma_unit_status": ["reported", "verified", "awaiting_shipment", "shipped_to_hk", "received_hk", "returned_to_client", "credited", "rejected", "closed"],"units_location": ["with_client", "at_intermediary", "at_end_customer"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
+            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"credit_applied_to": ["next_invoice", "order_balance", "refund"],"credit_note_status": ["draft", "approved", "issued", "applied", "cancelled"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER", "FORM", "PRUEBAS", "VERIF", "TRK"],"imei_check": ["ours", "not_found"],"invoice_status": ["draft", "approved", "sent", "void"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"rma_batch_status": ["open", "shipped", "received"],"rma_channel": ["portal", "internal", "import"],"rma_resolution": ["pending", "return_hk", "repair_credit", "credit_note", "replacement", "not_covered"],"rma_source": ["testing", "end_customer"],"rma_status": ["requested", "form_received", "verified", "approved", "awaiting_return", "credit_agreed", "in_batch", "received_hk", "closed"],"rma_unit_status": ["reported", "verified", "awaiting_shipment", "shipped_to_hk", "received_hk", "returned_to_client", "credited", "rejected", "closed"],"units_location": ["with_client", "at_intermediary", "at_end_customer"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
           }
         }
 } as const

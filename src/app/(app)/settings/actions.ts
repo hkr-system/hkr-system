@@ -133,3 +133,35 @@ export async function updateMessageRates(_prev: SettingState, formData: FormData
   revalidatePath("/settings");
   return { ok: true };
 }
+
+// --- Invoice issuer per billing entity (Oct 30 2026) --------------------------
+// Exporter block, signer, phones, bank details, USDT wallet and stamp printed on invoices.
+export async function updateInvoiceIssuer(_prev: SettingState, formData: FormData): Promise<SettingState> {
+  await requireRole(["admin"]);
+  const entity = String(formData.get("entity") ?? "");
+  if (!["ever_state", "streamline_fze"].includes(entity)) return { error: "Unknown billing entity." };
+  const text = (k: string) => String(formData.get(k) ?? "").trim();
+  const lines = (k: string) => text(k).split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("settings").select("value").eq("key", "invoice_issuers").maybeSingle();
+  const all = ((current?.value ?? {}) as Record<string, Record<string, unknown>>);
+  const before = all[entity] ?? {};
+  let stamp = typeof before.stamp === "string" ? before.stamp : undefined;
+  const newStamp = text("stamp");
+  if (formData.get("remove_stamp") === "on") stamp = undefined;
+  else if (newStamp) {
+    if (!/^data:image\/(png|jpe?g);base64,/.test(newStamp)) return { error: "The stamp must be a PNG or JPG image." };
+    if (newStamp.length > 700_000) return { error: "The stamp image is too large (max ≈ 500 KB)." };
+    stamp = newStamp;
+  }
+  const next = {
+    company: text("company"), address: lines("address"), phone: text("phone"), whatsapp: text("whatsapp"),
+    signer_name: text("signer_name"), signer_title: text("signer_title"),
+    bank_lines: lines("bank_lines"), usdt_lines: lines("usdt_lines"),
+    ...(stamp ? { stamp } : {}),
+  };
+  const { error } = await supabase.from("settings").update({ value: { ...all, [entity]: next } as never }).eq("key", "invoice_issuers");
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { ok: true };
+}

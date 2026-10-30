@@ -15,6 +15,7 @@ import { NoAccess } from "@/components/no-access";
 import { OrderStatusBadge } from "@/components/accounts/badges";
 import { NoteForm, PaymentsPanel, ShippingPanel, StatusControls } from "@/components/orders/order-panels";
 import { FileUpload } from "@/components/orders/file-upload";
+import { InvoicePanel, type InvoiceRow } from "@/components/orders/invoice-panel";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,11 +31,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const { id } = await params;
   const db = await createClient();
 
-  const { data: o } = await db.from("orders").select("*, accounts(id, code, name, country, invoice_format, intermediaries(name))").eq("id", id).maybeSingle();
+  const { data: o } = await db.from("orders").select("*, accounts(id, code, name, country, invoice_format, billing_entity, intermediaries(name))").eq("id", id).maybeSingle();
   if (!o) notFound();
   const acc = o.accounts as unknown as { id: string; code: string; name: string; country: string | null; invoice_format: { battery_line_separate?: boolean } | null; intermediaries: { name: string } | null };
 
-  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance] = await Promise.all([
+  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }] = await Promise.all([
     db.from("order_overview").select("*").eq("id", id).single(),
     db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, description, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
@@ -42,7 +43,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
     db.from("files").select("id, kind, file_name, created_at").eq("owner_table", "orders").eq("owner_id", id).order("created_at", { ascending: false }),
     loadTeam(db),
     isAdmin ? db.from("orders_finance").select("base_cost_usd, margin_pct").eq("order_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    db.from("invoices").select("id, number, status, version, invoice_date, consignee, ship_to, notify, shipment, lines, total_usd, file_pdf_id, file_xlsx_id").eq("order_id", id).neq("status", "void").maybeSingle(),
+    db.from("settings").select("value").eq("key", "invoice_issuers").maybeSingle(),
   ]);
+  const billingEntity = (o as unknown as { accounts: { billing_entity?: string } }).accounts.billing_entity ?? "ever_state";
+  const issuerReady = Boolean(((issuers?.value ?? {}) as Record<string, { company?: string }>)[billingEntity]?.company);
   if (!ov) notFound();
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const status = o.status as OrderStatus;
@@ -130,6 +135,16 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 <div className="flex justify-between text-muted-foreground"><span>Balance</span><span>{money(o.balance_due_usd)}</span></div>
                 {ov.pays_in_eur ? <div className="flex justify-between text-muted-foreground"><span>Client pays (EUR, intermediary)</span><span>{money(ov.payable_total, "EUR")}</span></div> : null}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice</CardTitle>
+              <CardDescription>Draft → Approved (admin) → Sent. Same layout as our commercial invoices; PDF and Excel.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InvoicePanel orderId={id} invoice={(invoice ?? null) as InvoiceRow | null} orderTotal={Number(o.total_usd)} role={user.role ?? ""} issuerReady={issuerReady} />
             </CardContent>
           </Card>
 

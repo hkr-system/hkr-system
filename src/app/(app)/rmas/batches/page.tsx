@@ -15,12 +15,19 @@ import {
   BatchStatusButtons, EligibleUnits, LabelUpload, RemoveFromBatch, ShipmentForm, StartBatch, type EligibleUnit,
 } from "@/components/rmas/batch-panels";
 import { Button } from "@/components/ui/button";
+import { BatchBoard } from "@/components/rmas/batch-board";
+import { buildBoard, type BoardStage } from "@/lib/rmas/board";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "EU batches" };
 
+// "now" for the board, outside render (React purity rule)
+function boardNow() {
+  return new Date();
+}
+
 type U = {
-  id: string; imei: string; model: string | null; fault_category: string; battery_swollen: boolean; batch_id: string | null; resolution: string;
+  id: string; unit_price_usd: number | null; imei: string; model: string | null; fault_category: string; battery_swollen: boolean; batch_id: string | null; resolution: string;
   imei_check: string; rma_id: string; rmas: { number: string; status: string; accounts: { code: string; name: string; intermediary_id: string | null } };
 };
 
@@ -33,18 +40,25 @@ export default async function BatchesPage() {
   const [{ data: inters }, { data: batches }, { data: units }, { data: cutSetting }] = await Promise.all([
     db.from("intermediaries").select("id, name").order("name"),
     db.from("rma_batches").select("*").order("cutoff_date", { ascending: false }).limit(60),
-    db.from("rma_units").select("id, imei, model, fault_category, battery_swollen, batch_id, resolution, imei_check, rma_id, rmas!inner(number, status, accounts!inner(code, name, intermediary_id))")
+    db.from("rma_units").select("id, unit_price_usd, imei, model, fault_category, battery_swollen, batch_id, resolution, imei_check, rma_id, rmas!inner(number, status, accounts!inner(code, name, intermediary_id))")
       .eq("resolution", "return_hk").limit(3000),
     db.from("settings").select("value").eq("key", "batch_cutoff").maybeSingle(),
   ]);
   const all = (units ?? []) as unknown as U[];
   const cut = cutoffInfo((cutSetting?.value ?? undefined) as CutoffSetting | undefined);
   const left = cut.left;
+  const interName = new Map((inters ?? []).map((i) => [i.id, i.name]));
+  const board = buildBoard((batches ?? []).map((b) => ({
+    id: b.id, intermediary: interName.get(b.intermediary_id) ?? "—", cutoff: b.cutoff_date, status: b.status as BoardStage,
+    awb: b.awb, hasLabel: Boolean(b.label_path), shippedAt: b.shipped_at, receivedAt: b.received_at,
+    units: all.filter((u) => u.batch_id === b.id).map((u) => ({ client: u.rmas.accounts.code, price: u.unit_price_usd === null ? null : Number(u.unit_price_usd), rmaClosed: u.rmas.status === "closed" })),
+  })), boardNow());
 
   return (
     <>
       <PageHeader title="EU batches" description="SOP P11: every Friday 12:00 (Amsterdam) the approved units of the clients of each EU intermediary travel to Hong Kong in one consolidated shipment." />
       <SectionTabs tabs={rmaTabs(user.role)} />
+      <BatchBoard columns={board} />
       <p className="mb-4 text-sm">Next cut-off: <span className="font-medium">Friday {formatDate(cut.date)}, 12:00 Amsterdam</span> · <span className="text-hkr-action">{left} left</span></p>
 
       <div className="grid gap-4">
@@ -72,7 +86,7 @@ export default async function BatchesPage() {
                   {!current ? <StartBatch intermediaryId={it.id} cutoff={cut.date} label={`Start the batch for Friday ${formatDate(cut.date)}`} /> : null}
                 </div>
                 {current ? (
-                  <div className={cn("grid content-start gap-3 rounded-lg border p-3")} data-testid="open-batch">
+                  <div id={`batch-${current.id}`} className={cn("grid scroll-mt-20 content-start gap-3 rounded-lg border p-3")} data-testid="open-batch">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium">Batch {formatDate(current.cutoff_date)}</span>
                       <Flag tone="info">{BATCH_STATUS_LABEL[current.status as BatchStatus]}</Flag>
@@ -107,7 +121,7 @@ export default async function BatchesPage() {
                     {history.map((b) => {
                       const n = all.filter((u) => u.batch_id === b.id).length;
                       return (
-                        <div key={b.id} className="flex flex-wrap items-center gap-3 text-xs">
+                        <div key={b.id} id={`batch-${b.id}`} className="flex scroll-mt-20 flex-wrap items-center gap-3 text-xs">
                           <span className="font-medium">{formatDate(b.cutoff_date)}</span><Flag tone="info">{BATCH_STATUS_LABEL[b.status as BatchStatus]}</Flag>
                           <span>{n} units · {b.carrier} {b.awb ?? ""}</span>
                           {b.shipped_at ? <span className="text-muted-foreground">shipped {formatDateTime(b.shipped_at, user.timezone)}</span> : null}

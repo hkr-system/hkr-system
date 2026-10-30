@@ -407,6 +407,10 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   Awaiting shipment, Shipped to HK, Received in HK, Returned to client, Credited, Rejected, Closed).
 - Credit cap = invoice value × 1 % (SOP): above it → red warning; admin can still approve.
 - Fault categories: the 12 of the RMA Request Form (see the project doc).
+- Batch board (Gabriel approved the scheme Oct 30 2026): top of RMAs → EU batches shows the batches left to right by stage —
+  1 Open (collecting, soonest cut-off first, label missing / missed cut-off alerts) → 2 Shipped to HK (days in transit, AWB) →
+  3 Received in HK (last 90 days, "units still to resolve" = RMA not closed). Pure logic `src/lib/rmas/board.ts` (unit-tested);
+  cards jump to the batch below. Gabriel wants the same left-to-right board for ORDERS next (by order status).
 
 ## Client portal — technical rules (Oct 27 2026)
 

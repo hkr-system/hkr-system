@@ -76,6 +76,9 @@ const png = () => {
     await page.screenshot({ path: `${DIR}/rma-detail.png`, fullPage: true });
 
     await page.goto(BASE + '/rmas/batches');
+    await page.waitForSelector('[data-testid=batch-board]');
+    const stages = await page.$$eval('[data-testid$=-count]', (els) => els.map((e) => e.textContent));
+    check(stages.length === 3 && stages[0] === '1 batch', `batch board: 3 stages, the seeded open batch in stage 1 (${stages.join(' / ')})`);
     const gc = page.locator('[data-testid="intermediary-Global Connect"]');
     check((await gc.locator('[data-testid=open-batch] li').count()) >= 2, 'Global Connect batch holds the approved units');
     const xlsx = await page.request.get(BASE + (await gc.locator('[data-testid=batch-xlsx]').getAttribute('href')));

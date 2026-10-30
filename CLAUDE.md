@@ -50,7 +50,8 @@ plain words, one step at a time, and say exactly what to click or paste.
 | 1 Leads | Built (Oct 2026): leads, My day, list, detail + timeline, Kanban, /apply form, importer, scoring settings, Brevo sync (inactive until BREVO_API_KEY) |
 | 2 WhatsApp | Built (Oct 2026): webhook Edge Function, inbox (realtime, 24h window, templates, files, assignment), templates sync, numbers admin, broadcasts (bd drafts / admin approves, throttled worker), notifications, leads overview dashboard, collapsible menu, resizable columns |
 | Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
-| 3 Accounts, orders, payments | Built (Oct 27 2026) except invoices: accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoice PDF/xlsx waits for the fixture invoices |
+| 3 Accounts, orders, payments | Built (Oct 27 2026): accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoices (PDF + xlsx, Draft → Approved → Sent) built Oct 30 2026 |
+| Go-live pack (Oct 30 2026, part of Phase 7) | Settings → Users (roles), SKUs (add), Invoices (issuer), Go-live checklist (/settings/go-live); weekly backup cron; supabase/manual/delete_demo_data.sql |
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
@@ -132,6 +133,7 @@ supabase/
   templates/magic_link.html  portal sign-in email (token-hash link: works on any device) — paste it in the hosted project too
   seed_phase3.sql          Phase 3 demo accounts (codes 9xx, is_demo) + 12 orders, payments, IMEIs (safe on hosted)
   seed_local_users.sql     LOCAL ONLY: creates demo Auth users with password LocalDemo-2026!
+  manual/delete_demo_data.sql  run ONCE by hand on hosted (SQL Editor) before real data: deletes demo accounts/leads/numbers
   tests/database/          pgTAP tests (npm run test:db)
 tests/e2e/roles.cjs        browser test per role (npm run test:e2e)
 fixtures/                  (from Phase 3) real templates and sample files given by Gabriel
@@ -192,6 +194,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/dashboards.cjs` | Sales / Accounts / Finance dashboards per role (after db:reset) |
 | `node tests/e2e/rmas.cjs` | Phase 4 + portal browser test (after db:reset): RMAs, credit note PDF, batch, portal login by link, RMA request on a phone |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
+| `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
 Docker in Claude's cloud workspace: start it with `dockerd > /tmp/dockerd.log 2>&1 &` before `db:start`.
@@ -333,6 +336,36 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - WhatsApp: a phone of an account contact links its chat to the account (no lead is created); hook
   `onOrderStatusChange` stays inactive until an order-status utility template is approved.
 
+## Invoices (Phase 3 remainder, built Oct 30 2026 from the 5 reference invoices — NOT in the repo)
+
+- Table `invoices` (one live per order): number = MMDDYYYY of the invoice date, `-2`, `-3`… when the date repeats
+  (trigger); status Draft → Approved (admin only) → Sent; admin reopens (version + 1) or voids; approved content frozen
+  (trigger). Specialist + admin prepare; bd reads (own accounts). On approve the order gets `hk_invoice_no`.
+- Lines (`src/lib/documents/invoice-lines.ts`, unit-tested against the Kopious invoice to the cent) follow `order_recalc`:
+  one line per model/storage/grade/battery/price with "Colors: Black(10), White(5)"; "New Battery cell 0 Cycle" only for
+  battery-eligible models; CE Marked (UKCA for GB) when the account's format says so; then "New battery cell" (separate
+  format), "Customs Clearance", "Shipping HK to <country>" (qty × unit when it splits exactly), "RMA discount",
+  "USDT Fee (x%)". Descriptions are editable on drafts (SIM, battery health, colour mix); amounts never.
+- Header blocks from the account (legal name + new `billing_address`, `vat_eori`, `company_ids`), the order's ship_to
+  and first contact; fixed texts in setting `invoice_texts` (FOB HK, Pre-payment, FEDEX/DHL Express…).
+- Issuer per billing entity (setting `invoice_issuers`: company, address, phones, signer, bank lines for wire, USDT lines,
+  stamp image as data URL) — filled by Gabriel in Settings → Invoices; NEVER in this public repo. Stamp only on approved.
+- "Mark as sent" stores `[code]_ORD-NN_INV-HK(_vN).pdf/.xlsx` (kind INV-HK) in the order folder → client portal shows them.
+  Downloads on the fly: /api/invoices/<id>/pdf|xlsx (drafts say DRAFT).
+- USDT fee: 0.85 % is the current one (Gabriel, Oct 30 2026).
+
+## Go-live (Oct 30 2026)
+
+- Real data from Monday Nov 2 2026. Gabriel chose: delete the demo data (script `supabase/manual/delete_demo_data.sql`,
+  run once by hand); stay on free plans for now → weekly backup cron `/api/cron/backup` (Sunday 04:00 UTC, vercel.json)
+  exports every table to the private bucket `backups/YYYY-MM-DD/<table>.json`; result in setting `last_backup`.
+- Users: logins are created in Supabase → Authentication → Users; the admin sets role/active in Settings → Users
+  (cannot change own admin). SKUs are added in Settings → SKUs (one per line "model, GB, colour"; iPhone 16 → no battery line).
+- /settings/go-live (admin) shows what is still missing (users, demo data, invoice issuer, SKUs, backup, WhatsApp, Meta…).
+- Fixed Oct 30: deleting an order no longer fails in `order_finance_recalc` (null order after cascade).
+- Browser tests must wait after goto() where a page redirects or a form suggests values: pages stream in after the
+  instant loading screen (Oct 28 speed work).
+
 ## Dashboards rules (Gabriel, Oct 27 2026)
 
 - Revenue = invoice total (`total_usd`) of orders with status ≥ Invoiced, dated by `order_date` (brief §8).
@@ -409,12 +442,7 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Phase 4 + portal: templates received Oct 27 2026 (structure in project doc `claude/HKR_phase4_templates.md`;
   originals NOT in this public repo). Still missing: the official terms document for the portal.
 
-- Invoices: Gabriel sent 5 real invoices (Ever State; NOT in the repo — real client and bank data). The Kopious
-  invoice uses a USDT fee of 0.8 % while the brief says 0.85 % — which is current? No Streamline FZE sample yet.
-
-- Phase 3 invoices still to build (PDF + xlsx, Draft → Approved → Sent, MMDDYYYY-seq) from those references:
-  per-line description (model / storage / SIM / CE|UKCA / battery health or "New Battery cell 0 Cycle" / grade /
-  colours), separate "New battery cell" line, shipping and customs per unit, payment-details block from Settings.
+- Invoices: no Streamline FZE sample yet (its header uses the same layout until one arrives).
 
 - WhatsApp (status Oct 27 2026): first HKR template `hkr_iphone14_eu_offer` (marketing, EN, fixed prices) PENDING at
   Meta → then test broadcast to lead "Test NL (Gabriel)" (EU, opt-in). Meta business verification submitted

@@ -165,3 +165,52 @@ export async function updateInvoiceIssuer(_prev: SettingState, formData: FormDat
   revalidatePath("/settings");
   return { ok: true };
 }
+
+// --- SKUs (Oct 30 2026): add real SKUs before real orders ---------------------
+// One per line: "model, storage GB, colour[, grade]" — e.g. "iPhone 14 Pro, 256, Deep Purple".
+// iPhone 16 series never carries the separate battery line (brief §6), so it is created as not eligible.
+export async function addSkus(_prev: SettingState, formData: FormData): Promise<SettingState> {
+  await requireRole(["admin"]);
+  const rows: { model: string; storage_gb: number; color: string; grade: string; battery_eligible: boolean }[] = [];
+  const lines = String(formData.get("skus") ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return { error: "Write at least one SKU." };
+  for (const [i, line] of lines.entries()) {
+    const [model, storage, color, grade] = line.split(/[,;\t]/).map((s) => s.trim());
+    const gb = Number((storage ?? "").replace(/gb$/i, "").trim());
+    if (!model || !Number.isInteger(gb) || gb <= 0 || !color) {
+      return { error: `Line ${i + 1}: use "model, storage GB, colour" (e.g. iPhone 14 Pro, 256, Deep Purple).` };
+    }
+    rows.push({ model, storage_gb: gb, color, grade: grade || "A+++", battery_eligible: !/^iphone\s*16\b/i.test(model) });
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("skus").upsert(rows, { onConflict: "model,storage_gb,color,grade", ignoreDuplicates: true });
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function setSkuBatteryEligible(id: string, eligible: boolean): Promise<SettingState> {
+  await requireRole(["admin"]);
+  const supabase = await createClient();
+  const { error } = await supabase.from("skus").update({ battery_eligible: eligible }).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+// --- Users (Oct 30 2026): role and active flag of each login ------------------
+// Logins are created in Supabase → Authentication → Users; here the admin gives them a role.
+export async function updateUserAccess(_prev: SettingState, formData: FormData): Promise<SettingState> {
+  const me = await requireRole(["admin"]);
+  const userId = String(formData.get("user_id") ?? "");
+  const role = String(formData.get("role") ?? "");
+  const active = formData.get("active") === "on";
+  if (!/^[0-9a-f-]{36}$/.test(userId)) return { error: "Unknown user." };
+  if (!["", "admin", "bd", "account_specialist"].includes(role)) return { error: "Unknown role." };
+  if (userId === me.id && (role !== "admin" || !active)) return { error: "You cannot remove your own admin access." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").update({ role: (role || null) as never, active }).eq("user_id", userId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { ok: true };
+}

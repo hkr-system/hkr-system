@@ -181,6 +181,9 @@ async function apply(browser, data) {
   {
     const { ctx, page } = await login(browser, 'atreyi');
     await page.goto(BASE + '/leads/my-day');
+    // the page streams in after the instant loading screen, so the redirect can happen after goto() returns
+    await page.waitForURL(/\/leads$/, { timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('[data-testid=funnel]', { timeout: 10000 }).catch(() => {});
     check(page.url().endsWith('/leads'), 'account_specialist: My day sends to the overview');
     check(!!(await page.$('[data-testid=funnel]')), 'account_specialist: sees the overview funnel');
     await page.goto(BASE + '/leads/list');

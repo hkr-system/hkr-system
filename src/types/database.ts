@@ -1537,7 +1537,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "can_manage_portal":
+            "backup_table_names":
+{ Args: Record<PropertyKey, never>; Returns: string[]
+                           },
+"can_manage_portal":
 { Args: { "p_account": string }; Returns: boolean
                            },
 "can_see_contact_owner":

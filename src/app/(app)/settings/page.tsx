@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { checkSection } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { ROLE_LABELS } from "@/lib/roles";
 import { PageHeader } from "@/components/coming-soon";
 import { NoAccess } from "@/components/no-access";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SettingRow } from "./setting-row";
@@ -13,6 +12,7 @@ import { countryName } from "@/lib/leads/countries";
 import { META_MARKET_LABELS } from "@/lib/whatsapp/pricing";
 import { MessageRatesForm } from "./message-rates";
 import { InvoiceIssuerForm, type IssuerValue } from "./invoice-issuer";
+import { SkuAddForm, SkuBatteryToggle, UserAccessRow } from "./admin-lists";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -51,6 +51,7 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description="Parameters used by the modules. Changes are saved in the audit log." />
+      <p className="-mt-2 mb-4 text-sm"><Link href="/settings/go-live" className="font-medium text-hkr-accent hover:underline">Go-live checklist →</Link></p>
 
       <div className="grid gap-6">
         {categories.map((cat) => {
@@ -82,7 +83,8 @@ export default async function SettingsPage() {
           <CardHeader>
             <CardTitle>Users</CardTitle>
             <CardDescription>
-              New users are created in Supabase → Authentication → Users and start without a role. Role editing arrives with user management.
+              Create a login in Supabase → Authentication → Users (Add user → email + password, Auto Confirm). It appears here
+              without a role: give it one and press Save. Inactive users cannot sign in to the system.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -91,21 +93,11 @@ export default async function SettingsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Time zone</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead colSpan={3}>Role · active · time zone</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(users.data ?? []).map((u) => (
-                  <TableRow key={u.user_id}>
-                    <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.role ? ROLE_LABELS[u.role] : <Badge variant="outline">No role</Badge>}</TableCell>
-                    <TableCell>{u.timezone}</TableCell>
-                    <TableCell>{u.active ? "Active" : "Inactive"}</TableCell>
-                  </TableRow>
-                ))}
+                {(users.data ?? []).map((u) => <UserAccessRow key={u.user_id} u={u} isMe={u.user_id === access.user.id} />)}
               </TableBody>
             </Table>
           </CardContent>
@@ -211,14 +203,15 @@ export default async function SettingsPage() {
             <CardHeader>
               <CardTitle>SKUs</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="grid gap-4">
+              <SkuAddForm />
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Model</TableHead>
                     <TableHead className="text-right">GB</TableHead>
                     <TableHead>Color</TableHead>
-                    <TableHead>Battery line</TableHead>
+                    <TableHead>Separate battery line</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -227,7 +220,7 @@ export default async function SettingsPage() {
                       <TableCell className="font-medium">{s.model}</TableCell>
                       <TableCell className="text-right tabular-nums">{s.storage_gb}</TableCell>
                       <TableCell>{s.color}</TableCell>
-                      <TableCell>{s.battery_eligible ? "Eligible" : "Never"}</TableCell>
+                      <TableCell><SkuBatteryToggle id={s.id} eligible={s.battery_eligible} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

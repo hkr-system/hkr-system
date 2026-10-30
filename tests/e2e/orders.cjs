@@ -40,6 +40,7 @@ function tmpFile(name, content) {
     await page.goto(BASE + '/accounts/list');
     check((await page.locator('[data-testid=accounts-table] tbody tr').count()) === 4, 'specialist sees all 4 demo accounts');
     await page.goto(BASE + '/accounts/new');
+    await page.waitForLoadState('networkidle'); // the form must be hydrated before typing (code suggestion is live)
     await page.fill('input[name=name]', 'Brick Phones');
     await page.selectOption('select[name=country]', 'NL');
     check((await page.inputValue('[data-testid=account-code]')) === 'BRI-NL-001', 'client code suggested BRI-NL-001 (demo 9xx codes do not count)');

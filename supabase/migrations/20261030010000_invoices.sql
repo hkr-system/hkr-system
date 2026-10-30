@@ -173,3 +173,31 @@ insert into public.settings (key, category, label, value, confidential, sort_ord
    false, 610,
    'Texts that repeat on every invoice (taken from the reference invoices). JSON: keep the same keys.')
 on conflict (key) do nothing;
+
+-- -----------------------------------------------------------------------------
+-- 4. Fix: deleting an order (cascade to its lines) must not try to recalculate its finance row.
+-- -----------------------------------------------------------------------------
+create or replace function public.order_finance_recalc(p_order uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_cost numeric; v_total numeric;
+begin
+  if p_order is null or not exists (select 1 from public.orders where id = p_order) then
+    return;
+  end if;
+  select sum(l.qty * f.base_price_usd) into v_cost
+    from public.order_lines l join public.order_lines_finance f on f.order_line_id = l.id
+   where l.order_id = p_order;
+  select total_usd into v_total from public.orders where id = p_order;
+  insert into public.orders_finance (order_id, base_cost_usd, margin_pct)
+  values (p_order, v_cost,
+          case when v_cost is not null and v_total > 0 then round((v_total - v_cost) / v_total * 100, 3) end)
+  on conflict (order_id) do update
+    set base_cost_usd = excluded.base_cost_usd, margin_pct = excluded.margin_pct;
+end;
+$$;
+revoke execute on function public.order_finance_recalc(uuid) from public, anon, authenticated;

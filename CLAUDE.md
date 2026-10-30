@@ -287,7 +287,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Number per market (setting wa_number_by_market): LATAM → US number (none yet); EU incl. UK → European numbers.
   Oct 27 2026: production number = a Netherlands number, label NL-1, market EU, registered on the production
   WhatsApp account; payment method added in Meta. Gabriel chose NEW numbers over migrating his WhatsApp Business
-  app number (app "warm-up" does not transfer to the API). Which number LATAM uses until a US number exists: undecided.
+  app number (app "warm-up" does not transfer to the API). Oct 30 2026: a US (+1) number for LATAM is bought (label US-1,
+  market LATAM; number in the private project doc) but NOT added: Meta's 2-number limit is full until business verification.
+  Gabriel's decision: launch broadcasts in EUROPE first (NL-1), LATAM afterwards.
 - Meta rules learned: `hello_world` can only be sent from Meta test numbers (#131058); test numbers only send to
   numbers on Meta's recipient list (#131030); every broadcast needs an APPROVED template of the production account;
   new accounts get slower template reviews. Meta allows 2 numbers until the business is verified.

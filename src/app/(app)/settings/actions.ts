@@ -205,11 +205,12 @@ export async function updateUserAccess(_prev: SettingState, formData: FormData):
   const userId = String(formData.get("user_id") ?? "");
   const role = String(formData.get("role") ?? "");
   const active = formData.get("active") === "on";
+  const fullName = String(formData.get("full_name") ?? "").trim().slice(0, 80);
   if (!/^[0-9a-f-]{36}$/.test(userId)) return { error: "Unknown user." };
   if (!["", "admin", "bd", "account_specialist"].includes(role)) return { error: "Unknown role." };
   if (userId === me.id && (role !== "admin" || !active)) return { error: "You cannot remove your own admin access." };
   const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ role: (role || null) as never, active }).eq("user_id", userId);
+  const { error } = await supabase.from("profiles").update({ full_name: fullName, role: (role || null) as never, active }).eq("user_id", userId);
   if (error) return { error: error.message };
   revalidatePath("/settings");
   return { ok: true };

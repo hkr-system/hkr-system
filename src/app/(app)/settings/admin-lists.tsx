@@ -2,6 +2,7 @@
 
 import { useActionState, useTransition } from "react";
 import { Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,12 +16,14 @@ export function UserAccessRow({ u, isMe }: {
   const [state, action, pending] = useActionState(updateUserAccess, {});
   return (
     <TableRow data-testid={`user-${u.email}`}>
-      <TableCell className="font-medium">{u.full_name || "—"}{isMe ? <span className="ml-1 text-xs text-muted-foreground">(you)</span> : null}</TableCell>
-      <TableCell>{u.email}</TableCell>
+      <TableCell colSpan={2}>
+        <span className="text-sm">{u.email}</span>{isMe ? <span className="ml-1 text-xs text-muted-foreground">(you)</span> : null}
+      </TableCell>
       <TableCell colSpan={3}>
-        {/* key: after Save, React resets the form to its first values; a new key redraws it with the saved role */}
-        <form key={`${u.role ?? ""}-${u.active}`} action={action} className="flex flex-wrap items-center gap-2">
+        {/* key: after Save, React resets the form to its first values; a new key redraws it with the saved values */}
+        <form key={`${u.full_name ?? ""}-${u.role ?? ""}-${u.active}`} action={action} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="user_id" value={u.user_id} />
+          <Input name="full_name" defaultValue={u.full_name ?? ""} placeholder="Full name" maxLength={80} className="h-8 w-44" aria-label={`Name of ${u.email}`} />
           <NativeSelect name="role" defaultValue={u.role ?? ""} className="w-44" aria-label={`Role of ${u.email}`} disabled={isMe}>
             <option value="">No role (no access)</option>
             <option value="admin">Admin</option>
@@ -31,7 +34,7 @@ export function UserAccessRow({ u, isMe }: {
           <label className="flex items-center gap-1 text-sm"><input type="checkbox" name="active" defaultChecked={u.active} disabled={isMe} className="size-4" /> Active</label>
           {isMe ? <input type="hidden" name="active" value="on" /> : null}
           <span className="text-xs text-muted-foreground">{u.timezone}</span>
-          {!isMe ? <Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "…" : "Save"}</Button> : null}
+          <Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "…" : "Save"}</Button>
           {state.error ? <span className="text-xs text-destructive">{state.error}</span> : null}
           {state.ok ? <Check className="size-4 text-emerald-600" aria-label="Saved" /> : null}
         </form>

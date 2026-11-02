@@ -80,7 +80,7 @@ export default async function SettingsPage() {
             without a role: give it one and press Save. Inactive users cannot sign in to the system.
           </p>
           <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead colSpan={3}>Role · active · time zone</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead colSpan={2}>Email</TableHead><TableHead colSpan={3}>Name · role · active · time zone</TableHead></TableRow></TableHeader>
             <TableBody>{staffUsers.map((u) => <UserAccessRow key={u.user_id} u={u} isMe={u.user_id === access.user.id} />)}</TableBody>
           </Table>
         </SettingsSection>

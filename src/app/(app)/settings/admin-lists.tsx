@@ -18,7 +18,8 @@ export function UserAccessRow({ u, isMe }: {
       <TableCell className="font-medium">{u.full_name || "—"}{isMe ? <span className="ml-1 text-xs text-muted-foreground">(you)</span> : null}</TableCell>
       <TableCell>{u.email}</TableCell>
       <TableCell colSpan={3}>
-        <form action={action} className="flex flex-wrap items-center gap-2">
+        {/* key: after Save, React resets the form to its first values; a new key redraws it with the saved role */}
+        <form key={`${u.role ?? ""}-${u.active}`} action={action} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="user_id" value={u.user_id} />
           <NativeSelect name="role" defaultValue={u.role ?? ""} className="w-44" aria-label={`Role of ${u.email}`} disabled={isMe}>
             <option value="">No role (no access)</option>

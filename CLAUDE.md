@@ -55,7 +55,8 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
-| 5–7 | Not started (Phase 5 sales mix partly pulled forward) |
+| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list. Part B (weekly promotions, Haslet rotation) not started |
+| 5, 7 | Not started (Phase 5 sales mix partly pulled forward) |
 
 ## Folder layout
 
@@ -79,6 +80,8 @@ src/
                            home, orders/[id], rmas/ (list, [id] add evidence, new = request form), price-list, terms; actions.ts
     api/portal/            files/[id] (portal_files view) · orders/[id]/imeis (xlsx)
     api/credit-notes/[id]/[pdf|xlsx] · api/rmas/batches/[id]/[xlsx|label]
+    (app)/price-lists/     overview (base card + client lists), base/ (upload/edit, admin), [id]/ (list detail: engine decision,
+                           approve, remove rows, outputs), actions.ts · api/price-lists/[id]/[xlsx|pdf|txt|wa]
     (app)/finance/         admin: monthly plan (goals company + per owner, history, projection), actions.ts
     (app)/accounts/        overview/health (page.tsx), list/, new/ (wizard P1), [id]/ (?tab=overview|contacts|orders|rmas|price-lists|files|edit), actions.ts
     (app)/orders/          list (attention filters, KPIs), new/, [id]/ (detail: next action, payments, shipping), [id]/edit/, actions.ts
@@ -114,6 +117,8 @@ src/
                            (RMA Request Form xlsx) — unit-tested; batch (loader), tabs
     documents/             credit-note (xlsx in the template grid + loader), credit-note-pdf (@react-pdf/renderer), rma-batch (Excel)
     portal/                texts (all portal copy EN/ES, SOP terms), session (getPortalContext: client account + language)
+    price-lists/           engine (SOP ch. 5, pure, unit-tested with the SOP worked examples), models (iPhonePrices names →
+                           "iPhone 15 Pro Max", sheet reader), outputs (+ outputs-pdf), service (params rpc, rows, approved prices)
     sales/                 series (day/week/month buckets), projection (suggestion), health (account health) —
                            all unit-tested; load (sales_orders rpc, periods); tabs (tab bars)
     section-badges.ts      red counters per menu item (live counts of pending work)
@@ -128,6 +133,7 @@ supabase/
   migrations/              one SQL file per change, never edited after it ran on the hosted project
   seed.sql                 demo data (safe on hosted project, no passwords)
   seed_phase3_history.sql  ~36 closed demo orders over 11 months for the dashboards (safe on hosted)
+  seed_phase6.sql          demo base list with INVENTED prices + AMS approved list + BER draft (local; not needed on hosted)
   seed_phase4.sql          3 demo RMAs, 1 open Global Connect batch, 2 credit notes, demo payments for history orders (safe on hosted)
   seed_local_portal.sql    LOCAL ONLY: client logins daan@example.com (AMS-NL-901, EN) and carlos@example.com (MEX-MX-903, ES)
   templates/magic_link.html  portal sign-in email (token-hash link: works on any device) — paste it in the hosted project too
@@ -194,6 +200,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/dashboards.cjs` | Sales / Accounts / Finance dashboards per role (after db:reset) |
 | `node tests/e2e/rmas.cjs` | Phase 4 + portal browser test (after db:reset): RMAs, credit note PDF, batch, portal login by link, RMA request on a phone |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
+| `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
@@ -385,6 +392,32 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Menu "Orders" is labelled **Sales** (UI in English); Finance is a new admin menu item.
 - Menu counters (Gabriel): per section, red, live counts — Sales (admin: payments to confirm; others: orders needing
   action), WhatsApp (unanswered chats), Leads (unread new-lead notices). RMAs: batch deadlines in Phase 4.
+
+## Price lists (Phase 6 Part A, Gabriel Nov 2 2026)
+
+- Base list = the iPhonePrices xlsx Gabriel sends (model · GB · USD, already at the 6 % base margin). ONE price per model + GB
+  for every colour. Names are normalized ("iPhone 15 PM 256 (esim+regular sim)" → model "iPhone 15 Pro Max", note
+  "esim+regular sim") and matched to SKUs by model + GB. Saving creates a new approved version; admin only (RLS). Never
+  commit real prices: the repo is public (seed uses invented prices).
+- Client list = Base × (1 + RMA_c + Extra_c), floor = Base × (1 + RMA_c), rounded to the cent in SQL
+  (`price_list_create_draft` / `price_list_reprice`, security definer, so the base stays admin-only).
+- RMA_c (SOP 5.2, Gabriel chose the SOP over the brief's 90 days): < 2 CLOSED orders → 1.0 %; else clamp(RMA cost ÷ invoiced,
+  0.5 %, 1.5 %). Window = last 180 days, or the last 5 orders (≥ Invoiced) if they go further back. RMA cost = credits of
+  units with resolution repair_credit/credit_note + units return_hk × US$45 (setting engine_rma_unit_cost_usd), RMAs closed
+  in the window. Inputs: rpc `price_engine_inputs(account)`.
+- Extra_c (Gabriel): 1.0 % until the client's 2nd order (≥ Invoiced); from then the engine SUGGESTS min(2.0 %, S × 0.5 %),
+  S = R + V + D per SOP 5.3 (minimum 0); a signal without data (no order priced from a list, no Ready→balance dates) = 0
+  points and is shown as "No data yet". Combined ≤ 3.5 % (Extra trimmed). Only the admin overrides RMA_c / Extra_c
+  (`price_list_set_percentages`); the specialist's draft must stay inside the rails.
+- Who: admin + specialist prepare (one draft per account; preparing again replaces the draft); only admin approves; approved
+  lists are frozen, the previous one becomes superseded. bd sees approved lists AND floors of her accounts (Gabriel), no drafts.
+  Clients see prices only (view `portal_price_list`). Engine parameters for the specialist come from rpc `price_engine_params`.
+- Approve files `[code]_PL_yyyy-mm-dd.xlsx/.pdf` (kind PL) in account-files/<account>/pricelists/. Validity = valid_from +
+  engine_refresh_days (14); the Price lists menu counter shows lists due (+ drafts to approve for admin).
+- Orders: unit price filled from the account's approved list (by model + GB of the SKU); `order_lines.price_list_row_id`,
+  `list_price_usd`, `price_source` list/manual set by trigger; a price below the floor shows a warning (SD decides, SOP 5.5),
+  not a block; the base price lands in `order_lines_finance` (admin) unless typed.
+- Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
 
 ## Client portal (/portal) — added by Gabriel Oct 27 2026 (not in the brief)
 

@@ -363,6 +363,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   (cannot change own admin). SKUs are added in Settings → SKUs (one per line "model, GB, colour"; iPhone 16 → no battery line).
 - /settings/go-live (admin) shows what is still missing (users, demo data, invoice issuer, SKUs, backup, WhatsApp, Meta…).
 - Fixed Oct 30: deleting an order no longer fails in `order_finance_recalc` (null order after cascade).
+- Settings page (Gabriel, Nov 2 2026): collapsible sections (native <details>, `settings/section.tsx`), closed by default, with an
+  index of chips at the top; `/settings#<id>` opens that section (`open-from-hash.tsx`). Ids: users, invoices, skus, whatsapp,
+  leads, operations, engine, promotions, intermediaries, landing.
 - Browser tests must wait after goto() where a page redirects or a form suggests values: pages stream in after the
   instant loading screen (Oct 28 speed work).
 

@@ -35,13 +35,17 @@ export default async function SettingsPage() {
   if (!access.allowed) return <NoAccess />;
 
   const supabase = await createClient();
-  const [settings, users, rules, intermediaries, skus] = await Promise.all([
+  const [settings, users, rules, intermediaries, skus, portalUsers] = await Promise.all([
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
     supabase.from("profiles").select("user_id, full_name, email, role, timezone, active").order("full_name"),
     supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
     supabase.from("intermediaries").select("id, name, country, default_cutoff_weekday").order("name"),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
+    supabase.from("portal_users").select("user_id"),
   ]);
+  // client-portal logins are managed per account (Accounts → Client portal), not here
+  const portalIds = new Set((portalUsers.data ?? []).map((p) => p.user_id));
+  const staffUsers = (users.data ?? []).filter((u) => !portalIds.has(u.user_id));
 
   const categories = Object.keys(CATEGORY_LABELS);
   const settingValue = (key: string) => (settings.data ?? []).find((s) => s.key === key)?.value;
@@ -97,7 +101,7 @@ export default async function SettingsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(users.data ?? []).map((u) => <UserAccessRow key={u.user_id} u={u} isMe={u.user_id === access.user.id} />)}
+                {staffUsers.map((u) => <UserAccessRow key={u.user_id} u={u} isMe={u.user_id === access.user.id} />)}
               </TableBody>
             </Table>
           </CardContent>

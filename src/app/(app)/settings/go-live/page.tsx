@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/format";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BackupNowButton } from "./backup-button";
 
 export const metadata: Metadata = { title: "Go-live checklist" };
 
@@ -14,7 +15,7 @@ function isRecent(at: string | undefined, days: number) {
   return at ? Date.now() - new Date(at).getTime() < days * 86400_000 : false;
 }
 
-type Item = { title: string; state: "done" | "todo" | "manual"; detail: string; href?: string };
+type Item = { title: string; state: "done" | "todo" | "manual"; detail: string; href?: string; action?: React.ReactNode };
 
 // Brief Phase 7 item 5 (pulled forward, Oct 30 2026): what must be true before real data goes in.
 // Green = checked by the system now; grey = still to do; hand = only a person can confirm it.
@@ -52,7 +53,7 @@ export default async function GoLivePage() {
     { title: "Real SKUs loaded", state: (skus.count ?? 0) > 5 ? "done" : "todo", href: "/settings",
       detail: `${skus.count ?? 0} SKUs. Add the models / storage / colours you sell in Settings → SKUs before the first real order.` },
     { title: "Weekly backup running", state: backupFresh ? "done" : "todo",
-      detail: backup?.at ? `Last backup ${formatDateTime(backup.at, access.user.timezone)} (${backup.tables} tables, in Supabase → Storage → backups).` : "No backup yet: the first one runs on Sunday 04:00 UTC (or press Run in Vercel → Settings → Cron Jobs)." },
+      detail: backup?.at ? `Last backup ${formatDateTime(backup.at, access.user.timezone)} (${backup.tables} tables, in Supabase → Storage → backups).` : "No backup yet: it runs every Sunday 04:00 UTC, or press the button now.", action: <BackupNowButton /> },
     { title: "WhatsApp connected", state: env("WHATSAPP_ACCESS_TOKEN") && env("WHATSAPP_WABA_ID") ? "done" : "todo",
       detail: "Token and account set in Vercel. The current token is the 60-day one (expires late December): replace it with the permanent system-user token when the second admin approves." },
     { title: "Meta business verification", state: "manual", detail: "Meta → Security Center. Raises the 2-number limit (needed for the LATAM +1 number)." },
@@ -78,6 +79,7 @@ export default async function GoLivePage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{i.href ? <Link href={i.href} className="hover:underline">{i.title}</Link> : i.title}</p>
                   <p className="text-sm text-muted-foreground">{i.detail}</p>
+                  {i.action ?? null}
                 </div>
               </li>
             ))}

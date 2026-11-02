@@ -11,8 +11,10 @@ import type { SectionKey } from "@/lib/nav";
 //   Leads    — unread "new lead" / "lead qualified" notices
 //   RMAs     — admin: RMAs to approve + units to batch; specialist: RMAs to verify + units to batch;
 //              bd: her clients' RMAs waiting (requested / to verify / to approve)
+//   Price lists — admin: drafts to approve + lists due for refresh; specialist: lists due (SOP P7, every 2 weeks)
 export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole): Promise<Partial<Record<SectionKey, number>>> {
-  const [orders, chats, leads, rmas] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10);
+  const [orders, chats, leads, rmas, priceLists] = await Promise.all([
     db.from("order_overview").select("status, payment_awaiting, deposit_confirmed, balance_ok")
       .in("status", ["invoiced", "ready_to_ship"]).limit(1000)
       .then(async (r) => {
@@ -36,6 +38,14 @@ export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole)
         if (role === "account_specialist") return rows.filter((x) => x.status === "form_received").length + toBatch;
         return rows.filter((x) => ["requested", "form_received", "verified"].includes(x.status!)).length;
       }),
+    role === "bd" ? Promise.resolve(0)
+      : db.from("price_lists").select("status, valid_until, accounts!inner(status)").in("status", ["draft", "approved"])
+        .not("account_id", "is", null).neq("accounts.status", "closed").limit(2000)
+        .then((r) => {
+          const rows = r.data ?? [];
+          const due = rows.filter((l) => l.status === "approved" && l.valid_until && l.valid_until <= today).length;
+          return due + (role === "admin" ? rows.filter((l) => l.status === "draft").length : 0);
+        }),
   ]);
-  return { orders, whatsapp: chats, leads, rmas };
+  return { orders, whatsapp: chats, leads, rmas, "price-lists": priceLists };
 }

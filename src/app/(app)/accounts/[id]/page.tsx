@@ -14,6 +14,7 @@ import { AccountStatusBadge } from "@/components/accounts/badges";
 import { AccountForm } from "@/components/accounts/account-form";
 import { ContactsPanel } from "@/components/accounts/contacts-panel";
 import { PortalPanel } from "@/components/accounts/portal-panel";
+import { AccountPriceLists } from "@/components/price-lists/account-tab";
 import { CnStatusBadge, Flag, RmaStatusBadge } from "@/components/rmas/badges";
 import type { RmaStatus } from "@/lib/rmas/constants";
 import { OrdersTable, type OrderRow } from "@/components/orders/orders-table";
@@ -220,7 +221,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
         </Card>
       ) : null}
       {tab === "price-lists" ? (
-        <Card><CardContent className="py-8 text-sm text-muted-foreground">The client&apos;s price lists arrive in Phase 6.</CardContent></Card>
+        <AccountPriceLists accountId={id} canPrepare={user.role === "admin" || user.role === "account_specialist"} today={today} />
       ) : null}
 
       {tab === "files" ? (

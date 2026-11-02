@@ -29,7 +29,7 @@ function refresh(orderId?: string, accountId?: string) {
   if (accountId) revalidatePath(`/accounts/${accountId}`);
 }
 
-type LineInput = { sku_id: string | null; description: string | null; qty: number; unit_price: number; battery_new: boolean; battery_unit: number; base_price: number | null };
+type LineInput = { sku_id: string | null; description: string | null; qty: number; unit_price: number; battery_new: boolean; battery_unit: number; base_price: number | null; list_row_id: string | null };
 
 function parseLines(raw: string): { lines: LineInput[]; problem?: string } {
   let data: unknown;
@@ -46,6 +46,7 @@ function parseLines(raw: string): { lines: LineInput[]; problem?: string } {
       sku_id: l.sku_id || null, description: String(l.description ?? "").trim() || null, qty, unit_price: price,
       battery_new: Boolean(l.battery_new), battery_unit: Number(l.battery_unit) || 0,
       base_price: l.base_price === "" || l.base_price === null || l.base_price === undefined ? null : Number(l.base_price),
+      list_row_id: l.sku_id && typeof l.list_row_id === "string" && /^[0-9a-f-]{36}$/.test(l.list_row_id) ? l.list_row_id : null,
     });
   }
   if (!lines.length) return { lines, problem: "Add at least one line." };
@@ -99,6 +100,7 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     .insert(lines.map((l, i) => ({
       order_id: orderId!, account_id: accountId, sku_id: l.sku_id, description: l.description, qty: l.qty,
       unit_price_usd: l.unit_price, battery_new: l.battery_new, battery_unit_usd: l.battery_unit, sort_order: i,
+      price_list_row_id: l.list_row_id, // the database sets list price and source (list / manual)
     })))
     .select("id, sort_order");
   if (lineErr) return { error: friendly(lineErr) };
@@ -107,7 +109,7 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     const fin = (inserted ?? [])
       .map((r) => ({ order_line_id: r.id, base_price_usd: lines[r.sort_order]?.base_price ?? null }))
       .filter((r) => r.base_price_usd !== null);
-    if (fin.length) await db.from("order_lines_finance").insert(fin);
+    if (fin.length) await db.from("order_lines_finance").upsert(fin); // a typed base price wins over the one from the list
   }
   refresh(orderId!, accountId);
   redirect(`/orders/${orderId}`);

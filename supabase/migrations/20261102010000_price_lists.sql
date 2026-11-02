@@ -176,7 +176,7 @@ create trigger price_list_rows_before_delete
   for each row execute function public.price_list_rows_before_delete();
 revoke execute on function public.price_list_rows_before_delete() from public, anon, authenticated;
 
--- Order lines: the list price must come from an APPROVED list of the same account; the source follows the price;
+-- Order lines: the list price must come from an approved (or superseded) list of the same account, never a draft; the source follows the price;
 -- the base price (admin-only finance row) is filled from the base list behind that client list.
 create function public.order_lines_price_source()
 returns trigger
@@ -195,8 +195,9 @@ begin
   select r.price_usd, l.account_id, l.status into v_price, v_account, v_status
     from public.price_list_rows r join public.price_lists l on l.id = r.price_list_id
    where r.id = new.price_list_row_id;
+  -- an approved list of this account (or an earlier approved one, now superseded, when an order is edited)
   if v_account is distinct from (select o.account_id from public.orders o where o.id = new.order_id)
-     or (v_status is distinct from 'approved' and (tg_op = 'INSERT' or new.price_list_row_id is distinct from old.price_list_row_id)) then
+     or v_status is not distinct from 'draft' or v_status is null then
     raise exception 'The price must come from the account''s approved price list.' using errcode = '42501';
   end if;
   new.list_price_usd := v_price;

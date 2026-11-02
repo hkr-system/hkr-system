@@ -58,11 +58,11 @@ async function apply(browser, data) {
   // 0. Gabriel sets NL as target country so a Tier A is possible.
   {
     const { ctx, page } = await login(browser, 'gabriel');
-    await page.goto(BASE + '/settings');
+    await page.goto(BASE + '/settings#leads'); await page.waitForTimeout(1500); // sections are collapsed (Nov 2 2026)
     await page.fill('[data-testid=target-countries] textarea', 'Netherlands, DE');
     await page.click('[data-testid=target-countries] button[type=submit]');
     await page.waitForSelector('[data-testid=target-countries] [aria-label=Saved]');
-    await page.reload();
+    await page.reload(); await page.waitForTimeout(1500);
     check((await page.inputValue('[data-testid=target-countries] textarea')) === 'NL, DE', 'settings: target countries saved as ISO codes');
     await page.screenshot({ path: `${DIR}/settings-leads.png`, fullPage: true });
     await ctx.close();

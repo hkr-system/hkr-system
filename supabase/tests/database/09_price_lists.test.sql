@@ -3,7 +3,7 @@
 -- order lines take the list price (source list/manual) and the base price lands in the admin-only finance row.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(20);
 
 select is((select count(*)::int from public.security_check()), 0, 'security_check() clean with price lists');
 
@@ -91,6 +91,14 @@ select is((select price_source from public.order_lines where account_id = (selec
 select pg_temp.system();
 select is((select f.base_price_usd::text from public.order_lines_finance f join public.order_lines l on l.id = f.order_line_id
             where l.account_id = (select id from a where code = 'PLT-NL-801')), '285.00', 'base price filled for the admin');
+
+-- client portal (seeded demo login of AMS-NL-901): its approved list, prices only
+select pg_temp.system();
+insert into ids select 'daan', id from auth.users where email = 'daan@example.com';
+select pg_temp.login('daan');
+select ok((select count(*) from public.portal_price_list) > 0
+          and not exists (select 1 from information_schema.columns where table_name = 'portal_price_list' and column_name = 'floor_usd'),
+  'portal client sees its approved prices, never the floor');
 
 select * from finish();
 rollback;

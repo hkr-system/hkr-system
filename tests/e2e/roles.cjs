@@ -47,12 +47,14 @@ const users = [
       check(!noAccess, 'gabriel: settings opens');
       const conf = await page.$('[data-testid=setting-engine_rma_cap_pct]');
       check(!!conf, 'gabriel: sees confidential engine parameter');
-      // edit a setting and restore
+      // edit a setting and restore (Settings sections are collapsed: open Operations, Nov 2 2026)
+      await page.goto(BASE + '/settings#operations'); await page.waitForTimeout(1500);
       const row = page.locator('[data-testid=setting-thursday_weekday]');
       await row.locator('input[name=value]').fill('3');
       await row.locator('button[type=submit]').click();
       await row.locator('[aria-label=Saved]').waitFor();
-      await page.reload();
+      await page.reload(); await page.waitForTimeout(1500);
+      await page.$eval('#operations', (e) => { e.open = true; });
       check(await page.locator('[data-testid=setting-thursday_weekday] input[name=value]').inputValue() === '3', 'gabriel: setting saved');
       await page.locator('[data-testid=setting-thursday_weekday] input[name=value]').fill('abc');
       await page.locator('[data-testid=setting-thursday_weekday] button[type=submit]').click();

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { checkSection } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { loadFormAccounts, loadSkus, loadTerms } from "@/lib/orders/service";
+import { loadApprovedPrices } from "@/lib/price-lists/service";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { OrderForm } from "@/components/orders/order-form";
@@ -15,10 +16,10 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   const { id } = await params;
   const db = await createClient();
   const isAdmin = access.user.role === "admin";
-  const [{ data: o }, { data: lines }, accounts, skus, terms] = await Promise.all([
+  const [{ data: o }, { data: lines }, accounts, skus, terms, prices] = await Promise.all([
     db.from("orders").select("*, accounts(code)").eq("id", id).maybeSingle(),
-    db.from("order_lines").select("id, sku_id, description, qty, unit_price_usd, battery_new, battery_unit_usd").eq("order_id", id).order("sort_order"),
-    loadFormAccounts(db), loadSkus(db), loadTerms(db),
+    db.from("order_lines").select("id, sku_id, description, qty, unit_price_usd, battery_new, battery_unit_usd, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
+    loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db),
   ]);
   if (!o) notFound();
   const fin = isAdmin && lines?.length
@@ -31,12 +32,13 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   return (
     <>
       <PageHeader title={`Edit ${(o.accounts as { code: string } | null)?.code ?? ""} ${o.number}`} />
-      <OrderForm accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms}
+      <OrderForm accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,
           lines: (lines ?? []).map((l) => ({
             sku_id: l.sku_id ?? "", description: l.description ?? "", qty: String(l.qty), unit_price: String(l.unit_price_usd),
             battery_new: l.battery_new, battery_unit: String(l.battery_unit_usd ?? ""), base_price: base.get(l.id) != null ? String(base.get(l.id)) : "",
+            list_row_id: l.price_list_row_id ?? "", list_price: l.list_price_usd === null ? null : Number(l.list_price_usd),
           })),
         }} />
     </>

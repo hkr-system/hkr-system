@@ -6,6 +6,7 @@ import { saveOrder, type ActionState } from "@/app/(app)/orders/actions";
 import { orderTotals } from "@/lib/orders/calc";
 import { DELIVERY_SETUP_LABEL, PAYMENT_METHOD_LABEL, money, type DeliverySetup, type PaymentMethod } from "@/lib/orders/constants";
 import { countryOptions } from "@/lib/leads/countries";
+import { modelKey } from "@/lib/price-lists/models";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +18,13 @@ export type FormAccount = {
   id: string; code: string; name: string; payment_method: PaymentMethod; delivery_setup: DeliverySetup;
   has_intermediary: boolean; battery_line_separate: boolean; country: string | null; legal_name: string | null; orders: number;
 };
-type Sku = { id: string; label: string; battery_eligible: boolean };
-type Line = { sku_id: string; description: string; qty: string; unit_price: string; battery_new: boolean; battery_unit: string; base_price: string };
+type Sku = { id: string; label: string; battery_eligible: boolean; model: string; storage_gb: number };
+type Line = {
+  sku_id: string; description: string; qty: string; unit_price: string; battery_new: boolean; battery_unit: string; base_price: string;
+  list_row_id?: string; list_price?: number | null;   // from the account's approved price list (Phase 6)
+};
+/** Approved list per account: "<model>|<gb>" → row (loadApprovedPrices). */
+export type AccountPrices = Record<string, { version: number; validUntil: string | null; rows: Record<string, { id: string; price: number; floor: number | null }> }>;
 
 export type OrderValues = {
   id?: string; account_id?: string; order_date?: string; payment_method?: PaymentMethod; delivery_setup?: DeliverySetup;
@@ -29,12 +35,27 @@ export type OrderValues = {
 
 const emptyLine = (): Line => ({ sku_id: "", description: "", qty: "", unit_price: "", battery_new: true, battery_unit: "", base_price: "" });
 
+// Under the unit price: where it comes from, and a warning below the client's floor (SOP 5.5: the SD decides).
+function PriceHint({ line, floor }: { line: Line; floor: number | null }) {
+  if (!line.list_row_id || line.list_price === null || line.list_price === undefined) return null;
+  const unit = Number(line.unit_price);
+  if (line.unit_price !== "" && unit !== line.list_price) {
+    const below = floor !== null && unit < floor;
+    return (
+      <span className={`text-[11px] ${below ? "text-destructive" : "text-amber-700"}`} data-testid="price-hint">
+        Manual · list {money(line.list_price)}{below ? ` · below the floor ${money(floor!)}: the Sales Director decides` : ""}
+      </span>
+    );
+  }
+  return <span className="text-[11px] text-emerald-700" data-testid="price-hint">From the price list</span>;
+}
+
 function F({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function OrderForm({ accounts, skus, values = {}, isAdmin, terms }: {
-  accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean;
+export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {} }: {
+  accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
@@ -63,11 +84,24 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms }: {
   const minimum = firstOrder ? terms.sampleMinUsd : terms.moqUsd;
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const listRow = (acc: string, skuId: string) => {
+    const sku = skuById.get(skuId);
+    return sku ? prices[acc]?.rows[modelKey(sku.model, sku.storage_gb)] : undefined;
+  };
+  // A line follows the client's list: the list price is filled in unless a different price was typed by hand.
+  const withList = (l: Line, acc: string, skuId: string): Line => {
+    const row = listRow(acc, skuId);
+    const typedByHand = l.unit_price !== "" && Number(l.unit_price) !== l.list_price;
+    return { ...l, sku_id: skuId, list_row_id: row?.id ?? "", list_price: row?.price ?? null, unit_price: row && !typedByHand ? String(row.price) : l.unit_price };
+  };
+  const pickSku = (i: number, skuId: string) => setLines((ls) => ls.map((l, j) => (j === i ? withList(l, accountId, skuId) : l)));
   const pickAccount = (id: string) => {
     setAccountId(id);
     const a = accounts.find((x) => x.id === id);
     if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
+    setLines((ls) => ls.map((l) => (l.sku_id ? withList(l, id, l.sku_id) : l)));
   };
+  const list = accountId ? prices[accountId] : undefined;
 
   return (
     <form action={action} className="grid gap-4" data-testid="order-form">
@@ -109,7 +143,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms }: {
         <CardHeader>
           <CardTitle className="text-base">Lines</CardTitle>
           <CardDescription>
-            Unit prices are typed by hand in this phase (Phase 6 fills them from the client&apos;s list).
+            {account ? list ? `Unit prices come from the client's approved price list v${list.version}; a different price is marked “manual” and logged.` : "This client has no approved price list yet: type the unit prices." : "Choose the account first."}
             {account ? separate ? " This account shows a separate “New battery cell” line (iPhone 16 series never carries it)." : " This account has the battery absorbed in the unit price." : ""}
           </CardDescription>
         </CardHeader>
@@ -122,14 +156,17 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms }: {
             return (
               <div key={i} className={`grid gap-2 sm:items-center ${cols}`} data-testid="order-line">
                 <div className="grid gap-1">
-                  <NativeSelect value={l.sku_id} onChange={(e) => setLine(i, { sku_id: e.target.value })} aria-label="SKU">
+                  <NativeSelect value={l.sku_id} onChange={(e) => pickSku(i, e.target.value)} aria-label="SKU">
                     <option value="">Free text…</option>
                     {skus.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </NativeSelect>
                   {!l.sku_id ? <Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder="Description" aria-label="Description" /> : null}
                 </div>
                 <Input value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} inputMode="numeric" aria-label="Quantity" />
-                <Input value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} inputMode="decimal" aria-label="Unit price" />
+                <div className="grid gap-0.5">
+                  <Input value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} inputMode="decimal" aria-label="Unit price" />
+                  <PriceHint line={l} floor={l.sku_id ? listRow(accountId, l.sku_id)?.floor ?? null : null} />
+                </div>
                 <div className="flex items-center gap-2 text-xs">
                   {eligible ? (
                     <>

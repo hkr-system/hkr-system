@@ -635,14 +635,14 @@ isOneToOne: false
                   ]
                 },"order_lines": {
                   Row: {
-                    "account_id": string,"battery_new": boolean,"battery_unit_usd": number,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"order_id": string,"qty": number,"sku_id": string | null,"sort_order": number,"unit_price_usd": number,"updated_at": string
+                    "account_id": string,"battery_new": boolean,"battery_unit_usd": number,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"list_price_usd": number | null,"order_id": string,"price_list_row_id": string | null,"price_source": string,"qty": number,"sku_id": string | null,"sort_order": number,"unit_price_usd": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"order_id": string,"qty": number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd": number,"updated_at"?: string
+                    "account_id": string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"list_price_usd"?: number | null,"order_id": string,"price_list_row_id"?: string | null,"price_source"?: string,"qty": number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd": number,"updated_at"?: string
                   }
                   Update: {
-                    "account_id"?: string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"order_id"?: string,"qty"?: number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd"?: number,"updated_at"?: string
+                    "account_id"?: string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"list_price_usd"?: number | null,"order_id"?: string,"price_list_row_id"?: string | null,"price_source"?: string,"qty"?: number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -680,6 +680,12 @@ isOneToOne: false
       columns: ["order_id"]
 isOneToOne: false
       referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "order_lines_price_list_row_id_fkey"
+      columns: ["price_list_row_id"]
+isOneToOne: false
+      referencedRelation: "price_list_rows"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "order_lines_sku_id_fkey"
@@ -871,6 +877,70 @@ isOneToOne: false
 isOneToOne: true
       referencedRelation: "profiles"
       referencedColumns: ["user_id"]
+    }
+                  ]
+                },"price_list_rows": {
+                  Row: {
+                    "account_id": string | null,"created_at": string,"created_by": string | null,"floor_usd": number | null,"id": string,"model": string,"note": string | null,"price_list_id": string,"price_usd": number,"sort_order": number,"storage_gb": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"floor_usd"?: number | null,"id"?: string,"model": string,"note"?: string | null,"price_list_id": string,"price_usd": number,"sort_order"?: number,"storage_gb": number,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"floor_usd"?: number | null,"id"?: string,"model"?: string,"note"?: string | null,"price_list_id"?: string,"price_usd"?: number,"sort_order"?: number,"storage_gb"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_list_rows_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_list_rows_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_list_rows_price_list_id_fkey"
+      columns: ["price_list_id"]
+isOneToOne: false
+      referencedRelation: "price_lists"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"price_lists": {
+                  Row: {
+                    "account_id": string | null,"approved_at": string | null,"approved_by": string | null,"base_list_id": string | null,"created_at": string,"created_by": string | null,"engine": NonNullable<Json>,"extra_c": number | null,"id": string,"note": string | null,"rma_c": number | null,"source_file": string | null,"status": Database["public"]['Enums']["price_list_status"],"updated_at": string,"valid_from": string,"valid_until": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id"?: string | null,"approved_at"?: string | null,"approved_by"?: string | null,"base_list_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine"?: NonNullable<Json>,"extra_c"?: number | null,"id"?: string,"note"?: string | null,"rma_c"?: number | null,"source_file"?: string | null,"status"?: Database["public"]['Enums']["price_list_status"],"updated_at"?: string,"valid_from"?: string,"valid_until"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "account_id"?: string | null,"approved_at"?: string | null,"approved_by"?: string | null,"base_list_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine"?: NonNullable<Json>,"extra_c"?: number | null,"id"?: string,"note"?: string | null,"rma_c"?: number | null,"source_file"?: string | null,"status"?: Database["public"]['Enums']["price_list_status"],"updated_at"?: string,"valid_from"?: string,"valid_until"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_lists_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_lists_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_lists_base_list_id_fkey"
+      columns: ["base_list_id"]
+isOneToOne: false
+      referencedRelation: "price_lists"
+      referencedColumns: ["id"]
     }
                   ]
                 },"profiles": {
@@ -1468,6 +1538,14 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"portal_price_list": {
+                  Row: {
+                    "model": string,"note": string | null,"price_usd": number,"sort_order": number,"storage_gb": number,"valid_from": string,"valid_until": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
                 },"portal_rma_units": {
                   Row: {
                     "battery_swollen": boolean,"color": string | null,"credit_usd": number | null,"detected_on": string | null,"evidence_count": number | null,"fault_category": string,"fault_text": string | null,"id": string,"imei": string,"imei_found": boolean | null,"model": string | null,"physical_damage": boolean,"resolution": Database["public"]['Enums']["rma_resolution"] | null,"rma_id": string,"sort_order": number,"source": Database["public"]['Enums']["rma_source"],"storage_gb": number | null,"unit_status": Database["public"]['Enums']["rma_unit_status"],"warranty_ok": boolean | null
@@ -1611,6 +1689,21 @@ isOneToOne: false
 "portal_touch":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"price_engine_inputs":
+{ Args: { "p_account": string }; Returns: Json
+                           },
+"price_engine_params":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"price_list_create_draft":
+{ Args: { "p_account": string,"p_engine": Json,"p_extra": number,"p_rma": number,"p_valid_from"?: string }; Returns: string
+                           },
+"price_list_reprice":
+{ Args: { "p_list": string }; Returns: undefined
+                           },
+"price_list_set_percentages":
+{ Args: { "p_extra": number,"p_list": string,"p_note"?: string,"p_rma": number }; Returns: undefined
+                           },
 "rma_fault_categories":
 { Args: Record<PropertyKey, never>; Returns: (string)[]
                            },
@@ -1652,7 +1745,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","credit_applied_to": "next_invoice"|"order_balance"|"refund","credit_note_status": "draft"|"approved"|"issued"|"applied"|"cancelled","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER"|"FORM"|"PRUEBAS"|"VERIF"|"TRK","imei_check": "ours"|"not_found","invoice_status": "draft"|"approved"|"sent"|"void","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","rma_batch_status": "open"|"shipped"|"received","rma_channel": "portal"|"internal"|"import","rma_resolution": "pending"|"return_hk"|"repair_credit"|"credit_note"|"replacement"|"not_covered","rma_source": "testing"|"end_customer","rma_status": "requested"|"form_received"|"verified"|"approved"|"awaiting_return"|"credit_agreed"|"in_batch"|"received_hk"|"closed","rma_unit_status": "reported"|"verified"|"awaiting_shipment"|"shipped_to_hk"|"received_hk"|"returned_to_client"|"credited"|"rejected"|"closed","units_location": "with_client"|"at_intermediary"|"at_end_customer","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
+            "account_role": "owner"|"specialist","account_status": "onboarding"|"active"|"paused"|"closed","app_role": "admin"|"bd"|"account_specialist","billing_entity": "ever_state"|"streamline_fze","credit_applied_to": "next_invoice"|"order_balance"|"refund","credit_note_status": "draft"|"approved"|"issued"|"applied"|"cancelled","currency_code": "USD"|"EUR","delivery_setup": "client_label"|"our_booking","file_kind": "INV-HK"|"INV-EU"|"PP-DEP"|"PP-BAL"|"IMEI"|"LABEL"|"TRK-HK"|"TRK-EU"|"POD"|"CN"|"OTHER"|"FORM"|"PRUEBAS"|"VERIF"|"TRK"|"PL","imei_check": "ours"|"not_found","invoice_status": "draft"|"approved"|"sent"|"void","lead_event_kind": "created"|"stage_change"|"owner_change"|"note"|"contact"|"form"|"import"|"email"|"whatsapp"|"brevo","lead_stage": "New"|"Contacted"|"Replied"|"Qualified"|"Meeting"|"Sample/Proposal"|"Won"|"Lost","lead_tier": "A"|"B"|"C","market": "EU"|"LATAM"|"US"|"ROW","order_status": "quoted"|"invoiced"|"deposit_paid"|"in_preparation"|"ready_to_ship"|"balance_paid"|"shipped"|"delivered"|"closed","payment_method": "wire"|"usdt","payment_status": "awaiting_confirmation"|"confirmed","payment_type": "deposit"|"balance"|"other","price_list_status": "draft"|"approved"|"superseded","rma_batch_status": "open"|"shipped"|"received","rma_channel": "portal"|"internal"|"import","rma_resolution": "pending"|"return_hk"|"repair_credit"|"credit_note"|"replacement"|"not_covered","rma_source": "testing"|"end_customer","rma_status": "requested"|"form_received"|"verified"|"approved"|"awaiting_return"|"credit_agreed"|"in_batch"|"received_hk"|"closed","rma_unit_status": "reported"|"verified"|"awaiting_shipment"|"shipped_to_hk"|"received_hk"|"returned_to_client"|"credited"|"rejected"|"closed","units_location": "with_client"|"at_intermediary"|"at_end_customer","wa_broadcast_status": "draft"|"pending_approval"|"approved"|"sending"|"done"|"cancelled"|"paused","wa_conversation_status": "open"|"pending"|"resolved","wa_cost_category": "service"|"utility"|"marketing"|"authentication"|"none","wa_direction": "inbound"|"outbound","wa_message_status": "received"|"queued"|"sent"|"delivered"|"read"|"failed","wa_recipient_status": "queued"|"sent"|"delivered"|"read"|"failed"|"skipped"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1772,7 +1865,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"credit_applied_to": ["next_invoice", "order_balance", "refund"],"credit_note_status": ["draft", "approved", "issued", "applied", "cancelled"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER", "FORM", "PRUEBAS", "VERIF", "TRK"],"imei_check": ["ours", "not_found"],"invoice_status": ["draft", "approved", "sent", "void"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"rma_batch_status": ["open", "shipped", "received"],"rma_channel": ["portal", "internal", "import"],"rma_resolution": ["pending", "return_hk", "repair_credit", "credit_note", "replacement", "not_covered"],"rma_source": ["testing", "end_customer"],"rma_status": ["requested", "form_received", "verified", "approved", "awaiting_return", "credit_agreed", "in_batch", "received_hk", "closed"],"rma_unit_status": ["reported", "verified", "awaiting_shipment", "shipped_to_hk", "received_hk", "returned_to_client", "credited", "rejected", "closed"],"units_location": ["with_client", "at_intermediary", "at_end_customer"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
+            "account_role": ["owner", "specialist"],"account_status": ["onboarding", "active", "paused", "closed"],"app_role": ["admin", "bd", "account_specialist"],"billing_entity": ["ever_state", "streamline_fze"],"credit_applied_to": ["next_invoice", "order_balance", "refund"],"credit_note_status": ["draft", "approved", "issued", "applied", "cancelled"],"currency_code": ["USD", "EUR"],"delivery_setup": ["client_label", "our_booking"],"file_kind": ["INV-HK", "INV-EU", "PP-DEP", "PP-BAL", "IMEI", "LABEL", "TRK-HK", "TRK-EU", "POD", "CN", "OTHER", "FORM", "PRUEBAS", "VERIF", "TRK", "PL"],"imei_check": ["ours", "not_found"],"invoice_status": ["draft", "approved", "sent", "void"],"lead_event_kind": ["created", "stage_change", "owner_change", "note", "contact", "form", "import", "email", "whatsapp", "brevo"],"lead_stage": ["New", "Contacted", "Replied", "Qualified", "Meeting", "Sample/Proposal", "Won", "Lost"],"lead_tier": ["A", "B", "C"],"market": ["EU", "LATAM", "US", "ROW"],"order_status": ["quoted", "invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped", "delivered", "closed"],"payment_method": ["wire", "usdt"],"payment_status": ["awaiting_confirmation", "confirmed"],"payment_type": ["deposit", "balance", "other"],"price_list_status": ["draft", "approved", "superseded"],"rma_batch_status": ["open", "shipped", "received"],"rma_channel": ["portal", "internal", "import"],"rma_resolution": ["pending", "return_hk", "repair_credit", "credit_note", "replacement", "not_covered"],"rma_source": ["testing", "end_customer"],"rma_status": ["requested", "form_received", "verified", "approved", "awaiting_return", "credit_agreed", "in_batch", "received_hk", "closed"],"rma_unit_status": ["reported", "verified", "awaiting_shipment", "shipped_to_hk", "received_hk", "returned_to_client", "credited", "rejected", "closed"],"units_location": ["with_client", "at_intermediary", "at_end_customer"],"wa_broadcast_status": ["draft", "pending_approval", "approved", "sending", "done", "cancelled", "paused"],"wa_conversation_status": ["open", "pending", "resolved"],"wa_cost_category": ["service", "utility", "marketing", "authentication", "none"],"wa_direction": ["inbound", "outbound"],"wa_message_status": ["received", "queued", "sent", "delivered", "read", "failed"],"wa_recipient_status": ["queued", "sent", "delivered", "read", "failed", "skipped"]
           }
         }
 } as const

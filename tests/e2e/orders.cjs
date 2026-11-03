@@ -88,7 +88,7 @@ function tmpFile(name, content) {
     await page.selectOption('[data-testid=payment-form] select[name=difference_reason]', 'bank_charges');
     await page.click('[data-testid=payment-form] button:has-text("Record payment")');
     await page.waitForSelector('[data-testid=payment-row] >> text=Awaiting confirmation');
-    check((await page.textContent('[data-testid=payments]')).includes('diff US$ -20.00'), 'difference vs deposit due shown (-20)');
+    check((await page.textContent('[data-testid=payments]')).includes('difference vs due US$ -20.00'), 'difference vs deposit due shown (-20)');
     check((await page.locator('[data-testid=confirm-payment]').count()) === 0, 'specialist cannot confirm the payment');
     check((await page.textContent('[data-testid=order-status]')) === 'Invoiced', 'order stays Invoiced until an admin confirms');
 

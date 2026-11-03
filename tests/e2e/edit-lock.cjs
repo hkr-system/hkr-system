@@ -47,6 +47,24 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
   await page.locator('[data-testid=lock-operations] [data-testid=edit-unlock]').click();
   check(!(await first.isDisabled()), '✏️ Edit unlocks the Settings section');
 
+  // order page tabs: one panel at a time, instant switch, ?tab= kept
+  await page.goto(BASE + '/accounts/list');
+  await page.waitForSelector('text=MEX-MX-903');
+  const mex = await page.locator('a', { hasText: 'MEX-MX-903' }).first().getAttribute('href');
+  await page.goto(BASE + mex + '?tab=orders');
+  await page.waitForSelector('text=ORD-01');
+  const ord = await page.locator('a', { hasText: 'ORD-01' }).first().getAttribute('href');
+  await page.goto(BASE + ord);
+  await page.waitForSelector('[data-testid=order-tabs]', { timeout: 60000 });
+  await page.waitForTimeout(800);
+  check(await page.locator('[data-testid=lines-table]').isVisible() && !(await page.locator('[data-testid=payment-ledger]').isVisible()), 'order opens on Overview only');
+  await page.click('[data-testid=tab-payments]');
+  check(await page.locator('[data-testid=payment-ledger]').isVisible() && !(await page.locator('[data-testid=lines-table]').isVisible()), 'Payments tab shows the statement');
+  check(page.url().includes('tab=payments'), 'the tab is kept in the address');
+  check((await page.locator('[data-testid=ledger-due]').innerText()).includes('0.00') && (await page.locator('[data-testid=ind-due]').innerText()).includes('0.00'), 'paid order: nothing due in the statement and the indicator');
+  await page.click('[data-testid=tab-intermediary]');
+  check(await page.locator('[data-testid=order-intermediary]').isVisible(), 'Intermediary tab: the company can be chosen per order');
+
   await browser.close();
   console.log(fail ? `\n${fail} FAILED` : '\nALL PASSED');
   process.exit(fail ? 1 : 0);

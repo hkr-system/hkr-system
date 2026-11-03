@@ -391,7 +391,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Invoice format per ORDER: `orders.invoice_format` copied from the account's default on insert; changed on the order form
   ("Invoice format (this order)"); `order_recalc` (separate battery line) and the invoice (CE, plain lines) read the order's.
 - Pencil edit: `components/edit-lock.tsx` = read-only (disabled fieldset, Save buttons hidden) until ✏️ Edit; Cancel discards;
-  locks again after Save. Used on every Settings section, account Set-up, lead details/stage/owner/next action, order
+  locks again after Save. The ✏️ ALWAYS sits at the top-right corner of its card (Gabriel): bar "corner" (default; `Card` is
+  `relative` and its header leaves room), "top" for a block made of several cards, "inline" only for a row inside a table;
+  in Settings sections it sits left of the open/close arrow. One pencil per card. Used on every Settings section, account Set-up, lead details/stage/owner/next action, order
   shipping / intermediary / invoice draft, RMA notes and unit credits, batch shipment, credit note editor, base list, list
   percentages, finance goals, WhatsApp numbers. Creation forms (new order/account/RMA/credit note/lead) are not locked.
   Browser tests click `[data-testid=edit-unlock]` before typing.
@@ -419,6 +421,20 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Magic invoice creator (New order page): paste the client's order as it comes (EN/ES) → `src/lib/orders/magic.ts`
   (rule-based, FREE, unit-tested; no AI API) reads model, GB, qty, colours (also "negros", "black" → Midnight…),
   Mixed, battery, CE, IMEI matching; reports what it could not read; nothing is saved until "Create order".
+
+## Order page (Gabriel, Nov 3 2026)
+
+- Tabs like the account page, switched instantly in the browser (`components/orders/order-tabs.tsx`, ?tab= kept): Overview
+  (lines, totals, delivery), Payments, Invoice, Credit notes, Intermediary, Shipping, Documents, Timeline & notes, Finance
+  (admin). Above the tabs, always visible: next action + money indicators (Invoice total · Received (confirmed, green) ·
+  Waiting for confirmation (amber) · Still due (red; green "Paid in full" at 0) · next amount to ask for).
+- Payments = an account statement: the invoice as the charge, confirmed payments as received with a running balance;
+  proofs awaiting an admin are shown in brackets and do not lower the balance; footer = balance still due.
+- Intermediary per ORDER: `orders.intermediary_id` (any company: Global Connect, Galimix, DWT…; "Direct" = none). A new order
+  takes the account's intermediary as default; changed on the order's Intermediary tab (admin can add a new company there).
+  RMA batches still group by the ACCOUNT's intermediary.
+- Older browser tests keep every tab panel visible and click every ✏️ automatically (`tests/e2e/unlock.cjs`);
+  `tests/e2e/edit-lock.cjs` checks the lock and the tabs themselves.
 
 ## Intermediary orders (Gabriel, Nov 2 2026)
 

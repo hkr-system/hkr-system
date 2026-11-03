@@ -21,6 +21,7 @@ import { FileUpload } from "@/components/orders/file-upload";
 import { InvoicePanel, type InvoiceRow } from "@/components/orders/invoice-panel";
 import { IntermediaryPanel } from "@/components/orders/intermediary-panel";
 import { CreditNotesPanel } from "@/components/orders/credit-notes-panel";
+import { OrderIndicators, OrderTabs } from "@/components/orders/order-tabs";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,19 +29,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export const metadata: Metadata = { title: "Order" };
 
-export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
+export default async function OrderPage({ params, searchParams }: PageProps<"/orders/[id]">) {
   const access = await checkSection("orders");
   if (!access.allowed) return <NoAccess />;
   const { user } = access;
   const isAdmin = user.role === "admin";
   const { id } = await params;
+  const sp = await searchParams;
+  const tab = typeof sp.tab === "string" ? sp.tab : "overview";
   const db = await createClient();
 
   const { data: o } = await db.from("orders").select("*, accounts(id, code, name, country, invoice_format, billing_entity, intermediaries(name))").eq("id", id).maybeSingle();
   if (!o) notFound();
   const acc = o.accounts as unknown as { id: string; code: string; name: string; country: string | null; invoice_format: { battery_line_separate?: boolean } | null; intermediaries: { name: string } | null };
 
-  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }] = await Promise.all([
+  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: intermediaries }] = await Promise.all([
     db.from("order_overview").select("*").eq("id", id).single(),
     db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, price_source, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
@@ -53,7 +56,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
     db.from("credit_note_applications").select("id, credit_note_id, amount_usd, credit_notes(number)").eq("order_id", id).order("created_at"),
     db.from("credit_notes").select("id, number, amount, currency, status, reason, rmas(number), credit_note_applications(amount_usd)")
       .eq("account_id", acc.id).in("status", ["approved", "issued", "applied"]).order("number"),
+    db.from("intermediaries").select("id, name").order("name"),
   ]);
+  const imName = (intermediaries ?? []).find((i) => i.id === o.intermediary_id)?.name ?? null;
   const appliedCn = (cnApplied ?? []).map((a) => ({ id: a.id, credit_note_id: a.credit_note_id, number: (a.credit_notes as unknown as { number: string }).number, amount: Number(a.amount_usd) }));
   const availableCn = (cnAll ?? []).filter((c) => c.currency === "USD").map((c) => {
     const used = ((c.credit_note_applications ?? []) as { amount_usd: number }[]).reduce((t, x) => t + Number(x.amount_usd), 0);
@@ -66,8 +71,16 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const status = o.status as OrderStatus;
   const cur = "USD"; // we are always paid in USD, also via an intermediary (Gabriel, Nov 2 2026)
-  const dueDeposit = Math.max(0, Number(ov.deposit_payable) - Number(ov.deposit_confirmed));
-  const dueBalance = Math.max(0, Number(ov.payable_total) - Number(ov.deposit_payable) - Number(ov.balance_confirmed));
+  const cents = (n: number) => Math.round(n * 100) / 100;
+  const dueDeposit = Math.max(0, cents(Number(ov.deposit_payable) - Number(ov.deposit_confirmed)));
+  const dueBalance = Math.max(0, cents(Number(ov.payable_total) - Number(ov.deposit_payable) - Number(ov.balance_confirmed)));
+  // indicators (Gabriel, Nov 3 2026): what the client owes, what reached us, what waits for an admin
+  const received = (payments ?? []).filter((p) => p.status === "confirmed").reduce((t, p) => t + Number(p.amount), 0);
+  const awaiting = (payments ?? []).filter((p) => p.status !== "confirmed").reduce((t, p) => t + Number(p.amount), 0);
+  const stillDue = Math.max(0, Math.round((Number(o.total_usd) - received) * 100) / 100);
+  const nextDue = status === "quoted" ? null
+    : dueDeposit > 0 ? { label: "Deposit due", amount: dueDeposit }
+    : dueBalance > 0 ? { label: status === "ready_to_ship" ? "Balance due now" : "Balance due when ready", amount: dueBalance } : null;
   const clear = Boolean(ov.balance_ok && (ov.imei_count ?? 0) > 0 && ov.label_ok);
   const ship = (o.ship_to ?? {}) as Record<string, string>;
   const editable = !["shipped", "delivered", "closed"].includes(status);
@@ -110,14 +123,26 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <div className="grid content-start gap-4">
+      <OrderIndicators total={Number(o.total_usd)} received={received} awaiting={awaiting} due={stillDue} nextDue={nextDue} />
+
+      <OrderTabs initial={tab} tabs={[
+        { key: "overview", label: "Overview" },
+        { key: "payments", label: "Payments", count: (payments ?? []).length, alert: awaiting > 0 },
+        { key: "invoice", label: "Invoice", note: invoice ? invoice.status : undefined },
+        { key: "credit-notes", label: "Credit notes", count: appliedCn.length },
+        { key: "intermediary", label: "Intermediary" },
+        { key: "shipping", label: "Shipping" },
+        { key: "documents", label: "Documents", count: (files ?? []).length },
+        { key: "timeline", label: "Timeline & notes", count: (events ?? []).length },
+        ...(isAdmin ? [{ key: "finance", label: "Finance" }] : []),
+      ]}>
+        <div data-tab="overview" className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
           <Card>
             <CardHeader>
               <CardTitle>Lines and totals</CardTitle>
               <CardDescription>
                 {o.hk_invoice_no ? `Our invoice ${o.hk_invoice_no}` : "No invoice number yet"}
-                {acc.intermediaries ? ` · ${acc.intermediaries.name} invoice ${o.partner_invoice_no ?? "pending"}${o.partner_invoice_eur ? ` (${money(o.partner_invoice_eur, "EUR")})` : ""}` : ""}
+                {imName ? ` · ${imName} invoice ${o.partner_invoice_no ?? "pending"}${o.partner_invoice_eur ? ` (${money(o.partner_invoice_eur, "EUR")})` : ""}` : " · direct"}
                 {` · ${PAYMENT_METHOD_LABEL[o.payment_method]} · order date ${formatDate(o.order_date)}`}
               </CardDescription>
             </CardHeader>
@@ -172,76 +197,6 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice</CardTitle>
-              <CardDescription>Draft → Approved (admin) → Sent. Same layout as our commercial invoices; PDF and Excel.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvoicePanel orderId={id} invoice={(invoice ?? null) as InvoiceRow | null} orderTotal={Number(o.total_usd)} role={user.role ?? ""} issuerReady={issuerReady} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Credit notes</CardTitle>
-              <CardDescription>The discount on this invoice comes from approved credit notes of the client (with or without RMA / IMEIs). One credit note can be split across several invoices.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CreditNotesPanel orderId={id} accountId={acc.id} applied={appliedCn} available={availableCn} isAdmin={isAdmin}
-                canEdit={user.role === "admin" || user.role === "account_specialist"} frozen={Boolean(invoice && ["approved", "sent"].includes(invoice.status))} />
-            </CardContent>
-          </Card>
-
-          {acc.intermediaries ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Intermediary ({acc.intermediaries.name})</CardTitle>
-                <CardDescription>We invoice {acc.intermediaries.name} in USD → they invoice the client in EUR → the client pays them → they pay us in USD.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <IntermediaryPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} intermediary={acc.intermediaries.name}
-                  no={o.partner_invoice_no} eur={o.partner_invoice_eur === null ? null : Number(o.partner_invoice_eur)}
-                  depositWithIntermediary={Boolean(o.deposit_with_intermediary)} editable={editable} />
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Payments</CardTitle>
-              <CardDescription>Deposit {money(ov.deposit_payable, cur)} · confirmed {money(Number(ov.deposit_confirmed) + Number(ov.balance_confirmed), cur)} · still due {money(dueDeposit + dueBalance, cur)}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PaymentsPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} isAdmin={isAdmin}
-                payments={(payments ?? []) as never} defaultMethod={o.payment_method} payCurrency={cur} dueDeposit={dueDeposit} dueBalance={dueBalance}
-                showForm={editable || dueDeposit + dueBalance > 0} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>Shipping day (SOP P4)</CardTitle><CardDescription>Shipment only after the balance is confirmed (brief §6).</CardDescription></CardHeader>
-            <CardContent>
-              <ShippingPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} courier={o.courier} tracking={o.tracking}
-                eta={o.eta_date} setup={o.delivery_setup} imeiCount={ov.imei_count ?? 0} labelOk={Boolean(ov.label_ok)} balanceOk={Boolean(ov.balance_ok)} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid content-start gap-4">
-          {isAdmin ? (
-            <Card data-testid="finance">
-              <CardHeader><CardTitle>Finance (admin only)</CardTitle></CardHeader>
-              <CardContent className="grid gap-1 text-sm" data-tabular>
-                <div className="flex justify-between text-muted-foreground"><span>Base list price</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
-                <div className="flex justify-between"><span>Real cost (base ÷ 1 + base margin)</span><span>{money(finance.data?.real_cost_usd ?? null)}</span></div>
-                <div className="flex justify-between"><span>Profit</span><span data-testid="profit">{finance.data?.real_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.real_cost_usd)) : "—"}</span></div>
-                <div className="flex justify-between font-medium" title="Profit ÷ invoice total: which part of what the client pays is profit"><span>Margin (profit ÷ invoice total)</span><span data-testid="margin">{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
-                <div className="flex justify-between font-medium" title="Profit ÷ real cost: how much was added on top of what the phones cost"><span>Markup (profit ÷ real cost)</span><span data-testid="markup">{finance.data?.real_cost_usd ? `${((Number(o.total_usd) - Number(finance.data.real_cost_usd)) / Number(finance.data.real_cost_usd) * 100).toFixed(2)} %` : "—"}</span></div>
-              </CardContent>
-            </Card>
-          ) : null}
           <Card>
             <CardHeader><CardTitle>Delivery</CardTitle></CardHeader>
             <CardContent className="grid gap-1 text-sm">
@@ -254,7 +209,59 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
               {o.notes ? <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{o.notes}</p> : null}
             </CardContent>
           </Card>
-          <Card>
+        </div>
+        <div data-tab="payments"><Card>
+            <CardHeader>
+              <CardTitle>Payments</CardTitle>
+              <CardDescription>What the client owes on this order and what we received, like an account statement. A proof counts only after an admin confirms it (SOP P3).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PaymentsPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} isAdmin={isAdmin}
+                payments={(payments ?? []) as never} defaultMethod={o.payment_method} payCurrency={cur} dueDeposit={dueDeposit} dueBalance={dueBalance}
+                showForm={editable || dueDeposit + dueBalance > 0}
+                ledger={{ date: o.order_date, label: o.hk_invoice_no ? `Invoice ${o.hk_invoice_no}` : `Order ${o.number} (invoice not approved yet)`, total: Number(o.total_usd),
+                  note: appliedCn.length ? `includes credit notes ${appliedCn.map((a) => `${a.number} −${money(a.amount)}`).join(", ")}` : null }} />
+            </CardContent>
+          </Card></div>
+        <div data-tab="invoice"><Card>
+            <CardHeader>
+              <CardTitle>Invoice</CardTitle>
+              <CardDescription>Draft → Approved (admin) → Sent. Same layout as our commercial invoices; PDF and Excel.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InvoicePanel orderId={id} invoice={(invoice ?? null) as InvoiceRow | null} orderTotal={Number(o.total_usd)} role={user.role ?? ""} issuerReady={issuerReady} />
+            </CardContent>
+          </Card></div>
+        <div data-tab="credit-notes"><Card>
+            <CardHeader>
+              <CardTitle>Credit notes</CardTitle>
+              <CardDescription>The discount on this invoice comes from approved credit notes of the client (with or without RMA / IMEIs). One credit note can be split across several invoices.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreditNotesPanel orderId={id} accountId={acc.id} applied={appliedCn} available={availableCn} isAdmin={isAdmin}
+                canEdit={user.role === "admin" || user.role === "account_specialist"} frozen={Boolean(invoice && ["approved", "sent"].includes(invoice.status))} />
+            </CardContent>
+          </Card></div>
+        <div data-tab="intermediary"><Card>
+            <CardHeader>
+              <CardTitle>Intermediary{imName ? ` (${imName})` : " — direct order"}</CardTitle>
+              <CardDescription>{imName ? `We invoice ${imName} in USD → they invoice the client in EUR → the client pays them → they pay us in USD.` : "Choose the company if this order goes through an intermediary (Global Connect, Galimix, DWT…)."} The client&apos;s usual intermediary is only the default for new orders.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <IntermediaryPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number}
+                intermediaryId={o.intermediary_id} intermediaries={intermediaries ?? []} isAdmin={isAdmin}
+                no={o.partner_invoice_no} eur={o.partner_invoice_eur === null ? null : Number(o.partner_invoice_eur)}
+                depositWithIntermediary={Boolean(o.deposit_with_intermediary)} editable={editable} />
+            </CardContent>
+          </Card></div>
+        <div data-tab="shipping"><Card>
+            <CardHeader><CardTitle>Shipping day (SOP P4)</CardTitle><CardDescription>Shipment only after the balance is confirmed (brief §6).</CardDescription></CardHeader>
+            <CardContent>
+              <ShippingPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} courier={o.courier} tracking={o.tracking}
+                eta={o.eta_date} setup={o.delivery_setup} imeiCount={ov.imei_count ?? 0} labelOk={Boolean(ov.label_ok)} balanceOk={Boolean(ov.balance_ok)} />
+            </CardContent>
+          </Card></div>
+        <div data-tab="documents"><Card>
             <CardHeader>
               <CardTitle>Documents</CardTitle>
               <FileUpload accountId={acc.id} accountCode={acc.code} orderId={id} orderNumber={o.number} testId="order-file-upload" />
@@ -268,8 +275,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
               ))}
               {!files?.length ? <p className="text-muted-foreground">No documents yet (INV-HK, PP-DEP, IMEI, label, TRK, POD…).</p> : null}
             </CardContent>
-          </Card>
-          <Card>
+          </Card></div>
+        <div data-tab="timeline"><Card>
             <CardHeader><CardTitle>Timeline</CardTitle></CardHeader>
             <CardContent className="grid gap-3">
               <NoteForm orderId={id} accountId={acc.id} />
@@ -285,9 +292,18 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 ))}
               </ul>
             </CardContent>
-          </Card>
-        </div>
-      </div>
+          </Card></div>
+        {isAdmin ? <div data-tab="finance"><Card data-testid="finance">
+              <CardHeader><CardTitle>Finance (admin only)</CardTitle></CardHeader>
+              <CardContent className="grid gap-1 text-sm" data-tabular>
+                <div className="flex justify-between text-muted-foreground"><span>Base list price</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
+                <div className="flex justify-between"><span>Real cost (base ÷ 1 + base margin)</span><span>{money(finance.data?.real_cost_usd ?? null)}</span></div>
+                <div className="flex justify-between"><span>Profit</span><span data-testid="profit">{finance.data?.real_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.real_cost_usd)) : "—"}</span></div>
+                <div className="flex justify-between font-medium" title="Profit ÷ invoice total: which part of what the client pays is profit"><span>Margin (profit ÷ invoice total)</span><span data-testid="margin">{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
+                <div className="flex justify-between font-medium" title="Profit ÷ real cost: how much was added on top of what the phones cost"><span>Markup (profit ÷ real cost)</span><span data-testid="markup">{finance.data?.real_cost_usd ? `${((Number(o.total_usd) - Number(finance.data.real_cost_usd)) / Number(finance.data.real_cost_usd) * 100).toFixed(2)} %` : "—"}</span></div>
+              </CardContent>
+            </Card></div> : null}
+      </OrderTabs>
     </>
   );
 }

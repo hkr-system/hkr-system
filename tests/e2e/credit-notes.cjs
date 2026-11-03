@@ -3,6 +3,7 @@
 // Invoice format per order: a new order copies the client's default and can change it for that invoice only.
 // Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset` (it changes data).
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const fs = require('fs');
 const path = require('path');
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
@@ -14,6 +15,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
   await page.goto(BASE + '/login');

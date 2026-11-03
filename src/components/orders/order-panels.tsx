@@ -57,9 +57,11 @@ type Payment = {
   status: "awaiting_confirmation" | "confirmed"; proof_file_id: string | null; notes: string | null;
 };
 
-export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, payments, isAdmin, defaultMethod, payCurrency, dueDeposit, dueBalance, showForm = true }: {
+export type Ledger = { date: string; label: string; total: number; note: string | null };
+
+export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, payments, isAdmin, defaultMethod, payCurrency, dueDeposit, dueBalance, showForm = true, ledger }: {
   orderId: string; accountId: string; accountCode: string; orderNumber: string; payments: Payment[]; isAdmin: boolean;
-  defaultMethod: PaymentMethod; payCurrency: "USD" | "EUR"; dueDeposit: number; dueBalance: number; showForm?: boolean;
+  defaultMethod: PaymentMethod; payCurrency: "USD" | "EUR"; dueDeposit: number; dueBalance: number; showForm?: boolean; ledger?: Ledger;
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<ActionState, FormData>(recordPayment, {});
@@ -73,33 +75,96 @@ export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, pa
 
   return (
     <div className="grid gap-4" data-testid="payments">
-      <div className="grid gap-2">
-        {payments.map((p) => (
-          <div key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border p-2 text-sm" data-testid="payment-row">
-            <span className="font-medium">{PAYMENT_TYPE_LABEL[p.type]}</span>
-            <span data-tabular>{money(p.amount, p.currency)}</span>
-            <span className="text-xs text-muted-foreground">{PAYMENT_METHOD_LABEL[p.method]} · {p.received_at}{p.reference ? ` · ${p.reference}` : ""}</span>
-            {p.difference !== null && Number(p.difference) !== 0 ? (
-              <span className={`text-xs ${Number(p.difference) < 0 ? "text-destructive" : "text-amber-700"}`}>
-                diff {money(p.difference, p.currency)}{p.difference_reason ? ` (${reasonLabel(p.difference_reason)})` : ""}
-              </span>
+      {/* account statement (Gabriel, Nov 3 2026): charge, received, running balance; proofs waiting for an admin are
+          listed apart and do not lower the balance until confirmed */}
+      <div className="overflow-x-auto rounded-lg border" data-testid="payment-ledger">
+        <table className="w-full min-w-[640px] text-sm" data-tabular>
+          <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Date</th>
+              <th className="px-3 py-2 text-left font-medium">Description</th>
+              <th className="px-3 py-2 text-right font-medium">Charge</th>
+              <th className="px-3 py-2 text-right font-medium">Received</th>
+              <th className="px-3 py-2 text-right font-medium">Balance</th>
+              <th className="px-3 py-2 text-right font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ledger ? (
+              <tr className="border-t">
+                <td className="px-3 py-2 whitespace-nowrap">{ledger.date}</td>
+                <td className="px-3 py-2"><span className="font-medium">{ledger.label}</span>{ledger.note ? <span className="block text-xs text-muted-foreground">{ledger.note}</span> : null}</td>
+                <td className="px-3 py-2 text-right">{money(ledger.total, payCurrency)}</td>
+                <td className="px-3 py-2 text-right text-muted-foreground">—</td>
+                <td className="px-3 py-2 text-right font-medium">{money(ledger.total, payCurrency)}</td>
+                <td className="px-3 py-2" />
+              </tr>
             ) : null}
-            {p.proof_file_id ? <a href={`/api/files/${p.proof_file_id}`} target="_blank" rel="noreferrer" className="text-xs underline">proof</a> : null}
-            <span className={`ml-auto text-xs font-medium ${p.status === "confirmed" ? "text-emerald-700" : "text-amber-700"}`}>
-              {p.status === "confirmed" ? "Confirmed" : "Awaiting confirmation"}
-            </span>
-            {isAdmin && p.status !== "confirmed" ? (
-              <Button size="xs" disabled={busy} data-testid="confirm-payment"
-                onClick={() => start(async () => { await confirmPayment(p.id, null); router.refresh(); })}>Confirm credit</Button>
-            ) : null}
-            {isAdmin ? (
-              <Button size="xs" variant="ghost" disabled={busy}
-                onClick={() => { if (confirm("Delete this payment record?")) start(async () => { await deletePayment(p.id); router.refresh(); }); }}>Delete</Button>
-            ) : null}
-            {p.notes ? <span className="w-full text-xs text-muted-foreground">{p.notes}</span> : null}
-          </div>
-        ))}
-        {!payments.length ? <p className="text-sm text-muted-foreground">No payments recorded.</p> : null}
+            {(() => {
+              const sorted = [...payments].sort((a, b) => (a.status === b.status ? a.received_at.localeCompare(b.received_at) : a.status === "confirmed" ? -1 : 1));
+              // running balance after each confirmed payment
+              const balances = sorted.reduce<number[]>((acc, p, i) => {
+                const prev = i ? acc[i - 1] : ledger?.total ?? 0;
+                acc.push(p.status === "confirmed" ? Math.round((prev - Number(p.amount)) * 100) / 100 : prev);
+                return acc;
+              }, []);
+              return sorted.map((p, i) => {
+                const ok = p.status === "confirmed";
+                const bal = balances[i];
+                return (
+                  <tr key={p.id} className={`border-t ${ok ? "" : "bg-amber-50/50"}`} data-testid="payment-row">
+                    <td className="px-3 py-2 whitespace-nowrap align-top">{p.received_at}</td>
+                    <td className="px-3 py-2 align-top">
+                      <span className="font-medium">{PAYMENT_TYPE_LABEL[p.type]}</span>
+                      <span className="text-xs text-muted-foreground"> · {PAYMENT_METHOD_LABEL[p.method]}{p.reference ? ` · ${p.reference}` : ""}</span>
+                      {p.proof_file_id ? <a href={`/api/files/${p.proof_file_id}`} target="_blank" rel="noreferrer" className="ml-2 text-xs underline">proof</a> : null}
+                      {p.difference !== null && Number(p.difference) !== 0 ? (
+                        <span className={`block text-xs ${Number(p.difference) < 0 ? "text-destructive" : "text-amber-700"}`}>
+                          difference vs due {money(p.difference, p.currency)}{p.difference_reason ? ` (${reasonLabel(p.difference_reason)})` : ""}
+                        </span>
+                      ) : null}
+                      {p.notes ? <span className="block text-xs text-muted-foreground">{p.notes}</span> : null}
+                    </td>
+                    <td className="px-3 py-2 text-right align-top text-muted-foreground">—</td>
+                    <td className={`px-3 py-2 text-right align-top ${ok ? "font-medium text-emerald-700" : "text-amber-800 italic"}`}>
+                      {ok ? money(p.amount, p.currency) : `(${money(p.amount, p.currency)})`}
+                    </td>
+                    <td className="px-3 py-2 text-right align-top">{ok ? money(bal, payCurrency) : <span className="text-xs text-muted-foreground">not yet</span>}</td>
+                    <td className="px-3 py-2 text-right align-top">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <span className={`text-xs font-medium ${ok ? "text-emerald-700" : "text-amber-700"}`}>{ok ? "Confirmed" : "Awaiting confirmation"}</span>
+                        {isAdmin && !ok ? (
+                          <Button size="xs" disabled={busy} data-testid="confirm-payment"
+                            onClick={() => start(async () => { await confirmPayment(p.id, null); router.refresh(); })}>Confirm credit</Button>
+                        ) : null}
+                        {isAdmin ? (
+                          <Button size="xs" variant="ghost" disabled={busy}
+                            onClick={() => { if (confirm("Delete this payment record?")) start(async () => { await deletePayment(p.id); router.refresh(); }); }}>Delete</Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              });
+            })()}
+            {!payments.length ? <tr className="border-t"><td colSpan={6} className="px-3 py-3 text-muted-foreground">No payments recorded yet.</td></tr> : null}
+          </tbody>
+          {ledger ? (() => {
+            const got = payments.filter((p) => p.status === "confirmed").reduce((t, p) => t + Number(p.amount), 0);
+            const due = Math.max(0, Math.round((ledger.total - got) * 100) / 100);
+            return (
+              <tfoot className="border-t-2">
+                <tr className="font-semibold">
+                  <td className="px-3 py-2" colSpan={2}>{due > 0 ? "Balance still due" : "Paid in full"}</td>
+                  <td className="px-3 py-2 text-right">{money(ledger.total, payCurrency)}</td>
+                  <td className="px-3 py-2 text-right text-emerald-700">{money(got, payCurrency)}</td>
+                  <td className={`px-3 py-2 text-right ${due > 0 ? "text-red-700" : "text-emerald-700"}`} data-testid="ledger-due">{money(due, payCurrency)}</td>
+                  <td className="px-3 py-2" />
+                </tr>
+              </tfoot>
+            );
+          })() : null}
+        </table>
       </div>
 
       {showForm ? <form action={action} className="grid gap-3 rounded-md bg-muted/40 p-3 sm:grid-cols-3" data-testid="payment-form">

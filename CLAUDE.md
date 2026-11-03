@@ -201,6 +201,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/rmas.cjs` | Phase 4 + portal browser test (after db:reset): RMAs, credit note PDF, batch, portal login by link, RMA request on a phone |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
+| `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
@@ -480,7 +481,11 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Batch board (Gabriel approved the scheme Oct 30 2026): top of RMAs → EU batches shows the batches left to right by stage —
   1 Open (collecting, soonest cut-off first, label missing / missed cut-off alerts) → 2 Shipped to HK (days in transit, AWB) →
   3 Received in HK (last 90 days, "units still to resolve" = RMA not closed). Pure logic `src/lib/rmas/board.ts` (unit-tested);
-  cards jump to the batch below. Gabriel wants the same left-to-right board for ORDERS next (by order status).
+  cards jump to the batch below.
+- Orders board (built Nov 3 2026): Sales → "Orders board" (/sales/board) shows every order left to right by its 9 statuses,
+  count + US$ + pcs per column, longest waiting on top, days in the stage (last status event) and what is missing
+  (deposit due, proof to confirm, ETA pending/passed, balance due, IMEI/label missing, AWB). Delivered/Closed: last 30 days.
+  Pure logic `src/lib/orders/board.ts` (unit-tested); e2e `tests/e2e/order-board.cjs`.
 
 ## Client portal — technical rules (Oct 27 2026)
 

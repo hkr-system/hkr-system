@@ -366,7 +366,11 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 
 ## Order lines: model, colours, options, Magic invoice creator (Gabriel, Nov 2 2026)
 
-- A line = model + GB chosen from the client's APPROVED price list (no list → the models of the SKUs; or free text);
+- A line = model + GB chosen from the client's APPROVED price list (no list → the models of the SKUs; or free text) by
+  TYPING with Google-style suggestions ("14 pro 256", "ip15pm" — `src/lib/orders/model-search.ts`, unit-tested);
+- Ship-to on a new order is pre-filled: the account's last order's ship-to, else its legal name, billing address, country
+  and first contact (`loadFormAccounts.ship_default`); editable per order.
+- (line model)
   `order_lines.model`, `storage_gb` (SKU lines before Nov 2 are filled from the SKU by trigger).
 - Colours: Mixed (`colors_mixed`) or a split `colors` [{color, qty}] by the model's OFFICIAL colours shown as
   "Midnight (Black)" (`src/lib/orders/colors.ts`, 12 → 16 series + 16e; add new models there). The split must add up to the

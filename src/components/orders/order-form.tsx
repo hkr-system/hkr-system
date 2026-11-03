@@ -19,6 +19,7 @@ export type FormAccount = {
   id: string; code: string; name: string; payment_method: PaymentMethod; delivery_setup: DeliverySetup;
   has_intermediary: boolean; battery_line_separate: boolean; country: string | null; legal_name: string | null; orders: number;
   ce_default?: boolean;   // invoice format "show CE text" → CE Marks ticked on new lines
+  ship_default?: Record<string, string>;   // last order's ship-to, else the account's own address
 };
 type Sku = { id: string; label: string; battery_eligible: boolean; model: string; storage_gb: number };
 /** Approved list per account: "<model>|<gb>" → row (loadApprovedPrices). */
@@ -50,7 +51,10 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [freight, setFreight] = useState(String(values.freight_usd ?? 0));
   const [customs, setCustoms] = useState(String(values.customs_usd ?? 0));
   const [rma, setRma] = useState(String(values.rma_discount_usd ?? 0));
-  const ship = values.ship_to ?? {};
+  const shipFor = (id: string) => accounts.find((a) => a.id === id)?.ship_default ?? {};
+  const [ship, setShip] = useState<Record<string, string>>(
+    values.ship_to && Object.values(values.ship_to).some(Boolean) ? values.ship_to : shipFor(values.account_id ?? (accounts.length === 1 ? accounts[0].id : "")));
+  const setS = (k: string) => (e: { target: { value: string } }) => setShip((s) => ({ ...s, [k]: e.target.value }));
   const separate = account?.battery_line_separate ?? true;
   // model choices: the client's approved price list; without one, the models of the SKUs
   const choicesFor = (acc: string): ModelChoice[] => {
@@ -82,6 +86,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     setAccountId(id);
     const a = accounts.find((x) => x.id === id);
     if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
+    if (!values.id) setShip(shipFor(id));
     const next = choicesFor(id);
     setLines((ls) => ls.map((l) => (l.model ? withChoice(l, next.find((c) => c.key === modelKey(l.model, l.storage_gb ?? 0))) : { ...l, ce: ceOf(id) })));
   };
@@ -143,19 +148,19 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <Card>
-          <CardHeader><CardTitle className="text-base">Ship to (this order)</CardTitle><CardDescription>Brief §6: the delivery address can change per order.</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-base">Ship to (this order)</CardTitle><CardDescription>Filled in from the client&apos;s last order (or its account data for a first order); change it if this order goes elsewhere.</CardDescription></CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <F label="Consignee"><Input name="ship_name" defaultValue={ship.name ?? account?.legal_name ?? ""} /></F>
-            <F label="Reception contact"><Input name="ship_contact" defaultValue={ship.contact ?? ""} /></F>
-            <F label="Address" className="sm:col-span-2"><Input name="ship_address" defaultValue={ship.address ?? ""} /></F>
-            <F label="City"><Input name="ship_city" defaultValue={ship.city ?? ""} /></F>
+            <F label="Consignee"><Input name="ship_name" value={ship.name ?? ""} onChange={setS("name")} /></F>
+            <F label="Reception contact"><Input name="ship_contact" value={ship.contact ?? ""} onChange={setS("contact")} /></F>
+            <F label="Address" className="sm:col-span-2"><Input name="ship_address" value={ship.address ?? ""} onChange={setS("address")} /></F>
+            <F label="City"><Input name="ship_city" value={ship.city ?? ""} onChange={setS("city")} /></F>
             <F label="Country">
-              <NativeSelect name="ship_country" defaultValue={ship.country ?? account?.country ?? ""}>
+              <NativeSelect name="ship_country" value={ship.country ?? ""} onChange={setS("country")}>
                 <option value="">—</option>
                 {countryOptions("en").map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
               </NativeSelect>
             </F>
-            <F label="Phone"><Input name="ship_phone" defaultValue={ship.phone ?? ""} /></F>
+            <F label="Phone"><Input name="ship_phone" value={ship.phone ?? ""} onChange={setS("phone")} /></F>
             <F label="Notes" className="sm:col-span-2"><Textarea name="notes" rows={2} defaultValue={values.notes ?? ""} /></F>
           </CardContent>
         </Card>

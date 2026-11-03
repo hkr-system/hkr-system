@@ -59,7 +59,8 @@ function tmpFile(name, content) {
     const line = page.locator('[data-testid=order-line]').first();
     // new account without a price list: models come from the SKUs; colours split must add up (Nov 2 2026)
     await page.waitForTimeout(1000);
-    await line.locator('select[aria-label=Model]').selectOption({ label: 'iPhone 13 128GB' });
+    await line.locator('input[aria-label=Model]').fill('ip13 128');   // Google-style suggestions
+    await page.locator('[role=option]', { hasText: 'iPhone 13 128GB' }).first().click();
     await line.locator('input[aria-label=Quantity]').fill('150');
     await line.locator('[data-testid=line-colors] input[type=checkbox]').uncheck();
     await line.locator('input[aria-label="Quantity Midnight"]').fill('100');

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { BATTERY_OPTIONS, batteryAllowed, batteryLineEligible, colorLabel, colorsFor, splitProblem, type BatteryOption } from "@/lib/orders/colors";
 import { readOrder } from "@/lib/orders/magic";
 import { money } from "@/lib/orders/constants";
 import { modelKey } from "@/lib/price-lists/models";
+import { suggest } from "@/lib/orders/model-search";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,62 @@ export function withChoice(l: Line, c: ModelChoice | undefined): Line {
   };
 }
 
+const choiceLabel = (c: ModelChoice) => `${c.model} ${c.storage_gb}GB${c.note ? ` (${c.note})` : ""}`;
+
+/** Type to search the client's models ("14 pro 256", "ip15pm"), Google-style; anything else stays as free text. */
+function ModelSearch({ line, choices, onPick, onText }: {
+  line: Line; choices: ModelChoice[]; onPick: (c: ModelChoice) => void; onText: (text: string) => void;
+}) {
+  const current = choices.find((c) => c.key === line.key);
+  const shown = current ? choiceLabel(current) : line.model ? `${line.model} ${line.storage_gb ?? ""}GB` : line.description;
+  const [text, setText] = useState<string | null>(null);   // null = not editing: show the chosen value
+  const [active, setActive] = useState(0);
+  const listId = useId();
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const open = text !== null;
+  const hits = open ? suggest(choices, text) : [];
+  const pick = (c: ModelChoice) => { onPick(c); setText(null); };
+  const leave = () => {
+    if (text !== null && text.trim() && !(current && text === shown)) onText(text.trim());
+    setText(null);
+  };
+  return (
+    <div className="relative">
+      <Input
+        value={open ? text : shown}
+        onChange={(e) => { setText(e.target.value); setActive(0); }}
+        onFocus={(e) => { setText(shown); setActive(0); e.currentTarget.select(); }}
+        onBlur={() => { blurTimer.current = setTimeout(leave, 120); }}
+        onKeyDown={(e) => {
+          if (!open) return;
+          if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, hits.length - 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+          else if (e.key === "Enter") { e.preventDefault(); if (hits[active]) pick(hits[active]); else leave(); (e.target as HTMLInputElement).blur(); }
+          else if (e.key === "Escape") { setText(null); (e.target as HTMLInputElement).blur(); }
+        }}
+        placeholder="Type a model: 14 pro 256, ip15pm…" aria-label="Model" role="combobox" aria-expanded={open && hits.length > 0}
+        aria-controls={listId} autoComplete="off" data-testid="line-model"
+      />
+      {open && hits.length ? (
+        <ul id={listId} role="listbox" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-md border bg-popover py-1 text-sm shadow-md">
+          {hits.map((c, n) => (
+            <li key={c.key} role="option" aria-selected={n === active}
+              onMouseDown={(e) => { e.preventDefault(); if (blurTimer.current) clearTimeout(blurTimer.current); pick(c); }}
+              onMouseEnter={() => setActive(n)}
+              className={`flex cursor-pointer justify-between gap-3 px-3 py-1.5 ${n === active ? "bg-hkr-accent-tint" : ""}`}>
+              <span>{choiceLabel(c)}</span>
+              {c.price !== undefined ? <span className="text-muted-foreground" data-tabular>{money(c.price)}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {open && text?.trim() && !hits.length ? (
+        <p className="mt-1 text-xs text-muted-foreground">Not in this client&apos;s list — it will be kept as free text.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function PriceHint({ line, floor }: { line: Line; floor: number | null | undefined }) {
   if (!line.list_row_id || line.list_price === null) return null;
   const unit = Number(line.unit_price);
@@ -75,11 +132,9 @@ export function LineEditor({ line, i, choices, isAdmin, separate, onChange, onRe
     <div className="grid gap-3 rounded-lg border p-3" data-testid="order-line">
       <div className="grid gap-2 sm:grid-cols-[2fr_80px_130px_110px_32px] sm:items-start">
         <div className="grid gap-1">
-          <NativeSelect value={line.key} onChange={(e) => onChange((l) => withChoice(l, choices.find((c) => c.key === e.target.value)))} aria-label="Model" data-testid="line-model">
-            <option value="">{line.model && !choice ? `${line.model} ${line.storage_gb ?? ""}GB` : "Other (free text)…"}</option>
-            {choices.map((c) => <option key={c.key} value={c.key}>{c.model} {c.storage_gb}GB{c.note ? ` (${c.note})` : ""}{c.price !== undefined ? ` · ${money(c.price)}` : ""}</option>)}
-          </NativeSelect>
-          {!line.key && !line.model ? <Input value={line.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Description" aria-label="Description" /> : null}
+          <ModelSearch line={line} choices={choices}
+            onPick={(c) => onChange((l) => withChoice({ ...l, description: "" }, c))}
+            onText={(text) => onChange((l) => ({ ...withChoice(l, undefined), description: text }))} />
         </div>
         <Input value={line.qty} onChange={(e) => onChange({ qty: e.target.value })} inputMode="numeric" placeholder="Qty" aria-label="Quantity" />
         <div className="grid gap-0.5">

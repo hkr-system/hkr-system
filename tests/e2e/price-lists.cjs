@@ -131,8 +131,8 @@ const goto = async (page, url, sel) => { await page.goto(BASE + url); await page
     await goto(page, '/orders/new', '[data-testid=order-account]');
     const ams = await page.locator('[data-testid=order-account] option', { hasText: 'AMS-NL-901' }).getAttribute('value');
     await page.selectOption('[data-testid=order-account]', ams);
-    const sku = await page.locator('[data-testid=order-line] select[aria-label=Model] option', { hasText: 'iPhone 15 128GB' }).first().getAttribute('value');
-    await page.selectOption('[data-testid=order-line] select[aria-label=Model]', sku);
+    await page.fill('[data-testid=order-line] input[aria-label=Model]', '15 128');
+    await page.locator('[role=option]', { hasText: 'iPhone 15 128GB' }).first().click();
     check((await page.inputValue('[data-testid=order-line] input[aria-label="Unit price"]')) === '402.9', 'unit price filled from the list (402.90)');
     check((await page.locator('[data-testid=price-hint]').innerText()).includes('From the price list'), 'line marked "from the price list"');
     await page.fill('[data-testid=order-line] input[aria-label="Unit price"]', '390');

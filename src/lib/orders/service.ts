@@ -49,18 +49,33 @@ export function skuLabel(s: { model: string; storage_gb: number; color: string }
 
 // Accounts the user can order for, with what the order form needs.
 export async function loadFormAccounts(db: DB) {
-  const [{ data: accs }, { data: counts }] = await Promise.all([
-    db.from("accounts").select("id, code, name, payment_method, delivery_setup, intermediary_id, invoice_format, country, legal_name, status")
+  const [{ data: accs }, { data: counts }, { data: contacts }] = await Promise.all([
+    db.from("accounts").select("id, code, name, payment_method, delivery_setup, intermediary_id, invoice_format, country, legal_name, billing_address, status")
       .neq("status", "closed").order("code"),
-    db.from("orders").select("account_id"),
+    db.from("orders").select("account_id, ship_to, created_at").order("created_at", { ascending: false }).limit(5000),
+    db.from("contacts").select("account_id, name, phone_e164, created_at").not("account_id", "is", null).order("created_at").limit(5000),
   ]);
   const n = new Map<string, number>();
-  for (const o of counts ?? []) n.set(o.account_id, (n.get(o.account_id) ?? 0) + 1);
+  const lastShip = new Map<string, Record<string, string>>();
+  for (const o of counts ?? []) {
+    n.set(o.account_id, (n.get(o.account_id) ?? 0) + 1);
+    const st = (o.ship_to ?? {}) as Record<string, string>;
+    if (!lastShip.has(o.account_id) && (st.address || st.city)) lastShip.set(o.account_id, st);   // newest first
+  }
+  const firstContact = new Map<string, { name: string; phone: string | null }>();
+  for (const c of contacts ?? []) if (c.account_id && !firstContact.has(c.account_id)) firstContact.set(c.account_id, { name: c.name, phone: c.phone_e164 });
   return (accs ?? []).map((a) => ({
     id: a.id, code: a.code, name: a.name, payment_method: a.payment_method, delivery_setup: a.delivery_setup,
     has_intermediary: Boolean(a.intermediary_id), country: a.country, legal_name: a.legal_name,
     battery_line_separate: Boolean((a.invoice_format as { battery_line_separate?: boolean } | null)?.battery_line_separate ?? true),
     ce_default: Boolean((a.invoice_format as { show_ce_text?: boolean } | null)?.show_ce_text),
+    // Ship-to pre-filled (Gabriel, Nov 2 2026): the last order's delivery address; for a first order the account's own data
+    ship_default: lastShip.get(a.id) ?? (() => {
+      const lines = String(a.billing_address ?? "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+      const c = firstContact.get(a.id);
+      return { name: a.legal_name || a.name, address: lines.slice(0, Math.max(1, lines.length - 1)).join(", "), city: lines.length > 1 ? lines[lines.length - 1] : "",
+        country: a.country ?? "", contact: c?.name ?? "", phone: c?.phone ?? "" };
+    })(),
     orders: n.get(a.id) ?? 0,
   }));
 }

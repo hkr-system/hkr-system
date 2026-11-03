@@ -37,7 +37,7 @@ select pg_temp.login('bd');
 select is((select count(*)::int from public.sales_orders(current_date - 1, current_date + 1) s
             join public.accounts a on a.id = s.account_id where a.code like 'DS_-%'), 1, 'bd: only her account in sales');
 select is((select margin_usd from public.sales_orders(current_date - 1, current_date + 1) s
-            join public.accounts a on a.id = s.account_id where a.code = 'DSA-NL-701'), 100.00::numeric, 'bd: net margin of her own account');
+            join public.accounts a on a.id = s.account_id where a.code = 'DSA-NL-701'), 150.94::numeric, 'bd: net margin of her own account (1,000 − real cost 900 ÷ 1.06)');
 select is((select count(*)::int from public.orders_finance), 0, 'bd: still no base cost table access');
 select is((select count(*)::int from public.sales_goals), 1, 'bd: sees only her own goal');
 select is((select count(*)::int from public.sales_history), 0, 'bd: no company history');
@@ -50,7 +50,7 @@ select is((select count(*)::int from public.sales_goals), 0, 'specialist: no goa
 
 select pg_temp.login('admin');
 select is((select count(*)::int from public.sales_orders(current_date - 1, current_date + 1) s
-            join public.accounts a on a.id = s.account_id where a.code like 'DS_-%' and s.margin_usd = 100), 2, 'admin: margin of all accounts');
+            join public.accounts a on a.id = s.account_id where a.code like 'DS_-%' and s.margin_usd = 150.94), 2, 'admin: margin of all accounts');
 select lives_ok($$insert into public.sales_history (month, amount_usd) values ('2024-01-01', 1000)$$, 'admin writes history');
 
 select * from finish();

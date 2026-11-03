@@ -43,7 +43,10 @@ export default async function SalesMixPage({ searchParams }: PageProps<"/sales/m
   const { data: fin } = user.role === "admin" && lines.length
     ? await db.from("order_lines_finance").select("order_line_id, base_price_usd").in("order_line_id", lines.map((l) => l.id).slice(0, 5000))
     : { data: [] as { order_line_id: string; base_price_usd: number | null }[] };
-  const base = new Map((fin ?? []).map((f) => [f.order_line_id, f.base_price_usd === null ? null : Number(f.base_price_usd)]));
+  // margin against the REAL cost: base list price ÷ (1 + base margin %) (Gabriel, Nov 3 2026)
+  const { data: bm } = user.role === "admin" ? await db.from("settings").select("value").eq("key", "base_margin_pct").maybeSingle() : { data: null };
+  const realOf = 1 + (Number(bm?.value) >= 0 ? Number(bm?.value) : 6) / 100;
+  const base = new Map((fin ?? []).map((f) => [f.order_line_id, f.base_price_usd === null ? null : Number(f.base_price_usd) / realOf]));
   const code = new Map((accounts ?? []).map((a) => [a.id, a]));
 
   type Agg = { units: number; amount: number; min: number; max: number; orders: Set<string>; cost: number; costAmt: number };

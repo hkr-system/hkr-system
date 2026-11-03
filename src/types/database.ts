@@ -899,14 +899,14 @@ isOneToOne: false
                   ]
                 },"orders_finance": {
                   Row: {
-                    "base_cost_usd": number | null,"created_at": string,"created_by": string | null,"margin_pct": number | null,"order_id": string,"updated_at": string
+                    "base_cost_usd": number | null,"created_at": string,"created_by": string | null,"margin_pct": number | null,"order_id": string,"real_cost_usd": number | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "base_cost_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"margin_pct"?: number | null,"order_id": string,"updated_at"?: string
+                    "base_cost_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"margin_pct"?: number | null,"order_id": string,"real_cost_usd"?: number | null,"updated_at"?: string
                   }
                   Update: {
-                    "base_cost_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"margin_pct"?: number | null,"order_id"?: string,"updated_at"?: string
+                    "base_cost_usd"?: number | null,"created_at"?: string,"created_by"?: string | null,"margin_pct"?: number | null,"order_id"?: string,"real_cost_usd"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {

@@ -448,6 +448,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 ## Dashboards rules (Gabriel, Oct 27 2026)
 
 - Revenue = invoice total (`total_usd`) of orders with status ≥ Invoiced, dated by `order_date` (brief §8).
+- Margin is against the REAL cost (Gabriel, Nov 3 2026): real cost = Σ qty × base list price ÷ (1 + setting base_margin_pct,
+  6 %) = `orders_finance.real_cost_usd`; margin % = (invoice total − real cost) ÷ invoice total. Credit notes stay inside the
+  invoice total of the order where they are applied ("option A, as always"). `base_cost_usd` keeps the base-list total.
 - Margin visibility: admin all; **a BD user sees the net margin of HER OWN accounts** (decision overriding brief §3
   row 2 for bd), never base cost or company totals; the specialist sees no margin and no revenue widgets
   (brief §8). Served by `sales_orders(from, to)` (security definer); `orders_finance` stays admin-only.

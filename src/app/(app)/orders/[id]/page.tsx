@@ -47,7 +47,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
     db.from("order_events").select("id, kind, from_status, to_status, body, file_id, user_id, created_at").eq("order_id", id).order("created_at", { ascending: false }).limit(100),
     db.from("files").select("id, kind, file_name, created_at").eq("owner_table", "orders").eq("owner_id", id).order("created_at", { ascending: false }),
     loadTeam(db),
-    isAdmin ? db.from("orders_finance").select("base_cost_usd, margin_pct").eq("order_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    isAdmin ? db.from("orders_finance").select("base_cost_usd, real_cost_usd, margin_pct").eq("order_id", id).maybeSingle() : Promise.resolve({ data: null }),
     db.from("invoices").select("id, number, status, version, invoice_date, consignee, ship_to, notify, shipment, lines, total_usd, file_pdf_id, file_xlsx_id").eq("order_id", id).neq("status", "void").maybeSingle(),
     db.from("settings").select("value").eq("key", "invoice_issuers").maybeSingle(),
     db.from("credit_note_applications").select("id, credit_note_id, amount_usd, credit_notes(number)").eq("order_id", id).order("created_at"),
@@ -234,9 +234,10 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
             <Card data-testid="finance">
               <CardHeader><CardTitle>Finance (admin only)</CardTitle></CardHeader>
               <CardContent className="grid gap-1 text-sm" data-tabular>
-                <div className="flex justify-between"><span>Base cost</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
-                <div className="flex justify-between"><span>Margin</span><span>{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
-                <div className="flex justify-between"><span>Profit</span><span>{finance.data?.base_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.base_cost_usd)) : "—"}</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Base list price</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
+                <div className="flex justify-between"><span>Real cost (base ÷ 1 + base margin)</span><span>{money(finance.data?.real_cost_usd ?? null)}</span></div>
+                <div className="flex justify-between"><span>Profit</span><span data-testid="profit">{finance.data?.real_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.real_cost_usd)) : "—"}</span></div>
+                <div className="flex justify-between font-medium"><span>Margin (on the invoice total)</span><span data-testid="margin">{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
               </CardContent>
             </Card>
           ) : null}

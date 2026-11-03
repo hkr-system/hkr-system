@@ -129,12 +129,9 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
               {Object.entries(DELIVERY_SETUP_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </NativeSelect>
           </F>
-          <F label="Our invoice no. (INV-HK)"><Input name="hk_invoice_no" defaultValue={values.hk_invoice_no ?? ""} placeholder="MMDDYYYY-1" /></F>
+          <F label="Our invoice no. (INV-HK)"><Input value={values.hk_invoice_no ?? ""} placeholder="Given automatically by the invoice (CODE-INV-NN)" disabled readOnly /></F>
           {account?.has_intermediary ? (
-            <>
-              <F label="Intermediary invoice no. (INV-EU)"><Input name="partner_invoice_no" defaultValue={values.partner_invoice_no ?? ""} /></F>
-              <F label="Intermediary invoice (EUR)"><Input name="partner_invoice_eur" inputMode="decimal" defaultValue={values.partner_invoice_eur ?? ""} placeholder="The client pays this in EUR" /></F>
-            </>
+            <p className="text-sm text-muted-foreground sm:col-span-3">Via an intermediary: add their invoice (number, EUR amount) on the order page when it arrives. They pay us in USD.</p>
           ) : null}
         </CardContent>
       </Card>

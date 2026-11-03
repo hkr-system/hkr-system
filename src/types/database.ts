@@ -717,14 +717,14 @@ isOneToOne: true
                   ]
                 },"orders": {
                   Row: {
-                    "account_id": string,"balance_due_usd": number,"battery_line_usd": number,"courier": string | null,"created_at": string,"created_by": string | null,"customs_usd": number,"delivered_date": string | null,"delivery_setup": Database["public"]['Enums']["delivery_setup"],"deposit_due_usd": number,"eta_date": string | null,"freight_usd": number,"hk_invoice_no": string | null,"id": string,"notes": string | null,"number": string,"order_date": string,"partner_invoice_eur": number | null,"partner_invoice_no": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"pieces": number,"rma_discount_usd": number,"ship_date": string | null,"ship_to": NonNullable<Json>,"status": Database["public"]['Enums']["order_status"],"subtotal_usd": number,"total_usd": number,"tracking": string | null,"updated_at": string,"usdt_fee_usd": number
+                    "account_id": string,"balance_due_usd": number,"battery_line_usd": number,"courier": string | null,"created_at": string,"created_by": string | null,"customs_usd": number,"delivered_date": string | null,"delivery_setup": Database["public"]['Enums']["delivery_setup"],"deposit_due_usd": number,"deposit_with_intermediary": boolean,"eta_date": string | null,"freight_usd": number,"hk_invoice_no": string | null,"id": string,"notes": string | null,"number": string,"order_date": string,"partner_invoice_eur": number | null,"partner_invoice_no": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"pieces": number,"rma_discount_usd": number,"ship_date": string | null,"ship_to": NonNullable<Json>,"status": Database["public"]['Enums']["order_status"],"subtotal_usd": number,"total_usd": number,"tracking": string | null,"updated_at": string,"usdt_fee_usd": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"balance_due_usd"?: number,"battery_line_usd"?: number,"courier"?: string | null,"created_at"?: string,"created_by"?: string | null,"customs_usd"?: number,"delivered_date"?: string | null,"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"deposit_due_usd"?: number,"eta_date"?: string | null,"freight_usd"?: number,"hk_invoice_no"?: string | null,"id"?: string,"notes"?: string | null,"number"?: string,"order_date"?: string,"partner_invoice_eur"?: number | null,"partner_invoice_no"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"pieces"?: number,"rma_discount_usd"?: number,"ship_date"?: string | null,"ship_to"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["order_status"],"subtotal_usd"?: number,"total_usd"?: number,"tracking"?: string | null,"updated_at"?: string,"usdt_fee_usd"?: number
+                    "account_id": string,"balance_due_usd"?: number,"battery_line_usd"?: number,"courier"?: string | null,"created_at"?: string,"created_by"?: string | null,"customs_usd"?: number,"delivered_date"?: string | null,"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"deposit_due_usd"?: number,"deposit_with_intermediary"?: boolean,"eta_date"?: string | null,"freight_usd"?: number,"hk_invoice_no"?: string | null,"id"?: string,"notes"?: string | null,"number"?: string,"order_date"?: string,"partner_invoice_eur"?: number | null,"partner_invoice_no"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"pieces"?: number,"rma_discount_usd"?: number,"ship_date"?: string | null,"ship_to"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["order_status"],"subtotal_usd"?: number,"total_usd"?: number,"tracking"?: string | null,"updated_at"?: string,"usdt_fee_usd"?: number
                   }
                   Update: {
-                    "account_id"?: string,"balance_due_usd"?: number,"battery_line_usd"?: number,"courier"?: string | null,"created_at"?: string,"created_by"?: string | null,"customs_usd"?: number,"delivered_date"?: string | null,"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"deposit_due_usd"?: number,"eta_date"?: string | null,"freight_usd"?: number,"hk_invoice_no"?: string | null,"id"?: string,"notes"?: string | null,"number"?: string,"order_date"?: string,"partner_invoice_eur"?: number | null,"partner_invoice_no"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"pieces"?: number,"rma_discount_usd"?: number,"ship_date"?: string | null,"ship_to"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["order_status"],"subtotal_usd"?: number,"total_usd"?: number,"tracking"?: string | null,"updated_at"?: string,"usdt_fee_usd"?: number
+                    "account_id"?: string,"balance_due_usd"?: number,"battery_line_usd"?: number,"courier"?: string | null,"created_at"?: string,"created_by"?: string | null,"customs_usd"?: number,"delivered_date"?: string | null,"delivery_setup"?: Database["public"]['Enums']["delivery_setup"],"deposit_due_usd"?: number,"deposit_with_intermediary"?: boolean,"eta_date"?: string | null,"freight_usd"?: number,"hk_invoice_no"?: string | null,"id"?: string,"notes"?: string | null,"number"?: string,"order_date"?: string,"partner_invoice_eur"?: number | null,"partner_invoice_no"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"pieces"?: number,"rma_discount_usd"?: number,"ship_date"?: string | null,"ship_to"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["order_status"],"subtotal_usd"?: number,"total_usd"?: number,"tracking"?: string | null,"updated_at"?: string,"usdt_fee_usd"?: number
                   }
                   Relationships: [
                     {
@@ -1348,7 +1348,7 @@ isOneToOne: false
           Views: {
             "order_cycle": {
                   Row: {
-                    "account_id": string,"cash_cycle_days": number | null,"confirmed": number | null,"deposit_on": string | null,"fully_paid": boolean | null,"id": string,"invoiced_on": string | null,"number": string,"order_date": string,"outstanding": number | null,"paid_on": string | null,"payable": number | null,"pays_in_eur": boolean | null,"pieces": number,"processing_days": number | null,"ship_date": string | null,"status": Database["public"]['Enums']["order_status"],"total_usd": number
+                    "account_id": string,"cash_cycle_days": number | null,"confirmed": number | null,"deposit_on": string | null,"fully_paid": boolean | null,"id": string,"invoiced_on": string | null,"number": string,"order_date": string,"outstanding": number | null,"paid_on": string | null,"payable": number,"pays_in_eur": boolean | null,"pieces": number,"processing_days": number | null,"ship_date": string | null,"status": Database["public"]['Enums']["order_status"],"total_usd": number
                   }
                   ComputedFields: never
                   Relationships: [
@@ -1368,7 +1368,7 @@ isOneToOne: false
                   ]
                 },"order_overview": {
                   Row: {
-                    "account_code": string,"account_id": string,"account_name": string,"balance_confirmed": number | null,"balance_ok": boolean | null,"delivery_setup": Database["public"]['Enums']["delivery_setup"],"deposit_confirmed": number | null,"deposit_payable": number | null,"eta_date": string | null,"id": string,"imei_count": number | null,"label_ok": boolean | null,"market": Database["public"]['Enums']["market"] | null,"number": string,"order_date": string,"payable_total": number | null,"payment_awaiting": boolean | null,"pays_in_eur": boolean | null,"pieces": number,"status": Database["public"]['Enums']["order_status"],"total_usd": number,"updated_at": string
+                    "account_code": string,"account_id": string,"account_name": string,"balance_confirmed": number | null,"balance_ok": boolean | null,"delivery_setup": Database["public"]['Enums']["delivery_setup"],"deposit_confirmed": number | null,"deposit_payable": number | null,"deposit_with_intermediary": boolean,"eta_date": string | null,"id": string,"imei_count": number | null,"label_ok": boolean | null,"market": Database["public"]['Enums']["market"] | null,"number": string,"order_date": string,"payable_total": number,"payment_awaiting": boolean | null,"pays_in_eur": boolean | null,"pieces": number,"status": Database["public"]['Enums']["order_status"],"total_usd": number,"updated_at": string
                   }
                   ComputedFields: never
                   Relationships: [
@@ -1532,7 +1532,7 @@ isOneToOne: false
                   ]
                 },"portal_orders": {
                   Row: {
-                    "balance_confirmed": number | null,"balance_pending": number | null,"battery_line_usd": number,"courier": string | null,"customs_usd": number,"delivered_date": string | null,"deposit_confirmed": number | null,"deposit_payable": number | null,"eta_date": string | null,"freight_usd": number,"hk_invoice_no": string | null,"id": string,"imei_count": number | null,"number": string,"order_date": string,"partner_invoice_eur": number | null,"partner_invoice_no": string | null,"payable_total": number | null,"payment_awaiting": boolean | null,"payment_method": Database["public"]['Enums']["payment_method"],"pays_in_eur": boolean | null,"pieces": number,"rma_discount_usd": number,"ship_date": string | null,"status": Database["public"]['Enums']["order_status"],"subtotal_usd": number,"total_usd": number,"tracking": string | null,"usdt_fee_usd": number
+                    "balance_confirmed": number | null,"balance_pending": number | null,"battery_line_usd": number,"courier": string | null,"customs_usd": number,"delivered_date": string | null,"deposit_confirmed": number | null,"deposit_payable": number | null,"deposit_with_intermediary": boolean,"eta_date": string | null,"freight_usd": number,"hk_invoice_no": string | null,"id": string,"imei_count": number | null,"number": string,"order_date": string,"partner_invoice_eur": number | null,"partner_invoice_no": string | null,"payable_total": number,"payment_awaiting": boolean | null,"payment_method": Database["public"]['Enums']["payment_method"],"pays_in_eur": boolean | null,"pieces": number,"rma_discount_usd": number,"ship_date": string | null,"status": Database["public"]['Enums']["order_status"],"subtotal_usd": number,"total_usd": number,"tracking": string | null,"usdt_fee_usd": number
                   }
                   ComputedFields: never
                   Relationships: [
@@ -1641,6 +1641,9 @@ isOneToOne: false
                            },
 "invoice_next_number":
 { Args: { "p_date": string }; Returns: string
+                           },
+"invoice_next_number_for":
+{ Args: { "p_account": string }; Returns: string
                            },
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean

@@ -15,7 +15,7 @@ import type { SectionKey } from "@/lib/nav";
 export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole): Promise<Partial<Record<SectionKey, number>>> {
   const today = new Date().toISOString().slice(0, 10);
   const [orders, chats, leads, rmas, priceLists] = await Promise.all([
-    db.from("order_overview").select("status, payment_awaiting, deposit_confirmed, balance_ok")
+    db.from("order_overview").select("status, payment_awaiting, deposit_confirmed, deposit_payable, balance_ok")
       .in("status", ["invoiced", "ready_to_ship"]).limit(1000)
       .then(async (r) => {
         if (role === "admin") {
@@ -23,7 +23,7 @@ export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole)
           return count ?? 0;
         }
         return (r.data ?? []).filter((o) => o.payment_awaiting
-          || (o.status === "invoiced" && Number(o.deposit_confirmed) <= 0)
+          || (o.status === "invoiced" && Number(o.deposit_payable) > 0 && Number(o.deposit_confirmed) <= 0)
           || (o.status === "ready_to_ship" && !o.balance_ok)).length;
       }),
     db.from("wa_conversations").select("last_inbound_at, last_outbound_at").neq("status", "resolved").not("last_inbound_at", "is", null).limit(2000)

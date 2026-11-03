@@ -17,7 +17,7 @@ export default async function PortalHome() {
     db.from("portal_credit_notes").select("id, number, amount, currency, status"),
   ]);
   const open = (orders ?? []).filter((o) => !["delivered", "closed"].includes(o.status));
-  const due = (cur: boolean) => open.filter((o) => Boolean(o.pays_in_eur) === cur).reduce((s, o) => s + Number(o.balance_pending), 0);
+  const due = open.reduce((s, o) => s + Number(o.balance_pending), 0); // USD: our invoice (also via an intermediary)
   const openRmas = (rmas ?? []).filter((r) => r.status !== "closed");
   const toApply = (cns ?? []).filter((c) => c.status === "issued");
   const help = lang === "es" ? RMA_STATUS_HELP_ES : RMA_STATUS_HELP_EN;
@@ -34,7 +34,7 @@ export default async function PortalHome() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="portal-kpis">
         <Kpi label={t.openOrders} value={String(open.length)} href="/portal/orders" />
-        <Kpi label={t.balancePending} value={[due(false) ? portalMoney(due(false)) : "", due(true) ? portalMoney(due(true), "EUR") : ""].filter(Boolean).join(" + ") || portalMoney(0)} />
+        <Kpi label={t.balancePending} value={portalMoney(due)} />
         <Kpi label={t.openRmas} value={String(openRmas.length)} href="/portal/rmas" />
         <Kpi label={t.creditsToApply} value={toApply.length ? toApply.map((c) => portalMoney(c.amount, c.currency)).join(" + ") : "0"} href="/portal/rmas" />
       </div>

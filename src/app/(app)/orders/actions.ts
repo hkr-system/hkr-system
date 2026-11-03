@@ -59,14 +59,10 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
   const id = opt(fd, "id");
   const { lines, problem } = parseLines(str(fd, "lines"));
   if (problem) return { error: problem };
-  const eur = str(fd, "partner_invoice_eur");
   const fields = {
     order_date: str(fd, "order_date") || new Date().toISOString().slice(0, 10),
     payment_method: (str(fd, "payment_method") || "wire") as PaymentMethod,
     delivery_setup: (str(fd, "delivery_setup") || "client_label") as DeliverySetup,
-    hk_invoice_no: opt(fd, "hk_invoice_no"),
-    partner_invoice_no: opt(fd, "partner_invoice_no"),
-    partner_invoice_eur: eur ? num(fd, "partner_invoice_eur") : null,
     freight_usd: num(fd, "freight_usd"),
     customs_usd: num(fd, "customs_usd"),
     rma_discount_usd: num(fd, "rma_discount_usd"),
@@ -113,6 +109,25 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
   }
   refresh(orderId!, accountId);
   redirect(`/orders/${orderId}`);
+}
+
+// The intermediary's invoice arrives after ours (Gabriel, Nov 2 2026): number + EUR amount for reference, and whether
+// the intermediary keeps the deposit (then we expect 100 % in USD when the order is ready).
+export async function saveIntermediaryInvoice(_p: ActionState, fd: FormData): Promise<ActionState> {
+  await requireRole(STAFF);
+  const db = await createClient();
+  const orderId = str(fd, "order_id");
+  const eur = str(fd, "partner_invoice_eur").replace(/,/g, "");
+  if (eur && !(Number(eur) >= 0)) return { error: "Write the EUR amount as a number." };
+  const { data, error } = await db.from("orders").update({
+    partner_invoice_no: opt(fd, "partner_invoice_no"),
+    partner_invoice_eur: eur ? Number(eur) : null,
+    deposit_with_intermediary: fd.get("deposit_with_intermediary") === "on",
+  }).eq("id", orderId).select("account_id").maybeSingle();
+  if (error) return { error: friendly(error) };
+  if (!data) return { error: "You do not have access to this order." };
+  refresh(orderId, data.account_id);
+  return { ok: true };
 }
 
 export async function setOrderStatus(orderId: string, status: OrderStatus): Promise<ActionState> {

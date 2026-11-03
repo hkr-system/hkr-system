@@ -360,6 +360,19 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - "Mark as sent" stores `[code]_ORD-NN_INV-HK(_vN).pdf/.xlsx` (kind INV-HK) in the order folder → client portal shows them.
   Downloads on the fly: /api/invoices/<id>/pdf|xlsx (drafts say DRAFT).
 - USDT fee: 0.85 % is the current one (Gabriel, Oct 30 2026).
+- Invoice number (Gabriel, Nov 2 2026): `<client code>-INV-NN`, a sequence per account (`invoice_next_number_for`), never
+  reused (voided keep theirs); replaces MMDDYYYY for new invoices. The order form no longer types INV-HK: the approved
+  invoice fills `orders.hk_invoice_no`.
+
+## Intermediary orders (Gabriel, Nov 2 2026)
+
+- Flow: our invoice (USD) → the intermediary → they invoice the client in EUR → the client pays them → they pay US in USD.
+  Every amount we expect/confirm is USD against OUR invoice (`order_overview.payable_total = total_usd`; payments always
+  USD). The intermediary invoice (number, EUR amount, INV-EU file) is added LATER on the order page (Intermediary panel)
+  and is a reference only; `pays_in_eur` now just means "has an intermediary invoice".
+- Deposit: usually the 10 % reaches us; sometimes (small deposits, "usually under US$5k") the intermediary keeps it and
+  sends 100 % when the order is ready → order flag `deposit_with_intermediary` (set by hand): deposit expected 0, balance
+  100 %, the order may move to Deposit paid without a deposit payment.
 
 ## Go-live (Oct 30 2026)
 

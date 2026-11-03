@@ -66,8 +66,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     avgOrder12: avgOf(last12.map((c) => Number(c.total_usd))),
     proc: avgOf(cyc.map((c) => c.processing_days)),
     cash: avgOf(cyc.map((c) => c.cash_cycle_days)),
-    dueUsd: cyc.filter((c) => !c.pays_in_eur).reduce((t, c) => t + Number(c.outstanding), 0),
-    dueEur: cyc.filter((c) => c.pays_in_eur).reduce((t, c) => t + Number(c.outstanding), 0),
+    dueUsd: cyc.reduce((t, c) => t + Number(c.outstanding), 0), // USD, also via an intermediary
   };
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const as = assign.get(id) ?? { owner: null, specialist: null };
@@ -119,7 +118,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
                 <div><span className="block text-xs text-muted-foreground">Average order</span>{stats.avgOrder === null ? "—" : money(stats.avgOrder)}<span className="block text-xs text-muted-foreground">last 12 months {stats.avgOrder12 === null ? "—" : money(stats.avgOrder12)}</span></div>
                 <div><span className="block text-xs text-muted-foreground">Avg processing (deposit → shipped)</span>{stats.proc === null ? "—" : `${stats.proc.toFixed(1)} days`}</div>
                 <div><span className="block text-xs text-muted-foreground">Avg cash cycle (invoice → paid)</span>{stats.cash === null ? "—" : `${stats.cash.toFixed(1)} days`}</div>
-                <div className="col-span-2"><span className="block text-xs text-muted-foreground">Still to collect</span><span className={stats.dueUsd + stats.dueEur > 0 ? "font-medium text-hkr-action" : ""}>{money(stats.dueUsd)}{stats.dueEur ? ` + ${money(stats.dueEur, "EUR")}` : ""}</span></div>
+                <div className="col-span-2"><span className="block text-xs text-muted-foreground">Still to collect</span><span className={stats.dueUsd > 0 ? "font-medium text-hkr-action" : ""}>{money(stats.dueUsd)}</span></div>
               </CardContent>
             </Card>
             <Card>

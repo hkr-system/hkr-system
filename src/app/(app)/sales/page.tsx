@@ -37,7 +37,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
   const [rows, monthRows, { data: open }, { data: accounts }, team, { data: goals }, { data: cycle }, assign, { data: lines }] = await Promise.all([
     loadSales(db, from, to),
     loadSales(db, lastMonth, today),
-    db.from("order_overview").select("id, status, total_usd, payment_awaiting, deposit_confirmed, balance_ok, eta_date").in("status", OPEN_ORDER_STATUSES),
+    db.from("order_overview").select("id, status, total_usd, payment_awaiting, deposit_confirmed, deposit_payable, balance_ok, eta_date").in("status", OPEN_ORDER_STATUSES),
     db.from("accounts").select("id, code, name, market"),
     loadTeam(db),
     db.from("sales_goals").select("month, owner_user_id, amount_usd").gte("month", addMonths(from, -1)),
@@ -55,7 +55,8 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
   const procDays = avg(cyc.filter((c) => inPeriod(c.ship_date)).map((c) => c.processing_days));
   const cashDays = avg(cyc.filter((c) => inPeriod(c.paid_on)).map((c) => c.cash_cycle_days));
   const pendingPay = cyc.filter((c) => Number(c.outstanding) > 0.004);
-  const toCollect = (eur: boolean) => pendingPay.filter((c) => Boolean(c.pays_in_eur) === eur).reduce((t, c) => t + Number(c.outstanding), 0);
+  // all in USD: intermediaries pay us in USD too (Gabriel, Nov 2 2026)
+  const toCollect = pendingPay.reduce((t, c) => t + Number(c.outstanding), 0);
   const days = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)} days`);
   const acc = new Map((accounts ?? []).map((a) => [a.id, a]));
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
@@ -81,7 +82,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
   const openRows = open ?? [];
   const attention = {
     confirm: openRows.filter((o) => o.payment_awaiting).length,
-    deposit: openRows.filter((o) => o.status === "invoiced" && Number(o.deposit_confirmed) <= 0).length,
+    deposit: openRows.filter((o) => o.status === "invoiced" && Number(o.deposit_payable) > 0 && Number(o.deposit_confirmed) <= 0).length,
     balance: openRows.filter((o) => o.status === "ready_to_ship" && !o.balance_ok).length,
     ship: openRows.filter((o) => o.status === "balance_paid").length,
   };
@@ -128,7 +129,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
         <StatTile label="Orders made" value={made.length} sub="invoiced, in the period" href="/orders?status=all" />
         <StatTile label="Orders paid" value={made.filter((c) => c.fully_paid).length} sub="of those, fully paid" />
         <StatTile label="Pending payment" value={pendingPay.length} sub="deposit or balance due, today" tone="attention" href="/orders" />
-        <StatTile label="To collect" value={usd(toCollect(false))} sub={toCollect(true) ? `+ ${money(toCollect(true), "EUR")} (EU partner)` : "money still due on invoiced orders"} />
+        <StatTile label="To collect" value={usd(toCollect)} sub="money still due on invoiced orders (USD)" />
         <StatTile label="Avg processing" value={days(procDays)} sub="deposit confirmed → shipped" />
         <StatTile label="Avg cash cycle" value={days(cashDays)} sub="invoice → fully paid" />
         {seesRevenue ? <StatTile label="Average order" value={usd(made.length ? made.reduce((t, c) => t + Number(c.total_usd), 0) / made.length : 0)} sub="invoice total, period" /> : null}

@@ -16,6 +16,7 @@ import { OrderStatusBadge } from "@/components/accounts/badges";
 import { NoteForm, PaymentsPanel, ShippingPanel, StatusControls } from "@/components/orders/order-panels";
 import { FileUpload } from "@/components/orders/file-upload";
 import { InvoicePanel, type InvoiceRow } from "@/components/orders/invoice-panel";
+import { IntermediaryPanel } from "@/components/orders/intermediary-panel";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +52,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   if (!ov) notFound();
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const status = o.status as OrderStatus;
-  const cur = ov.pays_in_eur ? "EUR" : "USD";
+  const cur = "USD"; // we are always paid in USD, also via an intermediary (Gabriel, Nov 2 2026)
   const dueDeposit = Math.max(0, Number(ov.deposit_payable) - Number(ov.deposit_confirmed));
   const dueBalance = Math.max(0, Number(ov.payable_total) - Number(ov.deposit_payable) - Number(ov.balance_confirmed));
   const clear = Boolean(ov.balance_ok && (ov.imei_count ?? 0) > 0 && ov.label_ok);
@@ -100,7 +101,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
               <CardTitle>Lines and totals</CardTitle>
               <CardDescription>
                 {o.hk_invoice_no ? `Our invoice ${o.hk_invoice_no}` : "No invoice number yet"}
-                {acc.intermediaries ? ` · ${acc.intermediaries.name} invoice ${o.partner_invoice_no ?? "—"} ${o.partner_invoice_eur ? money(o.partner_invoice_eur, "EUR") : ""}` : ""}
+                {acc.intermediaries ? ` · ${acc.intermediaries.name} invoice ${o.partner_invoice_no ?? "pending"}${o.partner_invoice_eur ? ` (${money(o.partner_invoice_eur, "EUR")})` : ""}` : ""}
                 {` · ${PAYMENT_METHOD_LABEL[o.payment_method]} · order date ${formatDate(o.order_date)}`}
               </CardDescription>
             </CardHeader>
@@ -131,9 +132,15 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 {Number(o.rma_discount_usd) ? <div className="flex justify-between"><span>RMA discount</span><span>−{money(o.rma_discount_usd)}</span></div> : null}
                 {Number(o.usdt_fee_usd) ? <div className="flex justify-between"><span>USDT fee</span><span>{money(o.usdt_fee_usd)}</span></div> : null}
                 <div className="flex justify-between border-t pt-1 font-semibold"><span>Invoice total</span><span>{money(o.total_usd)}</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Deposit 10 %</span><span>{money(o.deposit_due_usd)}</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Balance</span><span>{money(o.balance_due_usd)}</span></div>
-                {ov.pays_in_eur ? <div className="flex justify-between text-muted-foreground"><span>Client pays (EUR, intermediary)</span><span>{money(ov.payable_total, "EUR")}</span></div> : null}
+                {ov.deposit_with_intermediary ? (
+                  <div className="flex justify-between text-muted-foreground"><span>Deposit kept by the intermediary · we receive 100 %</span><span>{money(o.total_usd)}</span></div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-muted-foreground"><span>Deposit 10 %</span><span>{money(o.deposit_due_usd)}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>Balance</span><span>{money(o.balance_due_usd)}</span></div>
+                  </>
+                )}
+                {o.partner_invoice_eur ? <div className="flex justify-between text-muted-foreground"><span>Client pays the intermediary (EUR, reference)</span><span>{money(o.partner_invoice_eur, "EUR")}</span></div> : null}
               </div>
             </CardContent>
           </Card>
@@ -147,6 +154,20 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
               <InvoicePanel orderId={id} invoice={(invoice ?? null) as InvoiceRow | null} orderTotal={Number(o.total_usd)} role={user.role ?? ""} issuerReady={issuerReady} />
             </CardContent>
           </Card>
+
+          {acc.intermediaries ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Intermediary ({acc.intermediaries.name})</CardTitle>
+                <CardDescription>We invoice {acc.intermediaries.name} in USD → they invoice the client in EUR → the client pays them → they pay us in USD.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <IntermediaryPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} intermediary={acc.intermediaries.name}
+                  no={o.partner_invoice_no} eur={o.partner_invoice_eur === null ? null : Number(o.partner_invoice_eur)}
+                  depositWithIntermediary={Boolean(o.deposit_with_intermediary)} editable={editable} />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

@@ -12,10 +12,10 @@ export type OrderRow = {
 };
 
 function paymentState(o: OrderRow) {
-  const cur = o.pays_in_eur ? "EUR" : "USD";
+  const cur = "USD"; // we are paid in USD, also via an intermediary
   if (o.payment_awaiting) return <span className="text-amber-700">Proof awaiting confirmation</span>;
   if (o.status === "quoted") return <span className="text-muted-foreground">—</span>;
-  if (o.deposit_confirmed <= 0) return <span className="text-destructive">Deposit due {money(o.deposit_payable, cur)}</span>;
+  if (Number(o.deposit_payable) > 0 && o.deposit_confirmed <= 0) return <span className="text-destructive">Deposit due {money(o.deposit_payable, cur)}</span>;
   if (!o.balance_ok) {
     const bal = Number(o.payable_total) - Number(o.deposit_payable) - Number(o.balance_confirmed);
     return <span className={o.status === "ready_to_ship" ? "text-destructive" : "text-muted-foreground"}>Balance due {money(bal, cur)}</span>;
@@ -56,7 +56,6 @@ export function OrdersTable({ orders, showAccount = true, today }: { orders: Ord
               <TableCell className="text-right" data-tabular>{o.pieces}</TableCell>
               <TableCell className="text-right" data-tabular>
                 {money(o.total_usd)}
-                {o.pays_in_eur ? <span className="block text-xs text-muted-foreground">{money(o.payable_total, "EUR")}</span> : null}
               </TableCell>
               <TableCell className="text-xs">{paymentState(o)}</TableCell>
               <TableCell className="text-xs">

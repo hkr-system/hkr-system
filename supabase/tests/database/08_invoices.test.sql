@@ -1,4 +1,4 @@
--- Invoices (pgTAP, Oct 30 2026): numbering MMDDYYYY(-n), who prepares / approves / reopens,
+-- Invoices (pgTAP, Oct 30 2026; numbers <code>-INV-NN since Nov 2 2026): numbering per account, who prepares / approves / reopens,
 -- approved invoices frozen, order gets the invoice number, bd read-only, other accounts invisible.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -39,11 +39,11 @@ grant select on o to authenticated;
 -- specialist prepares
 select pg_temp.login('as');
 select lives_ok($$insert into public.invoices (order_id, invoice_date, total_usd) select id, '2031-01-15', 100 from o where n = 1$$, 'specialist creates a draft');
-select is((select number from public.invoices where order_id = (select id from o where n = 1)), '01152031', 'number = MMDDYYYY');
+select is((select number from public.invoices where order_id = (select id from o where n = 1)), 'INV-NL-701-INV-01', 'number = <client code>-INV-NN');
 select throws_ok($$insert into public.invoices (order_id, invoice_date) select id, '2031-01-15' from o where n = 1$$,
   '23505', null, 'one live invoice per order');
 select lives_ok($$insert into public.invoices (order_id, invoice_date, total_usd) select id, '2031-01-15', 50 from o where n = 2$$, 'second invoice the same day');
-select is((select number from public.invoices where order_id = (select id from o where n = 2)), '01152031-2', 'same date → -2');
+select is((select number from public.invoices where order_id = (select id from o where n = 2)), 'INV-NL-701-INV-02', 'next invoice of the account → INV-02');
 select throws_ok($$update public.invoices set status = 'approved' where order_id = (select id from o where n = 1)$$,
   '42501', 'Only an admin can approve an invoice.', 'specialist cannot approve');
 
@@ -57,7 +57,7 @@ select is((select count(*)::int from public.invoices), 0, 'other bd sees no invo
 -- admin approves: order gets the number; content frozen; specialist marks sent; admin reopens
 select pg_temp.login('admin');
 select lives_ok($$update public.invoices set status = 'approved' where order_id = (select id from o where n = 1)$$, 'admin approves');
-select is((select hk_invoice_no from public.orders where id = (select id from o where n = 1)), '01152031', 'order shows the approved number');
+select is((select hk_invoice_no from public.orders where id = (select id from o where n = 1)), 'INV-NL-701-INV-01', 'order shows the approved number');
 select throws_ok($$update public.invoices set total_usd = 1 where order_id = (select id from o where n = 1)$$,
   '42501', 'An approved invoice cannot be edited: an admin reopens it as a new version.', 'approved invoice frozen');
 select pg_temp.login('as');

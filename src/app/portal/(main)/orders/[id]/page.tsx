@@ -22,7 +22,7 @@ export default async function PortalOrder({ params }: PageProps<"/portal/orders/
     db.from("portal_imeis").select("imei, model, storage_gb, color").eq("order_id", id).order("imei"),
     db.from("portal_files").select("id, kind, file_name, created_at").eq("owner_table", "orders").eq("owner_id", id).order("created_at"),
   ]);
-  const cur = o.pays_in_eur ? "EUR" : "USD";
+  const cur = "USD"; // amounts of OUR invoice; the intermediary invoice (EUR) is shown for reference
   const next = PORTAL_ORDER_NEXT[lang][o.status];
 
   return (
@@ -86,6 +86,9 @@ export default async function PortalOrder({ params }: PageProps<"/portal/orders/
               <Row k={t.paid} v={portalMoney(Number(o.deposit_confirmed) + Number(o.balance_confirmed), cur)} />
               <div className={`flex justify-between font-semibold ${Number(o.balance_pending) > 0 ? "text-hkr-action" : ""}`}><span>{t.balancePending}</span><span>{portalMoney(o.balance_pending, cur)}</span></div>
               {o.payment_awaiting ? <p className="text-xs text-muted-foreground">{t.paymentProcessing}</p> : null}
+              {o.partner_invoice_no || o.partner_invoice_eur ? (
+                <p className="mt-1 text-xs text-muted-foreground" data-testid="partner-invoice">{t.partnerInvoice(o.partner_invoice_no ?? "—", o.partner_invoice_eur ? portalMoney(o.partner_invoice_eur, "EUR") : "—")}</p>
+              ) : null}
             </CardContent>
           </Card>
           <Card>

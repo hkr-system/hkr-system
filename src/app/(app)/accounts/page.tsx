@@ -41,7 +41,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
 
   const [{ data: accounts }, { data: allOrders }, sales, team, { data: setting }, { data: rmaRows }, { data: cnRows }, assign] = await Promise.all([
     db.from("accounts").select("id, code, name, market, status").neq("status", "closed").order("code"),
-    db.from("order_overview").select("account_id, status, order_date, payment_awaiting, deposit_confirmed, balance_ok, eta_date").limit(5000),
+    db.from("order_overview").select("account_id, status, order_date, payment_awaiting, deposit_confirmed, deposit_payable, balance_ok, eta_date").limit(5000),
     loadSales(db, from, to),
     loadTeam(db),
     db.from("settings").select("value").eq("key", "account_inactive_days").maybeSingle(),
@@ -66,7 +66,7 @@ export default async function AccountsOverview({ searchParams }: PageProps<"/acc
       status: a.status, lastOrderDate: last, openOrders: open.length,
       paymentToConfirm: open.filter((o) => o.payment_awaiting).length,
       balanceDueReady: open.filter((o) => o.status === "ready_to_ship" && !o.balance_ok).length,
-      depositDue: open.filter((o) => o.status === "invoiced" && Number(o.deposit_confirmed) <= 0).length,
+      depositDue: open.filter((o) => o.status === "invoiced" && Number(o.deposit_payable) > 0 && Number(o.deposit_confirmed) <= 0).length,
       etaPending: open.filter((o) => ["deposit_paid", "in_preparation"].includes(o.status!) && !o.eta_date).length,
       openRmas: openRmasOf(a.id).length,
     }, today, inactiveDays);

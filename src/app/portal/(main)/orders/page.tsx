@@ -27,7 +27,7 @@ export default async function PortalOrders() {
             </TableHeader>
             <TableBody>
               {(orders ?? []).map((o) => {
-                const cur = o.pays_in_eur ? "EUR" : "USD";
+                const cur = "USD";
                 return (
                   <TableRow key={o.id}>
                     <TableCell className="pl-4"><Link href={`/portal/orders/${o.id}`} className="font-mono text-xs font-medium underline">{o.number}</Link></TableCell>

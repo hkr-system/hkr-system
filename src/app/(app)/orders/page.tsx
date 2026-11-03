@@ -40,7 +40,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const att = p("attention");
   const needs = {
     confirm: (o: OrderRow) => o.payment_awaiting,
-    deposit: (o: OrderRow) => o.status === "invoiced" && o.deposit_confirmed <= 0,
+    deposit: (o: OrderRow) => o.status === "invoiced" && Number(o.deposit_payable) > 0 && o.deposit_confirmed <= 0,
     balance: (o: OrderRow) => o.status === "ready_to_ship" && !o.balance_ok,
     eta: (o: OrderRow) => ["deposit_paid", "in_preparation"].includes(o.status) && !o.eta_date,
     ship: (o: OrderRow) => o.status === "balance_paid",

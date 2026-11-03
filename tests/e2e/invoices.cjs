@@ -63,7 +63,7 @@ async function openOrder(page, code, number) {
     await page.click('button:has-text("Create invoice draft")');
     await page.waitForSelector('[data-testid=invoice-status]');
     const number = (await page.textContent('[data-testid=invoice-number]')).trim();
-    check(/^No\. \d{8}(-\d+)?$/.test(number), `draft numbered MMDDYYYY (${number})`);
+    check(/^No\. [A-Z]{3}-[A-Z]{2}-\d{3}-INV-\d{2}$/.test(number), `draft numbered <code>-INV-NN (${number})`);
     check((await page.textContent('[data-testid=invoice-status]')) === 'Draft', 'status Draft');
     const orderTotal = (await page.textContent('[data-testid=order-summary]')).match(/Invoice total\s*(?:US\$)?\s*([\d,.]+)/)?.[1];
     check((await page.textContent('[data-testid=invoice-total]')).includes(orderTotal), `invoice total = order total (${orderTotal})`);

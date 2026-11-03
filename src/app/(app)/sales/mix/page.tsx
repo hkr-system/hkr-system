@@ -70,7 +70,9 @@ export default async function SalesMixPage({ searchParams }: PageProps<"/sales/m
   const pick = model && models.includes(model) ? model : models[0] ?? "";
   const byClient = agg((l) => l.account_id, lines.filter((l) => l.skus!.model === pick));
   const avgP = (a: Agg) => a.amount / a.units;
+  // two views of the same profit (Gabriel, Nov 3 2026): margin = profit ÷ selling price; markup = profit ÷ real cost
   const margin = (a: Agg) => (a.costAmt ? ((a.costAmt - a.cost) / a.costAmt) * 100 : null);
+  const markup = (a: Agg) => (a.cost ? ((a.costAmt - a.cost) / a.cost) * 100 : null);
 
   return (
     <>
@@ -91,13 +93,13 @@ export default async function SalesMixPage({ searchParams }: PageProps<"/sales/m
         </div>
 
         <Card>
-          <CardHeader><CardTitle>Price by model</CardTitle><CardDescription>Average, lowest and highest unit price accepted{user.role === "admin" ? "; margin on the base price (admin only)" : ""}.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Price by model</CardTitle><CardDescription>Average, lowest and highest unit price accepted{user.role === "admin" ? "; margin (profit ÷ price) and markup (profit ÷ real cost), admin only" : ""}.</CardDescription></CardHeader>
           <CardContent className="px-0">
             <Table data-testid="mix-models">
               <TableHeader><TableRow>
                 <TableHead className="pl-4">Model</TableHead><TableHead className="text-right">Units</TableHead><TableHead className="text-right">Orders</TableHead>
                 <TableHead className="text-right">Avg price</TableHead><TableHead className="text-right">Lowest</TableHead><TableHead className="text-right">Highest</TableHead>
-                {user.role === "admin" ? <TableHead className="pr-4 text-right">Margin</TableHead> : null}
+                {user.role === "admin" ? <><TableHead className="text-right">Margin</TableHead><TableHead className="pr-4 text-right">Markup</TableHead></> : null}
               </TableRow></TableHeader>
               <TableBody>
                 {byModel.map(([k, a]) => (
@@ -108,7 +110,10 @@ export default async function SalesMixPage({ searchParams }: PageProps<"/sales/m
                     <TableCell className="text-right" data-tabular>{money(avgP(a))}</TableCell>
                     <TableCell className="text-right" data-tabular>{money(a.min)}</TableCell>
                     <TableCell className="text-right" data-tabular>{money(a.max)}</TableCell>
-                    {user.role === "admin" ? <TableCell className="pr-4 text-right" data-tabular>{margin(a) === null ? "—" : `${margin(a)!.toFixed(1)} %`}</TableCell> : null}
+                    {user.role === "admin" ? <>
+                      <TableCell className="text-right" data-tabular>{margin(a) === null ? "—" : `${margin(a)!.toFixed(1)} %`}</TableCell>
+                      <TableCell className="pr-4 text-right" data-tabular>{markup(a) === null ? "—" : `${markup(a)!.toFixed(1)} %`}</TableCell>
+                    </> : null}
                   </TableRow>
                 ))}
                 {!byModel.length ? <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">No sales in this period.</TableCell></TableRow> : null}

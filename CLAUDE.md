@@ -451,6 +451,8 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Margin is against the REAL cost (Gabriel, Nov 3 2026): real cost = Σ qty × base list price ÷ (1 + setting base_margin_pct,
   6 %) = `orders_finance.real_cost_usd`; margin % = (invoice total − real cost) ÷ invoice total. Credit notes stay inside the
   invoice total of the order where they are applied ("option A, as always"). `base_cost_usd` keeps the base-list total.
+  Both views are shown to the admin (order Finance box, sales mix): Margin = profit ÷ invoice total; Markup = profit ÷ real cost
+  (6 % base + 1 % on the list → markup 7.06 %, margin 6.59 %).
 - Margin visibility: admin all; **a BD user sees the net margin of HER OWN accounts** (decision overriding brief §3
   row 2 for bd), never base cost or company totals; the specialist sees no margin and no revenue widgets
   (brief §8). Served by `sales_orders(from, to)` (security definer); `orders_finance` stays admin-only.

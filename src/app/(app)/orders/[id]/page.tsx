@@ -237,7 +237,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 <div className="flex justify-between text-muted-foreground"><span>Base list price</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
                 <div className="flex justify-between"><span>Real cost (base ÷ 1 + base margin)</span><span>{money(finance.data?.real_cost_usd ?? null)}</span></div>
                 <div className="flex justify-between"><span>Profit</span><span data-testid="profit">{finance.data?.real_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.real_cost_usd)) : "—"}</span></div>
-                <div className="flex justify-between font-medium"><span>Margin (on the invoice total)</span><span data-testid="margin">{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
+                <div className="flex justify-between font-medium" title="Profit ÷ invoice total: which part of what the client pays is profit"><span>Margin (profit ÷ invoice total)</span><span data-testid="margin">{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
+                <div className="flex justify-between font-medium" title="Profit ÷ real cost: how much was added on top of what the phones cost"><span>Markup (profit ÷ real cost)</span><span data-testid="markup">{finance.data?.real_cost_usd ? `${((Number(o.total_usd) - Number(finance.data.real_cost_usd)) / Number(finance.data.real_cost_usd) * 100).toFixed(2)} %` : "—"}</span></div>
               </CardContent>
             </Card>
           ) : null}

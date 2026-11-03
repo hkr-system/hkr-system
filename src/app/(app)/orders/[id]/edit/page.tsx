@@ -19,7 +19,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   const isAdmin = access.user.role === "admin";
   const [{ data: o }, { data: lines }, accounts, skus, terms, prices] = await Promise.all([
     db.from("orders").select("*, accounts(code)").eq("id", id).maybeSingle(),
-    db.from("order_lines").select("id, sku_id, skus(color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
+    db.from("order_lines").select("id, sku_id, skus(model, storage_gb, color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
     loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db),
   ]);
   if (!o) notFound();
@@ -37,10 +37,12 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,
           lines: (lines ?? []).map((l) => {
-            const legacy = (l.skus as { color: string } | null)?.color;   // a line from a one-colour SKU (before Nov 2 2026)
+            const sk = l.skus as { model: string; storage_gb: number; color: string } | null;   // a line from a one-colour SKU (before Nov 2 2026)
+            const legacy = sk?.color;
+            const model = l.model ?? sk?.model ?? null; const gb = l.storage_gb ?? sk?.storage_gb ?? null;
             const split = (l.colors as { color: string; qty: number }[]).length ? (l.colors as { color: string; qty: number }[]) : legacy && !l.colors_mixed ? [{ color: legacy, qty: l.qty }] : [];
             return ({
-            key: l.model && l.storage_gb ? modelKey(l.model, l.storage_gb) : "", model: l.model ?? "", storage_gb: l.storage_gb,
+            key: model && gb ? modelKey(model, gb) : "", model: model ?? "", storage_gb: gb,
             description: l.description ?? "", qty: String(l.qty), unit_price: String(l.unit_price_usd),
             mixed: l.colors_mixed || !split.length,
             colors: Object.fromEntries(split.map((c) => [c.color, String(c.qty)])),

@@ -103,6 +103,32 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"client_updates": {
+                  Row: {
+                    "account_id": string,"channel": string,"created_at": string,"created_by": string | null,"id": string,"kind": string,"language": string,"message": string,"order_ids": (string)[],"sent_at": string,"updated_at": string,"week_start": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind": string,"language"?: string,"message"?: string,"order_ids"?: (string)[],"sent_at"?: string,"updated_at"?: string,"week_start": string
+                  }
+                  Update: {
+                    "account_id"?: string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"language"?: string,"message"?: string,"order_ids"?: (string)[],"sent_at"?: string,"updated_at"?: string,"week_start"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "client_updates_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "client_updates_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"contacts": {
                   Row: {
                     "account_id": string | null,"created_at": string,"created_by": string | null,"email": string | null,"id": string,"language": string,"lead_id": string | null,"name": string,"phone_e164": string | null,"role": string | null,"updated_at": string,"whatsapp_opt_in": boolean
@@ -286,6 +312,74 @@ isOneToOne: false
       columns: ["xlsx_file_id"]
 isOneToOne: false
       referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"escalations": {
+                  Row: {
+                    "account_id": string,"answer_by": string | null,"client_asks": string | null,"created_at": string,"created_by": string | null,"decided_at": string | null,"decided_by": string | null,"decision": string | null,"evidence": string | null,"figures": string | null,"id": string,"order_id": string | null,"proposal": string | null,"rma_id": string | null,"status": string,"topic": string,"updated_at": string,"what_happened": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"answer_by"?: string | null,"client_asks"?: string | null,"created_at"?: string,"created_by"?: string | null,"decided_at"?: string | null,"decided_by"?: string | null,"decision"?: string | null,"evidence"?: string | null,"figures"?: string | null,"id"?: string,"order_id"?: string | null,"proposal"?: string | null,"rma_id"?: string | null,"status"?: string,"topic"?: string,"updated_at"?: string,"what_happened": string
+                  }
+                  Update: {
+                    "account_id"?: string,"answer_by"?: string | null,"client_asks"?: string | null,"created_at"?: string,"created_by"?: string | null,"decided_at"?: string | null,"decided_by"?: string | null,"decision"?: string | null,"evidence"?: string | null,"figures"?: string | null,"id"?: string,"order_id"?: string | null,"proposal"?: string | null,"rma_id"?: string | null,"status"?: string,"topic"?: string,"updated_at"?: string,"what_happened"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "escalations_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "portal_rmas"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rma_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "escalations_rma_id_fkey"
+      columns: ["rma_id"]
+isOneToOne: false
+      referencedRelation: "rmas"
       referencedColumns: ["id"]
     }
                   ]

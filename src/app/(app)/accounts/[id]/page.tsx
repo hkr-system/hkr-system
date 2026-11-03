@@ -256,7 +256,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
 
       {tab === "edit" ? (
         <div className="max-w-4xl">
-          <EditLock label="Edit set-up" testId="lock-account">
+          <EditLock label="Edit set-up" testId="lock-account" bar="top">
             <AccountForm mode="edit" isAdmin={user.role === "admin"} intermediaries={intermediaries} team={team} lastCodeSeq={terms.lastCodeSeq}
               values={{ ...a, invoice_format: fmt, owner: as.owner, specialist: as.specialist }} />
           </EditLock>

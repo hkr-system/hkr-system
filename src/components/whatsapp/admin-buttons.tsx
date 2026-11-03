@@ -88,7 +88,7 @@ export function NumberEditRow({ n }: { n: NumberRow }) {
         {!n.is_demo ? <RegisterForm id={n.id} /> : null}
       </TableCell>
       <TableCell colSpan={2} className="whitespace-normal">
-        <EditLock><form action={action} className="flex flex-wrap items-center gap-2">
+        <EditLock bar="inline"><form action={action} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="id" value={n.id} />
           <Input name="label" defaultValue={n.label ?? ""} placeholder="Label (HK-1, NL…)" className="h-8 w-32" aria-label="Label" />
           <NativeSelect name="market" defaultValue={n.market ?? ""} className="h-8 w-28" aria-label="Market">

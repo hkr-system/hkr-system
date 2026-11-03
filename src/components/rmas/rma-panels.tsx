@@ -163,7 +163,7 @@ function UnitCard({ n, u, rma, accountId, accountCode, locked, canDelete }: {
           </NativeSelect>
         </div>
         {isCredit ? (
-          <EditLock><form className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2" data-testid="unit-credit"
+          <EditLock bar="inline"><form className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2" data-testid="unit-credit"
             onSubmit={(e) => { e.preventDefault(); save({ unit_price_usd: credit.price ? Number(credit.price) : null, credit_pct: credit.pct ? Number(credit.pct) : null, credit_fixed_usd: credit.fixed ? Number(credit.fixed) : null }); }}>
             <div className="grid gap-1"><Label className="text-xs">Unit price US$</Label><Input value={credit.price} disabled={locked} inputMode="decimal" onChange={(e) => setCredit({ ...credit, price: e.target.value })} /></div>
             <div className="grid gap-1"><Label className="text-xs">Credit %</Label><Input value={credit.pct} disabled={locked} inputMode="decimal" onChange={(e) => setCredit({ ...credit, pct: e.target.value })} /></div>

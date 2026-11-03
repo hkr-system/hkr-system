@@ -123,11 +123,11 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                   <span>{lead.next_action ?? "—"} {lead.next_action_date ? `(${formatDate(lead.next_action_date)})` : ""}</span>
                 </div>
               ) : (
-                <>
+                <EditLock>
                   <StagePanel key={lead.stage} id={lead.id} stage={lead.stage} lostReason={lead.lost_reason} />
                   <NextActionPanel id={lead.id} text={lead.next_action} date={lead.next_action_date} />
                   <OwnerPanel id={lead.id} owner={lead.owner_user_id} team={workers} />
-                </>
+                </EditLock>
               )}
             </CardContent>
           </Card>

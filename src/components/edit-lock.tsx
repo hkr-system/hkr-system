@@ -10,8 +10,10 @@ import { cn } from "@/lib/utils";
 // was typed (the block is mounted again with the saved values). After Save the block locks again; if the save
 // failed, the message stays and ✏️ unlocks it again with what was typed.
 // Forms that CREATE something new (new order, new account, new RMA…) are not wrapped.
-export function EditLock({ children, label = "Edit", className, testId, bar = "top" }: {
-  children: React.ReactNode; label?: string; className?: string; testId?: string; bar?: "top" | "inline";
+// The ✏️ always sits at the TOP-RIGHT corner of its card (Gabriel, Nov 3 2026): "corner" (default) pins it to the nearest
+// card / settings section; "top" puts it top-right above a block that is not inside one card; "inline" for a row in a table.
+export function EditLock({ children, label = "Edit", className, testId, bar = "corner" }: {
+  children: React.ReactNode; label?: string; className?: string; testId?: string; bar?: "corner" | "top" | "inline";
 }) {
   const [editing, setEditing] = useState(false);
   const [round, setRound] = useState(0);
@@ -26,7 +28,8 @@ export function EditLock({ children, label = "Edit", className, testId, bar = "t
   );
   return (
     <div className={cn("min-w-0", className)} data-testid={testId ?? "edit-lock"} data-editing={editing ? "1" : "0"}>
-      <div className={cn("flex items-center justify-end gap-2", bar === "top" ? "mb-2" : "float-right ml-2")}>
+      <div data-edit-corner={bar === "corner" ? "" : undefined}
+        className={cn("flex items-center justify-end gap-2", bar === "corner" ? "absolute top-3 right-3 z-10" : bar === "top" ? "mb-2" : "float-right ml-2")}>
         {editing ? <span className="text-xs text-muted-foreground">Editing — save or cancel</span> : null}
         {controls}
       </div>

@@ -22,7 +22,7 @@ export default async function BaseListPage() {
       <PageHeader title="Base list" description="Admin only. Saving creates a new version; client lists prepared after that use it. Approved client lists keep the base they were built on.">
         <Link href="/price-lists" className="text-sm text-hkr-accent hover:underline">← Price lists</Link>
       </PageHeader>
-      <EditLock label="Edit base list"><BaseEditor current={rows} today={todayIn(access.user.timezone)} /></EditLock>
+      <EditLock label="Edit base list" bar="top"><BaseEditor current={rows} today={todayIn(access.user.timezone)} /></EditLock>
     </>
   );
 }

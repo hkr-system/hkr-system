@@ -8,9 +8,9 @@ export function SettingsSection({ id, title, description, count, children, defau
   id: string; title: string; description?: React.ReactNode; count?: string; children: React.ReactNode; defaultOpen?: boolean; lock?: boolean;
 }) {
   return (
-    <details id={id} open={defaultOpen} className="group min-w-0 scroll-mt-20 rounded-xl border bg-card" data-testid={`section-${id}`}>
+    <details id={id} open={defaultOpen} className="group relative min-w-0 scroll-mt-20 rounded-xl border bg-card [&_[data-edit-corner]]:top-3.5 [&_[data-edit-corner]]:right-14" data-testid={`section-${id}`}>
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
-        <span className="grid gap-0.5">
+        <span className="grid gap-0.5 group-open:pr-28">
           <span className="font-heading text-base font-semibold">{title}{count ? <span className="ml-2 text-sm font-normal text-muted-foreground">{count}</span> : null}</span>
           {description ? <span className="text-sm text-muted-foreground">{description}</span> : null}
         </span>

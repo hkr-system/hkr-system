@@ -10,7 +10,7 @@ const o = (p: Partial<BoardOrder>): BoardOrder => ({
 
 describe("orders board", () => {
   const cols = buildOrderBoard([
-    o({ id: "a", since: "2026-10-28" }),                                               // invoiced, deposit due 6 days → danger
+    o({ id: "a", since: "2026-10-28" }),                                               // invoiced, deposit due 6 days → still only "due" (never overdue)
     o({ id: "b", since: "2026-11-02", payment_awaiting: true }),                       // proof to confirm
     o({ id: "c", status: "in_preparation", eta_date: "2026-11-01" }),                   // ETA passed
     o({ id: "d", status: "ready_to_ship", since: "2026-10-30" }),                       // balance due, ready 4 days
@@ -27,7 +27,7 @@ describe("orders board", () => {
   });
   it("longest waiting first, with what is missing", () => {
     expect(cols[1].cards.map((c) => [c.id, c.daysText])).toEqual([["a", "6 days"], ["b", "1 day"]]);
-    expect(cols[1].cards[0].notes).toEqual([{ tone: "danger", text: "Deposit due" }]);
+    expect(cols[1].cards[0].notes).toEqual([{ tone: "warn", text: "Deposit due" }]);
     expect(cols[1].cards[1].notes[0].text).toBe("Payment proof to confirm");
     expect(cols[3].cards[0].notes[0]).toEqual({ tone: "danger", text: "ETA 1 Nov passed" });
     expect(cols[4].cards[0].notes[0].text).toBe("Balance due · ready 4 days");

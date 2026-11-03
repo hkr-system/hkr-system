@@ -1,6 +1,8 @@
-// Overdue alerts for the dashboard (brief Phase 5 item 6, SOP P9 "escalate when"): deposit or balance overdue,
+// Overdue alerts for the dashboard (brief Phase 5 item 6, SOP P9 "escalate when"): balance overdue /
 // orders ready to ship for more than 2 days, ETA passed, RMAs approved but not batched by Thursday, and RMAs waiting
 // more than 2 days for the client's evidence. Pure and unit-tested.
+// A DEPOSIT IS NEVER OVERDUE (Gabriel, Nov 3 2026): orders are still taken after 20+ days; an order is only removed when the
+// client never pays. So there is no deposit alert — "Deposit due" stays a neutral to-do on the orders pages.
 import { daysBetween, isoWeekday } from "./dates";
 
 export type AlertOrder = {
@@ -11,13 +13,13 @@ export type AlertRma = {
   id: string; account_code: string; number: string; status: string; created_at: string;
   units_without_evidence: number; units_to_batch: number; intermediary_id: string | null;
 };
-export type Alert = { key: string; tone: "danger" | "warn"; kind: "deposit" | "balance" | "eta" | "proof" | "batch" | "evidence"; ref: string; text: string; href: string };
+export type Alert = { key: string; tone: "danger" | "warn"; kind: "balance" | "eta" | "proof" | "batch" | "evidence"; ref: string; text: string; href: string };
 
 export const READY_ALERT_DAYS = 2;     // brief: "orders ready to ship for more than 2 days"
 export const EVIDENCE_ALERT_DAYS = 2;  // SOP P9: "an RMA waiting more than two days for the client's evidence"
 
 export function buildAlerts(input: {
-  orders: AlertOrder[]; rmas: AlertRma[]; today: string; depositOverdueDays: number; cutoffDate: string;
+  orders: AlertOrder[]; rmas: AlertRma[]; today: string; cutoffDate: string;
 }): Alert[] {
   const { today } = input;
   const out: Alert[] = [];
@@ -26,8 +28,6 @@ export function buildAlerts(input: {
     const href = `/orders/${o.id}`;
     const inStage = daysBetween(o.since ?? o.order_date, today) ?? 0;
     if (o.payment_awaiting) out.push({ key: `proof-${o.id}`, tone: "warn", kind: "proof", ref, text: "Payment proof to confirm", href });
-    if (o.status === "invoiced" && o.deposit_payable > 0 && o.deposit_confirmed <= 0 && !o.payment_awaiting && inStage > input.depositOverdueDays)
-      out.push({ key: `dep-${o.id}`, tone: "danger", kind: "deposit", ref, text: `Deposit overdue · invoiced ${inStage} days ago`, href });
     if (o.status === "ready_to_ship" && inStage > READY_ALERT_DAYS)
       out.push({ key: `bal-${o.id}`, tone: "danger", kind: "balance", ref,
         text: o.balance_ok || o.payment_awaiting ? `Ready to ship for ${inStage} days` : `Balance overdue · ready to ship for ${inStage} days`, href });

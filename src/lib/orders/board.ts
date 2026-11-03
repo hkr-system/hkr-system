@@ -34,7 +34,7 @@ export function orderNotes(o: BoardOrder, today: string): { tone: Tone; text: st
   switch (o.status) {
     case "quoted": n.push({ tone: "muted", text: "Send the invoice" }); break;
     case "invoiced":
-      if (o.deposit_payable > 0 && o.deposit_confirmed <= 0 && !o.payment_awaiting) n.push({ tone: inStage > 3 ? "danger" : "warn", text: "Deposit due" });
+      if (o.deposit_payable > 0 && o.deposit_confirmed <= 0 && !o.payment_awaiting) n.push({ tone: "warn", text: "Deposit due" }); // never "overdue" (Gabriel, Nov 3 2026)
       if (o.deposit_payable <= 0) n.push({ tone: "muted", text: "Deposit kept by the intermediary" });
       break;
     case "deposit_paid":

@@ -31,7 +31,7 @@ const TOKENS: { name: string; css: string; use: string }[] = [
 const SAMPLE_ROWS = [
   { order: "BRC-NL-001 · ORD-07", pieces: 150, usd: "69,363.70", status: "Balance pending", tone: "warn" },
   { order: "ADG-GB-013 · ORD-02", pieces: 80, usd: "21,000.00", status: "Shipped", tone: "ok" },
-  { order: "CLV-EC-004 · ORD-11", pieces: 210, usd: "58,420.00", status: "Deposit overdue", tone: "alert" },
+  { order: "CLV-EC-004 · ORD-11", pieces: 210, usd: "58,420.00", status: "Balance overdue", tone: "alert" },
 ];
 
 function Chip({ tone, children }: { tone: "ok" | "warn" | "alert" | "neutral"; children: React.ReactNode }) {

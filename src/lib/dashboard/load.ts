@@ -20,7 +20,7 @@ export type OpsAccount = { id: string; code: string; name: string; language: "en
 export async function loadOps(db: DB, now = new Date()) {
   const today = todayIn(HK);
   const week = weekStart(today);
-  const [ov, orders, events, reminders, rmas, units, accounts, cutoffSetting, depositDays, intermediaries] = await Promise.all([
+  const [ov, orders, events, reminders, rmas, units, accounts, cutoffSetting, intermediaries] = await Promise.all([
     db.from("order_overview").select("id, account_id, account_code, account_name, number, status, order_date, pieces, total_usd, eta_date, payable_total, deposit_payable, deposit_confirmed, balance_confirmed, payment_awaiting, balance_ok, imei_count, label_ok, delivery_setup")
       .in("status", ["invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped"]).limit(3000),
     db.from("orders").select("id, tracking, hk_invoice_no").in("status", ["invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped"]).limit(3000),
@@ -31,7 +31,6 @@ export async function loadOps(db: DB, now = new Date()) {
     db.from("rma_units").select("rma_id, resolution, credit_usd, batch_id, rma_batches(cutoff_date, status)").limit(10000),
     db.from("accounts").select("id, code, name, language, status, intermediary_id, market").neq("status", "closed").order("code").limit(2000),
     db.from("settings").select("value").eq("key", "batch_cutoff").maybeSingle(),
-    db.from("settings").select("value").eq("key", "deposit_overdue_days").maybeSingle(),
     db.from("intermediaries").select("id, name").order("name"),
   ]);
 
@@ -69,12 +68,10 @@ export async function loadOps(db: DB, now = new Date()) {
 
   const cutoff = { ...DEFAULT_CUTOFF, ...((cutoffSetting.data?.value ?? {}) as Partial<CutoffSetting>) };
   const next = nextCutoff(now, cutoff);
-  const overdue = Number(depositDays.data?.value);
   return {
     today, week, orders: opsOrders, rmas: opsRmas, updates: reminders.data ?? [],
     accounts: (accounts.data ?? []) as OpsAccount[], intermediaries: intermediaries.data ?? [],
     cutoff: { ...next, time: cutoff.time, timezone: cutoff.timezone },
-    depositOverdueDays: Number.isFinite(overdue) && overdue >= 0 ? overdue : 3,
   };
 }
 

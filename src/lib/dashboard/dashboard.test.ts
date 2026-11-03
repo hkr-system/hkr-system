@@ -113,11 +113,9 @@ describe("alerts", () => {
     id: "o", account_code: "AMS-NL-901", number: "ORD-01", status: "invoiced", since: "2026-10-30", order_date: "2026-10-30",
     deposit_payable: 2000, deposit_confirmed: 0, balance_ok: false, payment_awaiting: false, eta_date: null, ...o,
   });
-  const base = { rmas: [], today: "2026-11-03", depositOverdueDays: 3, cutoffDate: "2026-11-06" };
-  it("deposit overdue after the setting, not before", () => {
-    expect(buildAlerts({ ...base, orders: [ao({})] }).map((a) => a.kind)).toEqual(["deposit"]);
-    expect(buildAlerts({ ...base, orders: [ao({ since: "2026-11-01" })] })).toEqual([]);
-    expect(buildAlerts({ ...base, orders: [ao({ deposit_payable: 0 })] })).toEqual([]); // deposit kept by the intermediary
+  const base = { rmas: [], today: "2026-11-03", cutoffDate: "2026-11-06" };
+  it("a deposit is never overdue, even after 20+ days (Gabriel)", () => {
+    expect(buildAlerts({ ...base, orders: [ao({ since: "2026-10-01" })] })).toEqual([]);
   });
   it("ready to ship more than 2 days; ETA passed", () => {
     const a = buildAlerts({ ...base, orders: [ao({ status: "ready_to_ship", since: "2026-10-31" }), ao({ id: "p", status: "in_preparation", eta_date: "2026-11-01" })] });

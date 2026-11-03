@@ -59,8 +59,8 @@ export default async function DashboardPage() {
   const open = ops.orders.filter((o) => (OPEN_ORDER_STATUSES as readonly string[]).includes(o.status));
   const openUsd = open.reduce((s, o) => s + o.payable_total, 0);
   const toShip = ops.orders.filter((o) => o.status === "balance_paid");
-  const alerts = buildAlerts({ orders: ops.orders, rmas: ops.rmas, today, depositOverdueDays: ops.depositOverdueDays, cutoffDate: ops.cutoff.date });
-  const paymentAlerts = alerts.filter((a) => a.kind === "deposit" || a.kind === "balance").length;
+  const alerts = buildAlerts({ orders: ops.orders, rmas: ops.rmas, today, cutoffDate: ops.cutoff.date });
+  const paymentAlerts = alerts.filter((a) => a.kind === "balance").length;
 
   // queues
   const thursday = thursdayQueue(ops.accounts, ops.orders, ops.rmas, ops.updates, ops.week);
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="dashboard-tiles">
         <StatTile label="Open orders" value={open.length} sub={money(openUsd)} href="/orders" />
         <StatTile label="Pending shipment" value={toShip.length} sub="Balance paid, not shipped" href="/orders?attention=ship" />
-        <StatTile label="Payment overdue" value={paymentAlerts} tone="attention" sub="Deposit or balance" href="#alerts" />
+        <StatTile label="Balance overdue" value={paymentAlerts} tone="attention" sub="Ready to ship > 2 days" href="#alerts" />
         <StatTile label="Unanswered WhatsApp" value={chats} tone="attention" href="/whatsapp" />
         <StatTile label="Thursday update" value={thursdayTodo} tone="attention" sub={`${thursday.length - thursdayTodo} of ${thursday.length} sent this week`} href="/dashboard/thursday" />
         <StatTile label="For the SD" value={escalations.length} tone="attention" sub={lateEsc ? `${lateEsc} past the time promised` : "Open escalations"} href="/dashboard/escalations" />
@@ -122,7 +122,7 @@ export default async function DashboardPage() {
         <Card className="lg:col-span-2" id="alerts" data-testid="alerts">
           <CardHeader>
             <CardTitle>Alerts {alerts.length ? <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800">{alerts.length}</span> : null}</CardTitle>
-            <CardDescription>Deposit overdue after {ops.depositOverdueDays} days · ready to ship more than 2 days · ETA passed · approved RMA units not batched by Thursday · RMAs waiting more than 2 days for evidence.</CardDescription>
+            <CardDescription>Balance due on orders ready to ship more than 2 days · ETA passed · approved RMA units not batched by Thursday · RMAs waiting more than 2 days for evidence.</CardDescription>
           </CardHeader>
           <CardContent>
             {alerts.length ? (

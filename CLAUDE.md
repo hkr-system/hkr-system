@@ -469,7 +469,8 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   unanswered WhatsApp, Thursday update, For the SD, alerts, RMAs pending shipment by intermediary (+ next Friday batch countdown:
   admin + specialist), sales this month vs last (admin; bd own accounts; not the specialist), leads by stage + 30-day change
   (admin, bd), credit-note spend issued+applied (admin). Promotion widgets come with Phase 6B.
-- Alerts: deposit overdue after setting `deposit_overdue_days` (3) days in Invoiced; Ready to ship > 2 days; ETA passed; approved
+- Alerts: NO deposit alert — a deposit is NEVER overdue (Gabriel, Nov 3 2026: orders are still taken after 20+ days; an order is
+  only removed if the client never pays); "Deposit due" is a neutral to-do (board: amber, never red). Ready to ship > 2 days (balance); ETA passed; approved
   return-to-HK units of intermediary clients not batched on Thursday/Friday before the cut-off; RMA waiting > 2 days for evidence.
 - Daily report (SOP P9 format exactly; "none" when empty): Open orders = Invoiced…Balance paid (stage words deposit pending /
   deposit received / in production / ready); ready to ship = Ready to ship + Balance paid; pending balances = Ready to ship without

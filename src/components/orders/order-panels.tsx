@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EditLock } from "@/components/edit-lock";
 
 export function StatusControls({ orderId, status, isAdmin }: { orderId: string; status: OrderStatus; isAdmin: boolean }) {
   const router = useRouter();
@@ -204,7 +205,7 @@ export function ShippingPanel({ orderId, accountId, accountCode, orderNumber, co
           </div>
         ) : null}
       </div>
-      <form action={action} className="grid gap-3 sm:grid-cols-4" data-testid="shipping-form">
+      <EditLock><form action={action} className="grid gap-3 sm:grid-cols-4" data-testid="shipping-form">
         <input type="hidden" name="order_id" value={orderId} />
         <div className="grid gap-1.5"><Label>Delivery set-up</Label>
           <NativeSelect name="delivery_setup" defaultValue={setup}>
@@ -219,7 +220,7 @@ export function ShippingPanel({ orderId, accountId, accountCode, orderNumber, co
           {state.error ? <span className="text-sm text-destructive" role="alert">{state.error}</span> : null}
           {state.message ? <span className="text-sm text-emerald-700">{state.message}</span> : null}
         </div>
-      </form>
+      </form></EditLock>
     </div>
   );
 }

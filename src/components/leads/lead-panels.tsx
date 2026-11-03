@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/native-select";
 import { STAGES, type LeadStage } from "@/lib/leads/constants";
 import { addLeadEvent, assignOwner, changeStageForm, setNextAction } from "@/app/(app)/leads/actions";
+import { EditLock } from "@/components/edit-lock";
 
 function Msg({ error, ok }: { error?: string; ok?: boolean }) {
   if (error) return <p role="alert" className="text-xs text-destructive">{error}</p>;
@@ -19,7 +20,7 @@ export function StagePanel({ id, stage, lostReason }: { id: string; stage: LeadS
   const [state, action, pending] = useActionState(changeStageForm, {});
   const [value, setValue] = useState<LeadStage>(stage);
   return (
-    <form action={action} className="grid gap-2" data-testid="stage-panel">
+    <EditLock><form action={action} className="grid gap-2" data-testid="stage-panel">
       <input type="hidden" name="id" value={id} />
       <Label className="text-xs text-muted-foreground">Stage</Label>
       <div className="flex gap-2">
@@ -33,14 +34,14 @@ export function StagePanel({ id, stage, lostReason }: { id: string; stage: LeadS
         <Input name="lost_reason" placeholder="Why was it lost? (required)" defaultValue={lostReason ?? ""} required />
       ) : null}
       <Msg {...state} />
-    </form>
+    </form></EditLock>
   );
 }
 
 export function OwnerPanel({ id, owner, team }: { id: string; owner: string | null; team: { user_id: string; full_name: string }[] }) {
   const [state, action, pending] = useActionState(assignOwner, {});
   return (
-    <form action={action} className="grid gap-2">
+    <EditLock><form action={action} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
       <Label className="text-xs text-muted-foreground">Owner</Label>
       <div className="flex gap-2">
@@ -51,14 +52,14 @@ export function OwnerPanel({ id, owner, team }: { id: string; owner: string | nu
         <Button type="submit" size="sm" variant="outline" disabled={pending}>Set</Button>
       </div>
       <Msg {...state} />
-    </form>
+    </form></EditLock>
   );
 }
 
 export function NextActionPanel({ id, text, date }: { id: string; text: string | null; date: string | null }) {
   const [state, action, pending] = useActionState(setNextAction, {});
   return (
-    <form action={action} className="grid gap-2" data-testid="next-action-panel">
+    <EditLock><form action={action} className="grid gap-2" data-testid="next-action-panel">
       <input type="hidden" name="id" value={id} />
       <Label className="text-xs text-muted-foreground">Next action</Label>
       <Input name="next_action" defaultValue={text ?? ""} placeholder="e.g. Send price list on WhatsApp" />
@@ -67,7 +68,7 @@ export function NextActionPanel({ id, text, date }: { id: string; text: string |
         <Button type="submit" size="sm" variant="outline" disabled={pending}>Save</Button>
       </div>
       <Msg {...state} />
-    </form>
+    </form></EditLock>
   );
 }
 

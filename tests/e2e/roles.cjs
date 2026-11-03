@@ -3,6 +3,7 @@
 // against LOCAL Supabase (npm run db:reset) and Playwright available (pre-installed in Claude's workspace).
 // Screenshots go to SCREENSHOT_DIR (default: ./tests/e2e/.screens).
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const DIR = process.env.SCREENSHOT_DIR || require('path').join(__dirname, '.screens');
 require('fs').mkdirSync(DIR, { recursive: true });
@@ -31,6 +32,7 @@ const users = [
   }
   for (const u of users) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await autoUnlock(ctx);
     const page = await ctx.newPage();
     await page.goto(BASE + '/login');
     await page.fill('#email', `${u.name}.demo@hk-refurbished-stock.com`);
@@ -82,6 +84,7 @@ const users = [
   // mobile screenshot
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+  await autoUnlock(ctx);
     const page = await ctx.newPage();
     await page.goto(BASE + '/login');
     await page.screenshot({ path: `${DIR}/mobile-login.png` });

@@ -1,6 +1,7 @@
 // Phase 3 browser test: accounts, new-account wizard, orders, payments, shipping checklist, roles.
 // Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset` (it changes data).
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -14,6 +15,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
 
 async function login(browser, name) {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
   await page.goto(BASE + '/login');

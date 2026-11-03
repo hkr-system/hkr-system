@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { importNumbers, refreshNumberHealth, registerNumberForApi, syncTemplates, updateNumber, updateNumberByMarket, type WaState } from "@/app/(app)/whatsapp/actions";
+import { EditLock } from "@/components/edit-lock";
 
 function useAction(fn: () => Promise<WaState>) {
   const [pending, start] = useTransition();
@@ -87,7 +88,7 @@ export function NumberEditRow({ n }: { n: NumberRow }) {
         {!n.is_demo ? <RegisterForm id={n.id} /> : null}
       </TableCell>
       <TableCell colSpan={2} className="whitespace-normal">
-        <form action={action} className="flex flex-wrap items-center gap-2">
+        <EditLock><form action={action} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="id" value={n.id} />
           <Input name="label" defaultValue={n.label ?? ""} placeholder="Label (HK-1, NL…)" className="h-8 w-32" aria-label="Label" />
           <NativeSelect name="market" defaultValue={n.market ?? ""} className="h-8 w-28" aria-label="Market">
@@ -102,7 +103,7 @@ export function NumberEditRow({ n }: { n: NumberRow }) {
           <Button type="submit" size="sm" variant="outline" disabled={pending}>Save</Button>
           <Result state={state} />
           {n.broadcasts_paused && n.paused_reason ? <span className="w-full text-xs text-amber-700">{n.paused_reason}</span> : null}
-        </form>
+        </form></EditLock>
       </TableCell>
     </TableRow>
   );
@@ -111,7 +112,7 @@ export function NumberEditRow({ n }: { n: NumberRow }) {
 export function NumberByMarketForm({ value, numbers }: { value: Record<string, string | null>; numbers: { id: string; label: string }[] }) {
   const [state, action, pending] = useActionState(updateNumberByMarket, {});
   return (
-    <form action={action} className="grid gap-3" data-testid="number-by-market">
+    <EditLock><form action={action} className="grid gap-3" data-testid="number-by-market">
       <div className="grid gap-3 sm:grid-cols-4">
         {["EU", "LATAM", "US", "ROW"].map((m) => (
           <label key={m} className="grid gap-1 text-sm">
@@ -127,6 +128,6 @@ export function NumberByMarketForm({ value, numbers }: { value: Record<string, s
         <Button type="submit" size="sm" variant="outline" disabled={pending}>Save</Button>
         <Result state={state} />
       </div>
-    </form>
+    </form></EditLock>
   );
 }

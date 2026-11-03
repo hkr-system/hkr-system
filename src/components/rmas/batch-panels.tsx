@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EditLock } from "@/components/edit-lock";
 
 export type EligibleUnit = { id: string; imei: string; rma: string; rmaId: string; client: string; model: string | null; fault: string };
 
@@ -70,7 +71,7 @@ export function ShipmentForm({ batch }: { batch: { id: string; pickup_date: stri
   const [state, action, pending] = useActionState<ActionState, FormData>(saveBatchShipment, {});
   const open = batch.status === "open";
   return (
-    <form action={action} className="grid gap-2 sm:grid-cols-5" data-testid="shipment-form">
+    <EditLock><form action={action} className="grid gap-2 sm:grid-cols-5" data-testid="shipment-form">
       <input type="hidden" name="id" value={batch.id} />
       <div className="grid gap-1"><Label className="text-xs">Pickup date</Label><Input type="date" name="pickup_date" defaultValue={batch.pickup_date ?? ""} disabled={!open} /></div>
       <div className="grid gap-1"><Label className="text-xs">Carrier</Label><Input name="carrier" defaultValue={batch.carrier} disabled={!open} /></div>
@@ -85,7 +86,7 @@ export function ShipmentForm({ batch }: { batch: { id: string; pickup_date: stri
           {state.message ? <span className="text-xs text-emerald-700">{state.message}</span> : null}
         </div>
       ) : null}
-    </form>
+    </form></EditLock>
   );
 }
 

@@ -2,6 +2,7 @@
 // credit note (approve → issue → PDF), EU batch, portal login by link, RMA request with evidence.
 // Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset` (it changes data).
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const os = require('os');
@@ -18,6 +19,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
 
 async function login(browser, name, viewport = { width: 1400, height: 900 }) {
   const ctx = await browser.newContext({ viewport });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
   await page.goto(BASE + '/login');
@@ -32,6 +34,7 @@ async function portalLogin(browser, email, viewport = { width: 1280, height: 900
   const { data, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email });
   if (error) throw error;
   const ctx = await browser.newContext({ viewport });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   await page.goto(`${BASE}/portal/auth/confirm?token_hash=${data.properties.hashed_token}&type=magiclink`);
   await page.waitForURL(/\/portal$/);

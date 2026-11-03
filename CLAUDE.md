@@ -333,7 +333,8 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Client code AAA-CC-NNN (SOP §2.1), check constraint; `settings.account_code_last_seq` follows the highest REAL code
   (demo accounts `is_demo` use 9xx and never move it); only admin changes a code.
 - Route: intermediary set → client pays EUR (partner invoice, uploaded) else USD (SOP §2.4). invoice_format JSON:
-  battery_line_separate / show_ce_text / show_note. Delivery set-up per account, copied to each order.
+  battery_line_separate / show_ce_text / show_note / plain_lines = the account's DEFAULT, copied to each order and changeable
+  per order (Nov 3 2026). Delivery set-up per account, copied to each order.
 - Orders: number ORD-NN per account (trigger). Totals by trigger `order_recalc` (never typed): subtotal + separate
   battery line (qty × battery_unit_usd, only if the account's format is separate and the SKU is battery_eligible)
   + freight + customs − RMA discount; USDT adds settings.usdt_fee_pct (0.85 %) of that; deposit settings.deposit_pct (10 %).
@@ -372,6 +373,31 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Invoice number (Gabriel, Nov 2 2026): `<client code>-INV-NN`, a sequence per account (`invoice_next_number_for`), never
   reused (voided keep theirs); replaces MMDDYYYY for new invoices. The order form no longer types INV-HK: the approved
   invoice fills `orders.hk_invoice_no`.
+
+## Invoice design, credit notes on orders, format per order, pencil edit (Gabriel, Nov 3 2026)
+
+- Invoice = HKR's ORIGINAL Excel invoice "tal cual es". `src/lib/documents/invoice-template.json` is the original's grid
+  (column widths, row heights, merges, fonts Times/Courier/Calibri, borders, grey fills, number formats, fixed labels) with NO
+  data (public repo); `invoice-layout.ts` fills it (rows 1–23 header, ≥ 9 line rows, footer moved down when there are more
+  lines; unit-tested). The xlsx is written cell by cell from it; the PDF (`invoice-pdf.tsx`) draws the same grid at 100 % with
+  the original margins (Times → Times, Courier New → Courier, Calibri → Helvetica 0.88). Never restyle it.
+- "RMA discount" is no longer typed: table `credit_note_applications` (credit note → order, amount). Only APPROVED (or issued)
+  USD credit notes of the same client; one credit note can be split across invoices, never over its amount; credit notes may
+  or may not carry an RMA / IMEIs (Telcos lists IMEIs, Haslet nothing). `orders.rma_discount_usd` = Σ applications (trigger;
+  a typed change is ignored); the credit note turns Applied when fully used (back to Issued if removed). The invoice prints
+  one line per note: "Credit note <code>-CN-NN". Approved/sent invoice → applications locked; admin reopens the invoice
+  (new version) to add a credit note to an earlier invoice. Order page → "Credit notes" panel; credit note page lists where
+  it was applied. Orders before Nov 3 with a typed discount still print "RMA discount".
+- Invoice format per ORDER: `orders.invoice_format` copied from the account's default on insert; changed on the order form
+  ("Invoice format (this order)"); `order_recalc` (separate battery line) and the invoice (CE, plain lines) read the order's.
+- Pencil edit: `components/edit-lock.tsx` = read-only (disabled fieldset, Save buttons hidden) until ✏️ Edit; Cancel discards;
+  locks again after Save. Used on every Settings section, account Set-up, lead details/stage/owner/next action, order
+  shipping / intermediary / invoice draft, RMA notes and unit credits, batch shipment, credit note editor, base list, list
+  percentages, finance goals, WhatsApp numbers. Creation forms (new order/account/RMA/credit note/lead) are not locked.
+  Browser tests click `[data-testid=edit-unlock]` before typing.
+- Historical sales (2 years, no invoices/IMEIs): Gabriel sends the file after testing; he creates the clients by hand first.
+  Plan: admin importer with preview + rollback → closed "historical" orders (no invoice/IMEI/payments/alerts) that count in
+  dashboards, sales mix, client history and the price engine (Gabriel: yes).
 
 ## Order lines: model, colours, options, Magic invoice creator (Gabriel, Nov 2 2026)
 

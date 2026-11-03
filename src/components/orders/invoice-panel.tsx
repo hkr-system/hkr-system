@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EditLock } from "@/components/edit-lock";
 
 export type InvoiceRow = {
   id: string; number: string; status: "draft" | "approved" | "sent" | "void"; version: number; invoice_date: string;
@@ -70,7 +71,7 @@ export function InvoicePanel({ orderId, invoice, orderTotal, role, issuerReady }
       ) : null}
 
       {editable ? (
-        <form action={saveAction} className="grid gap-3">
+        <EditLock><form action={saveAction} className="grid gap-3">
           <input type="hidden" name="id" value={invoice.id} />
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-1.5"><Label htmlFor="inv-date">Invoice date</Label><Input id="inv-date" type="date" name="invoice_date" defaultValue={invoice.invoice_date} required /></div>
@@ -114,7 +115,7 @@ export function InvoicePanel({ orderId, invoice, orderTotal, role, issuerReady }
             {isAdmin ? <Button type="button" size="sm" disabled={pending || differs} onClick={() => run(() => approveInvoice(invoice.id))}>Approve</Button> : <span className="self-center text-xs text-muted-foreground">An admin approves it.</span>}
             {isAdmin ? <Button type="button" size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => run(() => deleteInvoiceDraft(invoice.id))}>Delete draft</Button> : null}
           </div>
-        </form>
+        </form></EditLock>
       ) : (
         <div className="grid gap-2">
           <ul className="grid gap-0.5 text-sm" data-tabular>

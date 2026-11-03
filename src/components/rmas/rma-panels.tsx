@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EditLock } from "@/components/edit-lock";
 
 // ---------------------------------------------------------------------------------------
 // Status: one clear next step; admin approves; admin can set any status (corrections).
@@ -162,14 +163,14 @@ function UnitCard({ n, u, rma, accountId, accountCode, locked, canDelete }: {
           </NativeSelect>
         </div>
         {isCredit ? (
-          <form className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2" data-testid="unit-credit"
+          <EditLock><form className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2" data-testid="unit-credit"
             onSubmit={(e) => { e.preventDefault(); save({ unit_price_usd: credit.price ? Number(credit.price) : null, credit_pct: credit.pct ? Number(credit.pct) : null, credit_fixed_usd: credit.fixed ? Number(credit.fixed) : null }); }}>
             <div className="grid gap-1"><Label className="text-xs">Unit price US$</Label><Input value={credit.price} disabled={locked} inputMode="decimal" onChange={(e) => setCredit({ ...credit, price: e.target.value })} /></div>
             <div className="grid gap-1"><Label className="text-xs">Credit %</Label><Input value={credit.pct} disabled={locked} inputMode="decimal" onChange={(e) => setCredit({ ...credit, pct: e.target.value })} /></div>
             <div className="grid gap-1"><Label className="text-xs">or fixed US$</Label><Input name="fixed" value={credit.fixed} disabled={locked} inputMode="decimal" onChange={(e) => setCredit({ ...credit, fixed: e.target.value })} /></div>
             <Button type="submit" size="sm" variant="outline" disabled={pending || locked}>Save</Button>
             <span className="col-span-4 text-xs text-muted-foreground" data-tabular>Credit: <span className="font-medium text-foreground">{money(u.credit_usd)}</span>{Math.abs(preview - Number(u.credit_usd)) > 0.004 ? ` (after saving ${money(preview)})` : ""} · a fixed amount overrides the %</span>
-          </form>
+          </form></EditLock>
         ) : (
           <div className="self-end text-xs text-muted-foreground">{u.resolution === "return_hk" ? "Returns to Hong Kong (EU: Friday batch of the intermediary)." : u.resolution === "replacement" ? "Replaced with the next order." : u.resolution === "not_covered" ? "Not covered: NOT FOUND, damage or outside 12 months." : "Choose the route proposed to the Sales Director."}</div>
         )}
@@ -226,7 +227,7 @@ export function AddUnitsForm({ rmaId }: { rmaId: string }) {
 export function RmaNotesForm({ id, notes, location, orderRefs }: { id: string; notes: string | null; location: string | null; orderRefs: string | null }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveRmaNotes, {});
   return (
-    <form action={action} className="grid gap-2">
+    <EditLock><form action={action} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
       <div className="grid gap-1"><Label className="text-xs">Where are the units now?</Label>
         <NativeSelect name="units_location" defaultValue={location ?? ""}>
@@ -241,7 +242,7 @@ export function RmaNotesForm({ id, notes, location, orderRefs }: { id: string; n
         {state.error ? <span className="text-xs text-destructive">{state.error}</span> : null}
         {state.message ? <span className="text-xs text-emerald-700">{state.message}</span> : null}
       </div>
-    </form>
+    </form></EditLock>
   );
 }
 

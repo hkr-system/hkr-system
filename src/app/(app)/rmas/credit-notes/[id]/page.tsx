@@ -13,6 +13,7 @@ import { CnStatusBadge } from "@/components/rmas/badges";
 import { CnStatusControls, CreditNoteEditor } from "@/components/rmas/credit-note-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EditLock } from "@/components/edit-lock";
 
 export const metadata: Metadata = { title: "Credit note" };
 
@@ -94,10 +95,14 @@ export default async function CreditNotePage({ params }: PageProps<"/rmas/credit
       <Card>
         <CardHeader><CardTitle>Credit note</CardTitle></CardHeader>
         <CardContent>
-          <CreditNoteEditor editable={editable} accounts={accounts ?? []} orders={(orders ?? []).map((o) => ({ ...o, total_usd: Number(o.total_usd) }))}
+          {editable ? <EditLock label="Edit credit note"><CreditNoteEditor editable={editable} accounts={accounts ?? []} orders={(orders ?? []).map((o) => ({ ...o, total_usd: Number(o.total_usd) }))}
             value={{ id, accountId: c.account_id, rmaId: c.rma_id, orderId: c.order_id, invoiceNo: c.invoice_no ?? "", inFavorOf: c.in_favor_of ?? "",
               currency: c.currency, reason: c.reason ?? "", appliedTo: c.applied_to, notes: c.notes ?? "",
-              lines: lines.map((l) => ({ description: l.description, qty: Number(l.qty), unit_price: Number(l.unit_price) })) }} />
+              lines: lines.map((l) => ({ description: l.description, qty: Number(l.qty), unit_price: Number(l.unit_price) })) }} /></EditLock>
+            : <CreditNoteEditor editable={false} accounts={accounts ?? []} orders={(orders ?? []).map((o) => ({ ...o, total_usd: Number(o.total_usd) }))}
+                value={{ id, accountId: c.account_id, rmaId: c.rma_id, orderId: c.order_id, invoiceNo: c.invoice_no ?? "", inFavorOf: c.in_favor_of ?? "",
+                  currency: c.currency, reason: c.reason ?? "", appliedTo: c.applied_to, notes: c.notes ?? "",
+                  lines: lines.map((l) => ({ description: l.description, qty: Number(l.qty), unit_price: Number(l.unit_price) })) }} />}
         </CardContent>
       </Card>
     </>

@@ -2,6 +2,7 @@
 // leads overview. Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset`, and the
 // webhook served locally (`npx supabase functions serve --env-file supabase/functions/.env`).
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -17,6 +18,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
 
 async function login(browser, name) {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   await page.goto(BASE + '/login');
   await page.fill('#email', `${name}.demo@hk-refurbished-stock.com`);

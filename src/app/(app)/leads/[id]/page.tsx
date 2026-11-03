@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateLead } from "../actions";
 import { StartChat } from "@/components/whatsapp/start-chat";
 import { numberForMarket } from "@/lib/whatsapp/service";
+import { EditLock } from "@/components/edit-lock";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -86,7 +87,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                   ))}
                 </dl>
               ) : (
-                <LeadForm action={updateLead} values={lead} countries={countryOptions()} submitLabel="Save details" showOptIns />
+                <EditLock label="Edit details"><LeadForm action={updateLead} values={lead} countries={countryOptions()} submitLabel="Save details" showOptIns /></EditLock>
               )}
             </CardContent>
           </Card>

@@ -22,6 +22,7 @@ import { FileUpload } from "@/components/orders/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EditLock } from "@/components/edit-lock";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -255,8 +256,10 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
 
       {tab === "edit" ? (
         <div className="max-w-4xl">
-          <AccountForm mode="edit" isAdmin={user.role === "admin"} intermediaries={intermediaries} team={team} lastCodeSeq={terms.lastCodeSeq}
-            values={{ ...a, invoice_format: fmt, owner: as.owner, specialist: as.specialist }} />
+          <EditLock label="Edit set-up" testId="lock-account">
+            <AccountForm mode="edit" isAdmin={user.role === "admin"} intermediaries={intermediaries} team={team} lastCodeSeq={terms.lastCodeSeq}
+              values={{ ...a, invoice_format: fmt, owner: as.owner, specialist: as.specialist }} />
+          </EditLock>
         </div>
       ) : null}
     </>

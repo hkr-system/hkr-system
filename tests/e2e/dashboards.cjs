@@ -1,6 +1,7 @@
 // Dashboards browser test: Sales, Accounts health, Finance goals, menu counters, per role.
 // Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset`.
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const fs = require('fs');
 const path = require('path');
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
@@ -13,6 +14,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
 
 async function login(browser, name) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   await page.goto(BASE + '/login');
   await page.fill('#email', `${name}.demo@hk-refurbished-stock.com`);

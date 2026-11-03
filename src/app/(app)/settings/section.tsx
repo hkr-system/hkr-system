@@ -1,9 +1,11 @@
 import { ChevronDown } from "lucide-react";
+import { EditLock } from "@/components/edit-lock";
 
 // One collapsible block of the Settings page (Gabriel, Nov 2 2026: "secciones colapsables").
 // Native <details>: works without JavaScript; opening a #link from the index expands it.
-export function SettingsSection({ id, title, description, count, children, defaultOpen = false }: {
-  id: string; title: string; description?: React.ReactNode; count?: string; children: React.ReactNode; defaultOpen?: boolean;
+// Every section is read-only until its ✏️ Edit is clicked (Gabriel, Nov 3 2026).
+export function SettingsSection({ id, title, description, count, children, defaultOpen = false, lock = true }: {
+  id: string; title: string; description?: React.ReactNode; count?: string; children: React.ReactNode; defaultOpen?: boolean; lock?: boolean;
 }) {
   return (
     <details id={id} open={defaultOpen} className="group min-w-0 scroll-mt-20 rounded-xl border bg-card" data-testid={`section-${id}`}>
@@ -14,7 +16,7 @@ export function SettingsSection({ id, title, description, count, children, defau
         </span>
         <ChevronDown className="mt-1 size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
       </summary>
-      <div className="min-w-0 overflow-x-auto border-t px-4 py-4 sm:px-5">{children}</div>
+      <div className="min-w-0 overflow-x-auto border-t px-4 py-4 sm:px-5">{lock ? <EditLock testId={`lock-${id}`}>{children}</EditLock> : children}</div>
     </details>
   );
 }

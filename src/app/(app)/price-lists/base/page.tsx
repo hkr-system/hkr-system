@@ -7,6 +7,7 @@ import { loadRows } from "@/lib/price-lists/service";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { BaseEditor } from "@/components/price-lists/base-editor";
+import { EditLock } from "@/components/edit-lock";
 
 export const metadata: Metadata = { title: "Base list" };
 
@@ -21,7 +22,7 @@ export default async function BaseListPage() {
       <PageHeader title="Base list" description="Admin only. Saving creates a new version; client lists prepared after that use it. Approved client lists keep the base they were built on.">
         <Link href="/price-lists" className="text-sm text-hkr-accent hover:underline">← Price lists</Link>
       </PageHeader>
-      <BaseEditor current={rows} today={todayIn(access.user.timezone)} />
+      <EditLock label="Edit base list"><BaseEditor current={rows} today={todayIn(access.user.timezone)} /></EditLock>
     </>
   );
 }

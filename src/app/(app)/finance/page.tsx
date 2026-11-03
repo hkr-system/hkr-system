@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/coming-soon";
 import { HistoryImport, MonthPlanRow } from "@/components/sales/finance-forms";
 import { BarList, ColumnChart, StatTile, compactUsd } from "@/components/viz";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EditLock } from "@/components/edit-lock";
 
 export const metadata: Metadata = { title: "Finance" };
 const usd = (n: number) => money(n).replace("US$ ", "$");
@@ -114,6 +115,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto px-0">
+            <EditLock label="Edit goals and projections">
             <table className="w-full min-w-[900px] text-left" data-testid="plan-table">
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
@@ -136,6 +138,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
                 ))}
               </tbody>
             </table>
+            </EditLock>
           </CardContent>
         </Card>
 

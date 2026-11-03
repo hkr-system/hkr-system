@@ -3,6 +3,7 @@
 // and never sees the base; bd sees approved lists + floors of her accounts; order prices come from the list.
 // Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset` (it changes data).
 const { chromium } = require('playwright');
+const { autoUnlock } = require('./unlock.cjs');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const os = require('os');
@@ -17,6 +18,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
 
 async function login(browser, name, width = 1400) {
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, acceptDownloads: true });
+  await autoUnlock(ctx);
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
   await page.goto(BASE + '/login');

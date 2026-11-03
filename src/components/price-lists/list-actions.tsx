@@ -6,6 +6,7 @@ import { approveList, deleteDraft, prepareList, removeRow, setPercentages, type 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EditLock } from "@/components/edit-lock";
 
 function useRun() {
   const [pending, start] = useTransition();
@@ -56,13 +57,13 @@ export function RemoveRowButton({ rowId, listId }: { rowId: string; listId: stri
 export function PercentForm({ listId, rma, extra }: { listId: string; rma: number; extra: number }) {
   const [state, action, pending] = useActionState(setPercentages, {});
   return (
-    <form action={action} className="flex flex-wrap items-end gap-3" data-testid="percent-form">
+    <EditLock><form action={action} className="flex flex-wrap items-end gap-3" data-testid="percent-form">
       <input type="hidden" name="id" value={listId} />
       <div className="grid gap-1"><Label htmlFor="rma_c">RMA_c %</Label><Input id="rma_c" name="rma_c" defaultValue={rma} inputMode="decimal" className="w-24" /></div>
       <div className="grid gap-1"><Label htmlFor="extra_c">Extra_c %</Label><Input id="extra_c" name="extra_c" defaultValue={extra} inputMode="decimal" className="w-24" /></div>
       <div className="grid gap-1"><Label htmlFor="note">Why (optional)</Label><Input id="note" name="note" className="w-56" placeholder="e.g. agreed with David" /></div>
       <Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "…" : "Recalculate prices"}</Button>
       <Msg s={state} />
-    </form>
+    </form></EditLock>
   );
 }

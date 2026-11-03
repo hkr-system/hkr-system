@@ -105,7 +105,10 @@ function InvoiceSheet({ sheet, stamp }: { sheet: Sheet; stamp: string | null }) 
         const own = x1 - x0 - 2 * PAD;
         const nextBusy = regs.some((o) => o.r0 === g.r0 && o.c0 === g.c1 + 1 && shown(sheet.cells.get(o.addr) ?? {}) !== "");
         let size = sizeOf(c) * k;
-        if (!c.wrap && nextBusy) size = Math.min(size, own / Math.max(1, text.length * em(c)));
+        const boxH = Y(g.r1 + 1) - Y(g.r0);
+        const oneLine = boxH < size * 1.15 * 2;   // the box has room for one line only
+        if ((!c.wrap && nextBusy) || ((c.wrap || align === "left") && oneLine && text.length * em(c) * size > (nextBusy || c.wrap ? own : X(COLS.length) - x0 - 2 * PAD)))
+          size = Math.min(size, (nextBusy || c.wrap ? own : X(COLS.length) - x0 - 2 * PAD) / Math.max(1, text.length * em(c)));
         const width = c.wrap || align !== "left" || nextBusy ? own : X(COLS.length) - x0 - 2 * PAD;
         return (
           <View key={`t${g.addr}`} style={{ position: "absolute", left: x0 + PAD, top: Y(g.r0), width, height: Y(g.r1 + 1) - Y(g.r0), justifyContent: "center" }}>

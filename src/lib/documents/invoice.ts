@@ -80,7 +80,10 @@ export function layoutInput(doc: InvoiceDoc): LayoutInput {
   const t = doc.texts; const iss = doc.issuer;
   const addr = [...(iss.address ?? [])];
   const exporter = [iss.company ?? "", ...addr];
-  if (iss.phone) { if (exporter.length >= 4) exporter[exporter.length - 1] += ` ${iss.phone}`; else exporter.push(iss.phone); }
+  // the phone goes after the last address line, unless the address already carries it (same digits)
+  const digits = (x: string) => x.replace(/\D/g, "");
+  const hasPhone = iss.phone ? addr.some((l) => digits(l).includes(digits(iss.phone!))) : true;
+  if (iss.phone && !hasPhone) { if (exporter.length >= 4) exporter[exporter.length - 1] += ` ${iss.phone}`; else exporter.push(iss.phone); }
   return {
     title: invoiceTitle(doc.status), number: doc.number, exportReference: t.export_reference,
     exporter, consignee: doc.consignee, shipTo: doc.shipTo, date: doc.date, notify: doc.notify, shipment: doc.shipment,

@@ -102,7 +102,9 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     if (delErr) return { error: friendly(delErr) };
   } else {
     if (!accountId) return { error: "Choose the account." };
-    const { data, error } = await db.from("orders").insert({ ...fields, account_id: accountId }).select("id").single();
+    // a new order starts with the client's usual intermediary; it can be changed on the order (Nov 3 2026)
+    const { data: acc } = await db.from("accounts").select("intermediary_id").eq("id", accountId).maybeSingle();
+    const { data, error } = await db.from("orders").insert({ ...fields, account_id: accountId, intermediary_id: acc?.intermediary_id ?? null }).select("id").single();
     if (error) return { error: friendly(error) };
     orderId = data.id;
   }
@@ -136,10 +138,21 @@ export async function saveIntermediaryInvoice(_p: ActionState, fd: FormData): Pr
   const orderId = str(fd, "order_id");
   const eur = str(fd, "partner_invoice_eur").replace(/,/g, "");
   if (eur && !(Number(eur) >= 0)) return { error: "Write the EUR amount as a number." };
+  // intermediary of THIS order: any company (Global Connect, Galimix, DWT…); "" = direct, "new" = add a company (admin)
+  let intermediary = str(fd, "intermediary_id");
+  if (intermediary === "new") {
+    const name = str(fd, "new_intermediary").trim();
+    if (!name) return { error: "Write the name of the new intermediary." };
+    const { data: im, error: imErr } = await db.from("intermediaries").insert({ name }).select("id").single();
+    if (imErr) return { error: imErr.code === "23505" ? "That intermediary already exists: choose it in the list." : imErr.code === "42501" ? "Only an admin adds a new intermediary (Settings → Intermediaries)." : friendly(imErr) };
+    intermediary = im.id;
+  }
+  const direct = !intermediary;
   const { data, error } = await db.from("orders").update({
-    partner_invoice_no: opt(fd, "partner_invoice_no"),
-    partner_invoice_eur: eur ? Number(eur) : null,
-    deposit_with_intermediary: fd.get("deposit_with_intermediary") === "on",
+    intermediary_id: direct ? null : intermediary,
+    partner_invoice_no: direct ? null : opt(fd, "partner_invoice_no"),
+    partner_invoice_eur: direct ? null : eur ? Number(eur) : null,
+    deposit_with_intermediary: !direct && fd.get("deposit_with_intermediary") === "on",
   }).eq("id", orderId).select("account_id").maybeSingle();
   if (error) return { error: friendly(error) };
   if (!data) return { error: "You do not have access to this order." };

@@ -60,8 +60,8 @@ select o.id, (select id from public.skus where model = 'iPhone 15' limit 1), 100
 select is((select usdt_fee_usd || '/' || total_usd from public.orders o join public.accounts a on a.id = o.account_id
             where a.code = 'TSU-MX-002'), '170.00/20170.00', 'USDT adds a 0.85 % fee line');
 
-update public.accounts set invoice_format = invoice_format || '{"battery_line_separate": false}' where code = 'TST-NL-001';
-update public.orders set freight_usd = 0 where number = 'ORD-01'
+-- Nov 3 2026: the format lives on the ORDER (copied from the account's default when the order is created)
+update public.orders set invoice_format = invoice_format || '{"battery_line_separate": false}' where number = 'ORD-01'
    and account_id = (select id from public.accounts where code = 'TST-NL-001');
 select is((select battery_line_usd from public.orders o join public.accounts a on a.id = o.account_id
             where a.code = 'TST-NL-001' and o.number = 'ORD-01'), 0.00::numeric, 'absorbed battery format: no separate line');

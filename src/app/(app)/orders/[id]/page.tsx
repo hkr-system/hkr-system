@@ -20,6 +20,7 @@ import { NoteForm, PaymentsPanel, ShippingPanel, StatusControls } from "@/compon
 import { FileUpload } from "@/components/orders/file-upload";
 import { InvoicePanel, type InvoiceRow } from "@/components/orders/invoice-panel";
 import { IntermediaryPanel } from "@/components/orders/intermediary-panel";
+import { CreditNotesPanel } from "@/components/orders/credit-notes-panel";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   if (!o) notFound();
   const acc = o.accounts as unknown as { id: string; code: string; name: string; country: string | null; invoice_format: { battery_line_separate?: boolean } | null; intermediaries: { name: string } | null };
 
-  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }] = await Promise.all([
+  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }] = await Promise.all([
     db.from("order_overview").select("*").eq("id", id).single(),
     db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, price_source, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
@@ -49,7 +50,16 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
     isAdmin ? db.from("orders_finance").select("base_cost_usd, margin_pct").eq("order_id", id).maybeSingle() : Promise.resolve({ data: null }),
     db.from("invoices").select("id, number, status, version, invoice_date, consignee, ship_to, notify, shipment, lines, total_usd, file_pdf_id, file_xlsx_id").eq("order_id", id).neq("status", "void").maybeSingle(),
     db.from("settings").select("value").eq("key", "invoice_issuers").maybeSingle(),
+    db.from("credit_note_applications").select("id, credit_note_id, amount_usd, credit_notes(number)").eq("order_id", id).order("created_at"),
+    db.from("credit_notes").select("id, number, amount, currency, status, reason, rmas(number), credit_note_applications(amount_usd)")
+      .eq("account_id", acc.id).in("status", ["approved", "issued", "applied"]).order("number"),
   ]);
+  const appliedCn = (cnApplied ?? []).map((a) => ({ id: a.id, credit_note_id: a.credit_note_id, number: (a.credit_notes as unknown as { number: string }).number, amount: Number(a.amount_usd) }));
+  const availableCn = (cnAll ?? []).filter((c) => c.currency === "USD").map((c) => {
+    const used = ((c.credit_note_applications ?? []) as { amount_usd: number }[]).reduce((t, x) => t + Number(x.amount_usd), 0);
+    return { id: c.id, number: c.number, amount: Number(c.amount), left: Math.round((Number(c.amount) - used) * 100) / 100, reason: c.reason,
+      rma: (c.rmas as unknown as { number: string } | null)?.number ?? null };
+  }).filter((c) => c.left > 0 && !appliedCn.some((a) => a.credit_note_id === c.id));
   const billingEntity = (o as unknown as { accounts: { billing_entity?: string } }).accounts.billing_entity ?? "ever_state";
   const issuerReady = Boolean(((issuers?.value ?? {}) as Record<string, { company?: string }>)[billingEntity]?.company);
   if (!ov) notFound();
@@ -142,7 +152,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 {Number(o.battery_line_usd) ? <div className="flex justify-between"><span>New battery cell line</span><span>{money(o.battery_line_usd)}</span></div> : null}
                 {Number(o.freight_usd) ? <div className="flex justify-between"><span>Freight</span><span>{money(o.freight_usd)}</span></div> : null}
                 {Number(o.customs_usd) ? <div className="flex justify-between"><span>Customs</span><span>{money(o.customs_usd)}</span></div> : null}
-                {Number(o.rma_discount_usd) ? <div className="flex justify-between"><span>RMA discount</span><span>−{money(o.rma_discount_usd)}</span></div> : null}
+                {Number(o.rma_discount_usd) ? <div className="flex justify-between"><span>{appliedCn.length ? `Credit notes (${appliedCn.map((a) => a.number).join(", ")})` : "RMA discount"}</span><span>−{money(o.rma_discount_usd)}</span></div> : null}
                 {Number(o.usdt_fee_usd) ? <div className="flex justify-between"><span>USDT fee</span><span>{money(o.usdt_fee_usd)}</span></div> : null}
                 <div className="flex justify-between border-t pt-1 font-semibold"><span>Invoice total</span><span>{money(o.total_usd)}</span></div>
                 {ov.deposit_with_intermediary ? (
@@ -165,6 +175,17 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
             </CardHeader>
             <CardContent>
               <InvoicePanel orderId={id} invoice={(invoice ?? null) as InvoiceRow | null} orderTotal={Number(o.total_usd)} role={user.role ?? ""} issuerReady={issuerReady} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Credit notes</CardTitle>
+              <CardDescription>The discount on this invoice comes from approved credit notes of the client (with or without RMA / IMEIs). One credit note can be split across several invoices.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreditNotesPanel orderId={id} accountId={acc.id} applied={appliedCn} available={availableCn} isAdmin={isAdmin}
+                canEdit={user.role === "admin" || user.role === "account_specialist"} frozen={Boolean(invoice && ["approved", "sent"].includes(invoice.status))} />
             </CardContent>
           </Card>
 

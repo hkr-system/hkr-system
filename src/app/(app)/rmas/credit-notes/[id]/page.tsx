@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { money } from "@/lib/orders/constants";
 import { notFound } from "next/navigation";
 import { checkSection } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -24,11 +25,13 @@ export default async function CreditNotePage({ params }: PageProps<"/rmas/credit
   const db = await createClient();
   const { data: c } = await db.from("credit_notes").select("*, credit_note_lines(description, qty, unit_price, sort_order), rmas(id, number)").eq("id", id).maybeSingle();
   if (!c) notFound();
-  const [{ data: accounts }, { data: orders }, team] = await Promise.all([
+  const [{ data: accounts }, { data: orders }, team, { data: apps }] = await Promise.all([
     db.from("accounts").select("id, code, name, legal_name").eq("id", c.account_id),
     db.from("orders").select("id, account_id, number, hk_invoice_no, total_usd").eq("account_id", c.account_id).neq("status", "quoted").order("order_date", { ascending: false }),
     loadTeam(db),
+    db.from("credit_note_applications").select("id, amount_usd, created_at, orders(id, number, hk_invoice_no)").eq("credit_note_id", id).order("created_at"),
   ]);
+  const used = (apps ?? []).reduce((t, a) => t + Number(a.amount_usd), 0);
   const names = new Map(team.map((t) => [t.user_id, t.full_name.replace(/\s*\(demo\)/, "")]));
   const acc = (accounts ?? [])[0];
   const rma = c.rmas as unknown as { id: string; number: string } | null;
@@ -63,13 +66,28 @@ export default async function CreditNotePage({ params }: PageProps<"/rmas/credit
           <p className="text-sm font-medium">
             {c.status === "draft" ? "Check the lines against what the Sales Director agreed; the SD approves before anything goes to the client."
               : c.status === "approved" ? "Issue it: the PDF and xlsx are saved in the account files and the client sees it in the portal. Send the PDF in the client group."
-              : c.status === "issued" ? "When the next invoice carries the line “Credit note … applied”, mark it Applied with that invoice number."
+              : c.status === "issued" ? "Apply it on the client's next order (order page → Credit notes). It becomes Applied when its whole amount is used."
               : c.status === "applied" ? "Nothing to do." : "Cancelled."}
           </p>
           <CnStatusControls id={id} status={c.status} isAdmin={isAdmin} hasFiles={Boolean(c.pdf_file_id)} />
           {c.pdf_file_id ? (
             <p className="text-xs">Saved files: <a className="underline" href={`/api/files/${c.pdf_file_id}`} target="_blank" rel="noreferrer">PDF</a>{c.xlsx_file_id ? <> · <a className="underline" href={`/api/files/${c.xlsx_file_id}`}>xlsx</a></> : null}</p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="mb-4" data-testid="cn-applications">
+        <CardHeader><CardTitle>Applied on invoices · {money(used)} of {money(c.amount)} · {money(Math.max(0, Number(c.amount) - used))} left</CardTitle></CardHeader>
+        <CardContent className="grid gap-1.5 text-sm">
+          {(apps ?? []).length ? (apps ?? []).map((a) => {
+            const o = a.orders as unknown as { id: string; number: string; hk_invoice_no: string | null };
+            return (
+              <div key={a.id} className="flex flex-wrap justify-between gap-2">
+                <Link href={`/orders/${o.id}`} className="hover:underline">{o.number}{o.hk_invoice_no ? ` · invoice ${o.hk_invoice_no}` : ""}</Link>
+                <span className="tabular-nums">−{money(a.amount_usd)}</span>
+              </div>
+            );
+          }) : <p className="text-muted-foreground">Not applied yet. On the client&apos;s order page → Credit notes → Apply (it can be split across several invoices).</p>}
         </CardContent>
       </Card>
 

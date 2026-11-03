@@ -149,3 +149,42 @@ export async function deleteInvoiceDraft(id: string): Promise<InvoiceState> {
   refresh(data[0].order_id);
   return { ok: true, message: "Draft deleted." };
 }
+
+// ---------------------------------------------------------------------------
+// Credit notes on the order (Gabriel, Nov 3 2026): the "RMA discount" = the credit notes applied to this order.
+// A credit note can be split across several orders. The draft invoice is rebuilt right away; an approved invoice is
+// frozen (the database refuses) until an admin reopens it.
+// ---------------------------------------------------------------------------
+async function refreshDraftOf(db: Awaited<ReturnType<typeof createClient>>, orderId: string) {
+  const { data: inv } = await db.from("invoices").select("id, status").eq("order_id", orderId).eq("status", "draft").maybeSingle();
+  if (inv) await refreshInvoiceFromOrder(inv.id);
+}
+
+export async function applyCreditNote(orderId: string, creditNoteId: string, amount: number): Promise<InvoiceState> {
+  await requireRole(PREPARERS);
+  if (!(amount > 0)) return { error: "Write the amount to apply." };
+  const db = await createClient();
+  const { data: o } = await db.from("orders").select("account_id").eq("id", orderId).maybeSingle();
+  if (!o) return { error: "Order not found." };
+  const { error } = await db.from("credit_note_applications").insert({
+    order_id: orderId, credit_note_id: creditNoteId, account_id: o.account_id, amount_usd: Math.round(amount * 100) / 100,
+  });
+  if (error) return { error: error.code === "23505" ? "This credit note is already on this order: remove it and apply it again with the new amount." : friendly(error) };
+  await refreshDraftOf(db, orderId);
+  refresh(orderId, o.account_id);
+  revalidatePath(`/rmas/credit-notes/${creditNoteId}`);
+  return { ok: true, message: "Credit note applied." };
+}
+
+export async function removeCreditNote(applicationId: string): Promise<InvoiceState> {
+  await requireRole(PREPARERS);
+  const db = await createClient();
+  const { data: a } = await db.from("credit_note_applications").select("order_id, account_id, credit_note_id").eq("id", applicationId).maybeSingle();
+  if (!a) return { error: "Not found." };
+  const { error } = await db.from("credit_note_applications").delete().eq("id", applicationId);
+  if (error) return { error: friendly(error) };
+  await refreshDraftOf(db, a.order_id);
+  refresh(a.order_id, a.account_id);
+  revalidatePath(`/rmas/credit-notes/${a.credit_note_id}`);
+  return { ok: true, message: "Credit note removed from this order." };
+}

@@ -20,10 +20,11 @@ export type InvoiceDraftData = {
 
 // Everything the invoice needs, read from the order, its account and its first contact (SOP P1 data).
 export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<InvoiceDraftData | null> {
-  const [{ data: o }, { data: lines }, { data: fee }] = await Promise.all([
+  const [{ data: o }, { data: lines }, { data: fee }, { data: credits }] = await Promise.all([
     db.from("orders").select("*, accounts(id, name, legal_name, country, billing_address, company_ids, vat_eori, invoice_format, billing_entity)").eq("id", orderId).maybeSingle(),
     db.from("order_lines").select("qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, skus(model, storage_gb, color, grade, battery_eligible)").eq("order_id", orderId).order("sort_order"),
     db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
+    db.from("credit_note_applications").select("amount_usd, created_at, credit_notes(number)").eq("order_id", orderId).order("created_at"),
   ]);
   if (!o) return null;
   const acc = o.accounts as unknown as {
@@ -52,6 +53,7 @@ export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<In
     ceLabel: shipIso === "GB" ? "UKCA" : "CE Marked",
     plain: Boolean(fmt.plain_lines),
     freight: Number(o.freight_usd), customs: Number(o.customs_usd), rmaDiscount: Number(o.rma_discount_usd),
+    credits: (credits ?? []).map((c) => ({ number: (c.credit_notes as unknown as { number: string }).number, amount: Number(c.amount_usd) })),
     paymentMethod: o.payment_method, usdtFeePct: Number(fee?.value ?? 0.85), shipCountry,
   }, (model, color) => colorsFor(model).find((c) => c.name === color)?.plain ?? null);
   const address = splitLines(acc.billing_address);

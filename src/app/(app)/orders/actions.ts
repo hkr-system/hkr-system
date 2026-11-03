@@ -80,7 +80,6 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     delivery_setup: (str(fd, "delivery_setup") || "client_label") as DeliverySetup,
     freight_usd: num(fd, "freight_usd"),
     customs_usd: num(fd, "customs_usd"),
-    rma_discount_usd: num(fd, "rma_discount_usd"),
     eta_date: opt(fd, "eta_date"),
     notes: opt(fd, "notes"),
     ship_to: {

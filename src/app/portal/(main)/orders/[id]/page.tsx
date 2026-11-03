@@ -55,7 +55,7 @@ export default async function PortalOrder({ params }: PageProps<"/portal/orders/
                 {Number(o.battery_line_usd) ? <Row k="New battery cell" v={portalMoney(o.battery_line_usd)} /> : null}
                 {Number(o.freight_usd) ? <Row k="Freight" v={portalMoney(o.freight_usd)} /> : null}
                 {Number(o.customs_usd) ? <Row k="Customs" v={portalMoney(o.customs_usd)} /> : null}
-                {Number(o.rma_discount_usd) ? <Row k="RMA" v={`−${portalMoney(o.rma_discount_usd)}`} /> : null}
+                {Number(o.rma_discount_usd) ? <Row k={lang === "es" ? "Notas de crédito" : "Credit notes"} v={`−${portalMoney(o.rma_discount_usd)}`} /> : null}
                 {Number(o.usdt_fee_usd) ? <Row k="USDT fee" v={portalMoney(o.usdt_fee_usd)} /> : null}
                 <div className="flex justify-between border-t pt-1 font-semibold"><span>{t.invoiceTotal}</span><span>{portalMoney(o.total_usd)}</span></div>
               </div>

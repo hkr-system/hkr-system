@@ -161,6 +161,68 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"credit_note_applications": {
+                  Row: {
+                    "account_id": string,"amount_usd": number,"created_at": string,"created_by": string | null,"credit_note_id": string,"id": string,"order_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"amount_usd": number,"created_at"?: string,"created_by"?: string | null,"credit_note_id": string,"id"?: string,"order_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"amount_usd"?: number,"created_at"?: string,"created_by"?: string | null,"credit_note_id"?: string,"id"?: string,"order_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_note_applications_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_credit_note_id_fkey"
+      columns: ["credit_note_id"]
+isOneToOne: false
+      referencedRelation: "credit_notes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_credit_note_id_fkey"
+      columns: ["credit_note_id"]
+isOneToOne: false
+      referencedRelation: "portal_credit_notes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_note_applications_order_id_fkey"
+      columns: ["order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"credit_note_lines": {
                   Row: {
                     "account_id": string,"created_at": string,"created_by": string | null,"credit_note_id": string,"description": string,"id": string,"qty": number,"sort_order": number,"unit_price": number,"updated_at": string

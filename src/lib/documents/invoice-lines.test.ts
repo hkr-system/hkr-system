@@ -52,6 +52,10 @@ describe("buildInvoiceLines — other cases", () => {
     const r = buildInvoiceLines({ lines: [line({ model: "iPhone 13", storageGb: 128, qty: 3, unitPrice: 300 })], batteryLineSeparate: true, ceText: null, freight: 100, customs: 0, rmaDiscount: 25, paymentMethod: "wire", usdtFeePct: 0.85, shipCountry: "Italy" });
     expect(r.lines.find((l) => l.kind === "shipping")).toEqual({ kind: "shipping", description: "Shipping HK to Italy", qty: null, unit_price: null, total: 100 });
     expect(r.lines.find((l) => l.kind === "rma")?.total).toBe(-25);
+    const cn = buildInvoiceLines({ lines: [line({ model: "iPhone 13", storageGb: 128, qty: 3, unitPrice: 300 })], batteryLineSeparate: true, ceText: null, freight: 0, customs: 0,
+      rmaDiscount: 75, credits: [{ number: "AMS-NL-901-CN-01", amount: 25 }, { number: "AMS-NL-901-CN-02", amount: 50 }], paymentMethod: "wire", usdtFeePct: 0.85, shipCountry: null });
+    expect(cn.lines.filter((l) => l.kind === "rma").map((l) => [l.description, l.total])).toEqual([["Credit note AMS-NL-901-CN-01", -25], ["Credit note AMS-NL-901-CN-02", -50]]);
+    expect(cn.total).toBe(900 + 30 - 75);
     expect(r.total).toBe(900 + 30 + 100 - 25);
   });
   it("free-text lines keep their text", () => {

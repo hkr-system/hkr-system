@@ -18,6 +18,7 @@ export type BuildInput = {
   batteryLineSeparate: boolean;
   ceText: string | null;           // "CE Marked" / "UKCA" when the account's format shows it
   freight: number; customs: number; rmaDiscount: number;
+  credits?: { number: string; amount: number }[]; // credit notes applied to the order (Nov 3 2026): one line each
   paymentMethod: "wire" | "usdt";
   usdtFeePct: number;
   shipCountry: string | null;      // country name for "Shipping HK to …"
@@ -97,7 +98,9 @@ export function buildInvoiceLines(i: BuildInput, plainOf?: (model: string, color
   }
   if (i.customs > 0) out.push({ kind: "customs", description: "Customs Clearance", ...perUnit(i.customs, pieces), total: r2(i.customs) });
   if (i.freight > 0) out.push({ kind: "shipping", description: i.shipCountry ? `Shipping HK to ${i.shipCountry}` : "Shipping", ...perUnit(i.freight, pieces), total: r2(i.freight) });
-  if (i.rmaDiscount > 0) out.push({ kind: "rma", description: "RMA discount", qty: null, unit_price: null, total: -r2(i.rmaDiscount) });
+  if (i.credits?.length) {
+    for (const c of i.credits) out.push({ kind: "rma", description: `Credit note ${c.number}`, qty: null, unit_price: null, total: -r2(c.amount) });
+  } else if (i.rmaDiscount > 0) out.push({ kind: "rma", description: "RMA discount", qty: null, unit_price: null, total: -r2(i.rmaDiscount) }); // orders before Nov 3
 
   const base = r2(out.reduce((s, l) => s + l.total, 0));
   if (i.paymentMethod === "usdt") {

@@ -50,7 +50,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [lines, setLines] = useState<Line[]>(values.lines?.length ? values.lines : [emptyLine(ceOf(values.account_id ?? ""))]);
   const [freight, setFreight] = useState(String(values.freight_usd ?? 0));
   const [customs, setCustoms] = useState(String(values.customs_usd ?? 0));
-  const [rma, setRma] = useState(String(values.rma_discount_usd ?? 0));
+  const rma = String(values.rma_discount_usd ?? 0); // credit notes applied on the order page (Nov 3 2026), never typed
   const shipFor = (id: string) => accounts.find((a) => a.id === id)?.ship_default ?? {};
   const [ship, setShip] = useState<Record<string, string>>(
     values.ship_to && Object.values(values.ship_to).some(Boolean) ? values.ship_to : shipFor(values.account_id ?? (accounts.length === 1 ? accounts[0].id : "")));
@@ -172,7 +172,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             {separate ? <div className="flex justify-between"><span>New battery cell line</span><span>{money(t.battery)}</span></div> : null}
             <div className="flex items-center justify-between gap-2"><span>Freight</span><Input name="freight_usd" value={freight} onChange={(e) => setFreight(e.target.value)} inputMode="decimal" className="h-7 w-28 text-right" /></div>
             <div className="flex items-center justify-between gap-2"><span>Customs</span><Input name="customs_usd" value={customs} onChange={(e) => setCustoms(e.target.value)} inputMode="decimal" className="h-7 w-28 text-right" /></div>
-            <div className="flex items-center justify-between gap-2"><span>RMA discount (−)</span><Input name="rma_discount_usd" value={rma} onChange={(e) => setRma(e.target.value)} inputMode="decimal" className="h-7 w-28 text-right" /></div>
+            {Number(rma) ? <div className="flex items-center justify-between gap-2" title="Applied on the order page from approved credit notes"><span>Credit notes (−)</span><span className="tabular-nums">{Number(rma).toFixed(2)}</span></div> : null}
             {method === "usdt" ? <div className="flex justify-between"><span>USDT fee {terms.usdtFeePct} %</span><span>{money(t.usdtFee)}</span></div> : null}
             <div className="flex justify-between border-t pt-2 font-semibold"><span>Invoice total</span><span data-testid="total">{money(t.total)}</span></div>
             <div className="flex justify-between text-muted-foreground"><span>Deposit {terms.depositPct} %</span><span data-testid="deposit">{money(t.deposit)}</span></div>

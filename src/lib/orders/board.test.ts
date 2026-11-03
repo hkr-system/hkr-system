@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOrderBoard, type BoardOrder } from "./board";
+import { buildOrderBoard, lastMonths, monthLabel, type BoardOrder } from "./board";
 
 const today = "2026-11-03";
 const o = (p: Partial<BoardOrder>): BoardOrder => ({
@@ -15,8 +15,9 @@ describe("orders board", () => {
     o({ id: "c", status: "in_preparation", eta_date: "2026-11-01" }),                   // ETA passed
     o({ id: "d", status: "ready_to_ship", since: "2026-10-30" }),                       // balance due, ready 4 days
     o({ id: "e", status: "balance_paid", imei_count: 50, label_ok: true }),             // clear to ship
-    o({ id: "f", status: "closed", since: "2026-08-01" }),                              // older than 30 days → hidden
-    o({ id: "g", status: "delivered", since: "2026-10-20", total_usd: 500 }),
+    o({ id: "f", status: "closed", since: "2026-08-01" }),                              // closed in August → not in November
+    o({ id: "h", status: "closed", since: "2026-11-01" }),                              // closed this month
+    o({ id: "g", status: "delivered", since: "2026-08-20", total_usd: 500 }),           // open until closed
   ], today);
 
   it("nine stages left to right with count and value", () => {
@@ -32,10 +33,13 @@ describe("orders board", () => {
     expect(cols[4].cards[0].notes[0].text).toBe("Balance due · ready 4 days");
     expect(cols[5].cards[0].notes[0]).toEqual({ tone: "ok", text: "Clear to ship — add the AWB" });
   });
-  it("history columns show the last 30 days", () => {
-    expect(cols[8].cards).toHaveLength(0);
+  it("closed orders by the month they closed; open orders always", () => {
+    expect(cols[8].cards.map((c) => c.id)).toEqual(["h"]);
     expect(cols[7].cards.map((c) => c.id)).toEqual(["g"]);
+    const aug = buildOrderBoard([o({ id: "f", status: "closed", since: "2026-08-01" })], today, "2026-08");
+    expect(aug[8].cards.map((c) => c.id)).toEqual(["f"]);
   });
+  it("month list", () => { expect(lastMonths("2026-11-03", 3)).toEqual(["2026-11", "2026-10", "2026-09"]); expect(monthLabel("2026-11")).toBe("November 2026"); });
   it("no deposit expected when the intermediary keeps it", () => {
     const [, inv] = buildOrderBoard([o({ deposit_payable: 0 })], today);
     expect(inv.cards[0].notes).toEqual([{ tone: "muted", text: "Deposit kept by the intermediary" }]);

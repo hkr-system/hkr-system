@@ -20,6 +20,12 @@ async function open(browser, name, viewport) {
   check((await admin.locator('[data-testid=col-invoiced]').innerText()).includes('need action'), 'invoiced column flags orders needing action');
   check((await admin.locator('[data-testid=col-ready_to_ship] [data-testid=order-card]').first().innerText()).includes('Balance due'), 'ready to ship card says balance due');
   const all = await admin.locator('[data-testid=order-card]').count();
+  await admin.click('[data-testid=filter-invoiced]'); await admin.waitForURL(/status=invoiced/); await admin.waitForTimeout(800);
+  check((await admin.$$('[data-testid^=col-]:not([data-testid$=-count])')).length === 1, 'clicking a stage shows only that stage');
+  await admin.goto(BASE + '/sales/board?month=2020-01'); await admin.waitForSelector('[data-testid=order-board]'); await admin.waitForTimeout(600);
+  check((await admin.locator('[data-testid=col-closed] [data-testid=order-card]').count()) === 0 && (await admin.locator('[data-testid=col-invoiced] [data-testid=order-card]').count()) > 0,
+    'another month: closed orders of that month only, open orders still shown');
+  await admin.goto(BASE + '/sales/board'); await admin.waitForSelector('[data-testid=order-board]'); await admin.waitForTimeout(600);
   await admin.locator('[data-testid=order-card]').first().click();
   await admin.waitForURL(/\/orders\/[0-9a-f-]{36}$/);
   check(true, 'a card opens its order');

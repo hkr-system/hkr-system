@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { checkSection } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/format";
-import { buildOrderBoard, RECENT_DAYS, type BoardOrder } from "@/lib/orders/board";
-import type { OrderStatus } from "@/lib/orders/constants";
+import { buildOrderBoard, lastMonths, monthLabel, type BoardOrder } from "@/lib/orders/board";
+import { ORDER_STATUSES, type OrderStatus } from "@/lib/orders/constants";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { SectionTabs } from "@/components/sales/tabs";
@@ -13,10 +13,14 @@ import { OrderBoard } from "@/components/orders/order-board";
 export const metadata: Metadata = { title: "Orders board" };
 
 // Every order left to right by status, with what each one still needs (Gabriel, Nov 3 2026). RLS: bd sees her accounts.
-export default async function OrdersBoardPage() {
+export default async function OrdersBoardPage({ searchParams }: PageProps<"/sales/board">) {
   const access = await checkSection("orders");
   if (!access.allowed) return <NoAccess />;
   const today = todayIn(access.user.timezone);
+  const sp = await searchParams;
+  const months = lastMonths(today, 24);
+  const month = typeof sp.month === "string" && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : months[0];
+  const status = typeof sp.status === "string" && ORDER_STATUSES.includes(sp.status as OrderStatus) ? sp.status : null;
   const db = await createClient();
   const [{ data: ov }, { data: orders }, { data: events }] = await Promise.all([
     db.from("order_overview").select("id, number, account_code, status, total_usd, pieces, order_date, eta_date, payment_awaiting, deposit_payable, deposit_confirmed, balance_ok, imei_count, label_ok").limit(3000),
@@ -32,12 +36,13 @@ export default async function OrdersBoardPage() {
     deposit_payable: Number(o.deposit_payable), deposit_confirmed: Number(o.deposit_confirmed), balance_ok: Boolean(o.balance_ok),
     imei_count: o.imei_count ?? 0, label_ok: Boolean(o.label_ok), tracking: awb.get(o.id!) ?? null,
   }));
-  const columns = buildOrderBoard(rows, today);
+  const columns = buildOrderBoard(rows, today, month);
   return (
     <>
-      <PageHeader title="Orders board" description={`Each order by status, longest waiting on top, with what it still needs. Delivered and Closed: last ${RECENT_DAYS} days. Click a card to open the order.`} />
+      <PageHeader title="Orders board" description="Each order by status, longest waiting on top, with what it still needs. Click a stage to see only that one; closed orders by month. Click a card to open the order." />
       <SectionTabs tabs={SALES_TABS} />
-      <OrderBoard columns={columns} />
+      <OrderBoard columns={columns} status={status} month={month} monthLabel={monthLabel(month)}
+        months={(months.includes(month) ? months : [month, ...months]).map((m) => ({ value: m, label: monthLabel(m) }))} />
     </>
   );
 }

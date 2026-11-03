@@ -1,6 +1,7 @@
 // Orders board (Gabriel, Nov 3 2026): every order left to right by status — the same idea as the RMA batch board.
 // Each column: count and US$ value; each card: client + ORD-NN, units, value, days in the stage and what is missing.
-// Delivered and Closed show the last 30 days only. Pure: the page passes the rows and "today"; unit-tested.
+// Open orders (every status before Closed) stay on the board until they are closed; CLOSED orders are shown per month
+// (the month they were closed) so the board does not fill up (Gabriel, Nov 3 2026). Pure; unit-tested.
 import { ORDER_STATUSES, ORDER_STATUS_LABEL, type OrderStatus } from "./constants";
 
 export type BoardOrder = {
@@ -17,7 +18,13 @@ const DAY = 86400_000;
 const days = (from: string | null, today: string) =>
   from ? Math.max(0, Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / DAY)) : null;
 const short = (d: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d.slice(0, 10)}T00:00:00Z`));
-export const RECENT_DAYS = 30;
+/** "2026-11" → "November 2026". */
+export const monthLabel = (ym: string) => new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${ym}-01T00:00:00Z`));
+/** The last n months, newest first ("2026-11", "2026-10", …). */
+export function lastMonths(today: string, n = 12) {
+  const [y, m] = today.split("-").map(Number);
+  return Array.from({ length: n }, (_, i) => { const d = new Date(Date.UTC(y, m - 1 - i, 1)); return d.toISOString().slice(0, 7); });
+}
 
 /** What the order still needs at its step (brief §6, SOP P2–P4). */
 export function orderNotes(o: BoardOrder, today: string): { tone: Tone; text: string }[] {
@@ -50,11 +57,11 @@ export function orderNotes(o: BoardOrder, today: string): { tone: Tone; text: st
   return n;
 }
 
-export function buildOrderBoard(orders: BoardOrder[], today: string, recentDays = RECENT_DAYS): OrderColumn[] {
+export function buildOrderBoard(orders: BoardOrder[], today: string, closedMonth = today.slice(0, 7)): OrderColumn[] {
   return ORDER_STATUSES.map((status, i) => {
     const rows = orders
       .filter((o) => o.status === status)
-      .filter((o) => !["delivered", "closed"].includes(status) || (days(o.since ?? o.order_date, today) ?? 0) <= recentDays)
+      .filter((o) => status !== "closed" || (o.since ?? o.order_date).slice(0, 7) === closedMonth)
       // longest waiting first, so what is stuck is on top
       .sort((a, b) => (a.since ?? a.order_date).localeCompare(b.since ?? b.order_date));
     const cards = rows.map<OrderCard>((o) => {
@@ -64,7 +71,7 @@ export function buildOrderBoard(orders: BoardOrder[], today: string, recentDays 
         days: d, daysText: d === null ? "" : d === 0 ? "today" : `${d} day${d === 1 ? "" : "s"}`, notes: orderNotes(o, today),
       };
     });
-    if (["delivered", "closed"].includes(status)) cards.reverse(); // newest first in the history columns
+    if (status === "closed") cards.reverse(); // newest first
     return {
       status, n: i + 1, label: ORDER_STATUS_LABEL[status], cards,
       value: Math.round(cards.reduce((s, c) => s + c.value, 0) * 100) / 100,

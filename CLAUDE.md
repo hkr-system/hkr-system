@@ -484,7 +484,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   cards jump to the batch below.
 - Orders board (built Nov 3 2026): Sales → "Orders board" (/sales/board) shows every order left to right by its 9 statuses,
   count + US$ + pcs per column, longest waiting on top, days in the stage (last status event) and what is missing
-  (deposit due, proof to confirm, ETA pending/passed, balance due, IMEI/label missing, AWB). Delivered/Closed: last 30 days.
+  (deposit due, proof to confirm, ETA pending/passed, balance due, IMEI/label missing, AWB). Filters (Gabriel, Nov 3):
+  click a stage = only that status (?status=); CLOSED orders per month of closing (?month=YYYY-MM, default this month);
+  every other status stays on the board until the order is closed.
   Pure logic `src/lib/orders/board.ts` (unit-tested); e2e `tests/e2e/order-board.cjs`.
 
 ## Client portal — technical rules (Oct 27 2026)

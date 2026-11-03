@@ -25,12 +25,13 @@ export function GetPriceList({ listId, label = "Get price list" }: { listId: str
       <Button size="sm" variant="outline" onClick={() => show("txt")}><FileText className="size-3.5" /> Text</Button>
       <Button size="sm" variant="outline" onClick={() => show("wa")}><MessageCircle className="size-3.5" /> WhatsApp text</Button>
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{open === "wa" ? "WhatsApp text" : "Plain text"}</DialogTitle>
             <DialogDescription>{open === "wa" ? "Paste it in the client group: *bold* shows as bold in WhatsApp." : "For email or any other channel."}</DialogDescription>
           </DialogHeader>
-          <Textarea value={text} readOnly rows={16} className="font-mono text-xs" data-testid="price-list-text" />
+          {/* fixed height: the list scrolls inside the box instead of growing past the screen */}
+          <Textarea value={text} readOnly className="field-sizing-fixed h-[min(55vh,520px)] resize-none overflow-y-auto font-mono text-xs leading-relaxed" data-testid="price-list-text" />
           <div><Button size="sm" onClick={copy}>{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? "Copied" : "Copy"}</Button></div>
         </DialogContent>
       </Dialog>

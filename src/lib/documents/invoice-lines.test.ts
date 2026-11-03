@@ -64,3 +64,27 @@ describe("buildInvoiceLines — other cases", () => {
     expect(invoiceFileBase("KOP-US-004", "ORD-03", 2)).toBe("KOP-US-004_ORD-03_INV-HK_v2");
   });
 });
+
+describe("buildInvoiceLines — colours and options per line (Nov 2 2026)", () => {
+  const plainOf = (m: string, c: string) => ({ Midnight: "Black", Starlight: "White" } as Record<string, string>)[c] ?? null;
+  const base = { batteryLineSeparate: true, ceText: null, freight: 0, customs: 0, rmaDiscount: 0, paymentMethod: "wire" as const, usdtFeePct: 0.85, shipCountry: null };
+  it("split colours, options, CE per line", () => {
+    const r = buildInvoiceLines({ ...base, ceLabel: "CE Marked", lines: [
+      { qty: 50, unitPrice: 300, batteryNew: false, batteryUnit: 0, batteryEligible: true, model: "iPhone 14", storageGb: 128, batteryOption: "boosted100",
+        ce: true, imeiMatching: true, colorSplit: [{ color: "Midnight", qty: 25 }, { color: "Starlight", qty: 25 }] },
+      { qty: 10, unitPrice: 400, batteryNew: true, batteryUnit: 10, batteryEligible: true, model: "iPhone 15", storageGb: 128, batteryOption: "new", ce: false, colorsMixed: true },
+    ] }, plainOf);
+    expect(r.lines.map((l) => l.description)).toEqual([
+      "iPhone 14 / 128 GB / Battery boosted to 100% / CE Marked / IMEI matching color / A+++ / Colors: Midnight/Black(25), Starlight/White(25)",
+      "iPhone 15 / 128 GB / New Battery cell 0 Cycle / A+++ / Colors: Mixed",
+      "New battery cell",
+    ]);
+    expect(r.total).toBe(50 * 300 + 10 * 400 + 10 * 10);
+  });
+  it("plain lines: 'Used iPhone 12 128GB' and nothing else", () => {
+    const r = buildInvoiceLines({ ...base, plain: true, lines: [
+      { qty: 5, unitPrice: 200, batteryNew: true, batteryUnit: 0, batteryEligible: true, model: "iPhone 12", storageGb: 128, batteryOption: "new", ce: true, colorsMixed: true },
+    ] });
+    expect(r.lines[0].description).toBe("Used iPhone 12 128GB");
+  });
+});

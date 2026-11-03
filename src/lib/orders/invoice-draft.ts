@@ -4,6 +4,7 @@ import type { Database } from "@/types/database";
 import { countryName } from "@/lib/leads/countries";
 import { buildInvoiceLines, type InvoiceLine } from "@/lib/documents/invoice-lines";
 import { splitLines } from "@/lib/documents/invoice";
+import { batteryLineEligible, colorsFor } from "@/lib/orders/colors";
 
 type DB = SupabaseClient<Database>;
 
@@ -21,13 +22,13 @@ export type InvoiceDraftData = {
 export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<InvoiceDraftData | null> {
   const [{ data: o }, { data: lines }, { data: fee }] = await Promise.all([
     db.from("orders").select("*, accounts(id, name, legal_name, country, billing_address, company_ids, vat_eori, invoice_format, billing_entity)").eq("id", orderId).maybeSingle(),
-    db.from("order_lines").select("qty, unit_price_usd, battery_new, battery_unit_usd, description, skus(model, storage_gb, color, grade, battery_eligible)").eq("order_id", orderId).order("sort_order"),
+    db.from("order_lines").select("qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, skus(model, storage_gb, color, grade, battery_eligible)").eq("order_id", orderId).order("sort_order"),
     db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
   ]);
   if (!o) return null;
   const acc = o.accounts as unknown as {
     id: string; name: string; legal_name: string | null; country: string | null; billing_address: string | null; company_ids: string | null;
-    vat_eori: string | null; invoice_format: { battery_line_separate?: boolean; show_ce_text?: boolean } | null; billing_entity: InvoiceDraftData["billing_entity"];
+    vat_eori: string | null; invoice_format: { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean } | null; billing_entity: InvoiceDraftData["billing_entity"];
   };
   const { data: contacts } = await db.from("contacts").select("name, phone_e164, email").eq("account_id", acc.id).order("created_at").limit(1);
   const ship = (o.ship_to ?? {}) as Record<string, string>;
@@ -37,17 +38,22 @@ export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<In
   const built = buildInvoiceLines({
     lines: (lines ?? []).map((l) => {
       const s = l.skus as { model: string; storage_gb: number; color: string; grade: string; battery_eligible: boolean } | null;
+      const model = l.model ?? s?.model ?? null;
+      const split = (l.colors as { color: string; qty: number }[] | null) ?? [];
       return {
         qty: l.qty, unitPrice: Number(l.unit_price_usd), batteryNew: l.battery_new, batteryUnit: Number(l.battery_unit_usd),
-        batteryEligible: s?.battery_eligible ?? true, model: s?.model ?? null, storageGb: s?.storage_gb ?? null,
-        color: s?.color ?? null, grade: s?.grade ?? null, description: l.description,
+        batteryEligible: s?.battery_eligible ?? batteryLineEligible(model), model, storageGb: l.storage_gb ?? s?.storage_gb ?? null,
+        color: split.length || l.colors_mixed ? null : s?.color ?? null, grade: s?.grade ?? null, description: l.description,
+        colorsMixed: l.colors_mixed, colorSplit: split, ce: l.ce_marked, imeiMatching: l.imei_matching_color, batteryOption: l.battery_option,
       };
     }),
     batteryLineSeparate: fmt.battery_line_separate ?? true,
     ceText: fmt.show_ce_text ? (shipIso === "GB" ? "UKCA" : "CE Marked") : null,
+    ceLabel: shipIso === "GB" ? "UKCA" : "CE Marked",
+    plain: Boolean(fmt.plain_lines),
     freight: Number(o.freight_usd), customs: Number(o.customs_usd), rmaDiscount: Number(o.rma_discount_usd),
     paymentMethod: o.payment_method, usdtFeePct: Number(fee?.value ?? 0.85), shipCountry,
-  });
+  }, (model, color) => colorsFor(model).find((c) => c.name === color)?.plain ?? null);
   const address = splitLines(acc.billing_address);
   const c = contacts?.[0];
   return {

@@ -9,6 +9,9 @@ export type InvoiceLine = { kind: InvoiceLineKind; description: string; qty: num
 export type SourceLine = {
   qty: number; unitPrice: number; batteryNew: boolean; batteryUnit: number; batteryEligible: boolean;
   model?: string | null; storageGb?: number | null; color?: string | null; grade?: string | null; description?: string | null;
+  // Nov 2 2026: colours and options per line (undefined on older lines → account-level CE text, SKU colour)
+  colorsMixed?: boolean; colorSplit?: { color: string; qty: number }[];
+  ce?: boolean; imeiMatching?: boolean; batteryOption?: string | null;
 };
 export type BuildInput = {
   lines: SourceLine[];
@@ -18,7 +21,19 @@ export type BuildInput = {
   paymentMethod: "wire" | "usdt";
   usdtFeePct: number;
   shipCountry: string | null;      // country name for "Shipping HK to …"
+  plain?: boolean;                 // account wants "Used iPhone 12 128GB" and nothing else (no battery, CE, colours…)
+  ceLabel?: string;                // "CE Marked" (or "UKCA" for GB) printed on lines with CE Marks ticked
 };
+
+const BATTERY_TEXT: Record<string, string> = {
+  new: "New Battery cell 0 Cycle", boosted100: "Battery boosted to 100%", bh85_boosted: "Battery health 85%+ (boosted)", bh80: "Battery health 80%+",
+};
+const PLAIN_COLOR: Record<string, string> = {};
+/** "Midnight/Black" for the invoice (reference format "Black(10)" kept); the plain colour comes from the official list. */
+export function colorText(model: string | null | undefined, color: string, plainOf?: (m: string, c: string) => string | null) {
+  const plain = plainOf?.(model ?? "", color) ?? PLAIN_COLOR[color];
+  return plain && plain.toLowerCase() !== color.toLowerCase() ? `${color}/${plain}` : color;
+}
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -32,37 +47,46 @@ function perUnit(total: number, pieces: number): { qty: number | null; unit_pric
   return { qty: null, unit_price: null };
 }
 
-export function productDescription(l: SourceLine, ceText: string | null, colors: string | null) {
+export function productDescription(l: SourceLine, ceText: string | null, colors: string | null, plain = false) {
   if (!l.model) return l.description ?? "";
+  if (plain) return `Used ${l.model}${l.storageGb ? ` ${l.storageGb}GB` : ""}`;
   const eligible = l.batteryEligible !== false;
+  const option = l.batteryOption === undefined ? (l.batteryNew ? "new" : null) : l.batteryOption;
   return [
     l.model,
     l.storageGb ? `${l.storageGb} GB` : null,
-    l.batteryNew && eligible ? "New Battery cell 0 Cycle" : null,
+    option && (option !== "new" || eligible) ? BATTERY_TEXT[option] : null,
     ceText,
+    l.imeiMatching ? "IMEI matching color" : null,
     l.grade || "A+++",
     colors,
   ].filter(Boolean).join(" / ");
 }
 
-export function buildInvoiceLines(i: BuildInput): { lines: InvoiceLine[]; total: number; pieces: number } {
+export function buildInvoiceLines(i: BuildInput, plainOf?: (model: string, color: string) => string | null): { lines: InvoiceLine[]; total: number; pieces: number } {
   const pieces = i.lines.reduce((s, l) => s + l.qty, 0);
 
   // products: group by model + storage + grade + battery + unit price (colours listed inside)
-  const groups = new Map<string, { first: SourceLine; qty: number; colors: Map<string, number> }>();
+  const ceOf = (l: SourceLine) => (l.ce === undefined ? i.ceText : l.ce ? (i.ceLabel ?? i.ceText ?? "CE Marked") : null);
+  const groups = new Map<string, { first: SourceLine; qty: number; colors: Map<string, number>; mixed: boolean }>();
   for (const l of i.lines) {
+    const opt = l.batteryOption === undefined ? (l.batteryNew && l.batteryEligible !== false ? "new" : "") : l.batteryOption ?? "";
     const key = l.model
-      ? [l.model, l.storageGb, l.grade ?? "A+++", l.batteryNew && l.batteryEligible !== false, l.unitPrice].join("|")
+      ? [l.model, l.storageGb, l.grade ?? "A+++", opt, ceOf(l) ?? "", l.imeiMatching ? 1 : 0, l.unitPrice].join("|")
       : `free|${l.description}|${l.unitPrice}|${groups.size}`;
-    const g = groups.get(key) ?? { first: l, qty: 0, colors: new Map<string, number>() };
+    const g = groups.get(key) ?? { first: l, qty: 0, colors: new Map<string, number>(), mixed: false };
     g.qty += l.qty;
-    if (l.color) g.colors.set(l.color, (g.colors.get(l.color) ?? 0) + l.qty);
+    if (l.colorSplit?.length) for (const c of l.colorSplit) g.colors.set(c.color, (g.colors.get(c.color) ?? 0) + c.qty);
+    else if (l.color) g.colors.set(l.color, (g.colors.get(l.color) ?? 0) + l.qty);
+    else if (l.colorsMixed) g.mixed = true;
     groups.set(key, g);
   }
   const out: InvoiceLine[] = [];
   for (const g of groups.values()) {
-    const colors = g.colors.size ? `Colors: ${[...g.colors].map(([c, n]) => `${c}(${n})`).join(", ")}` : null;
-    out.push({ kind: "product", description: productDescription(g.first, i.ceText, colors), qty: g.qty, unit_price: g.first.unitPrice, total: r2(g.qty * g.first.unitPrice) });
+    const listed = [...g.colors].map(([c, n]) => `${colorText(g.first.model, c, plainOf)}(${n})`);
+    if (g.mixed) listed.push(g.colors.size ? `Mixed(${g.qty - [...g.colors.values()].reduce((a, b) => a + b, 0)})` : "Mixed");
+    const colors = listed.length ? `Colors: ${listed.join(", ")}` : null;
+    out.push({ kind: "product", description: productDescription(g.first, ceOf(g.first), colors, i.plain), qty: g.qty, unit_price: g.first.unitPrice, total: r2(g.qty * g.first.unitPrice) });
   }
 
   // separate "New battery cell" line (only eligible models, only when the account bills it apart)

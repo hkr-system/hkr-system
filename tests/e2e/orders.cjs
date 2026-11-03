@@ -57,8 +57,16 @@ function tmpFile(name, content) {
     await page.click('text=New order');
     await page.waitForURL('**/orders/new?account=*');
     const line = page.locator('[data-testid=order-line]').first();
-    await line.locator('select[aria-label=SKU]').selectOption({ label: 'iPhone 13 128GB Midnight' });
+    // new account without a price list: models come from the SKUs; colours split must add up (Nov 2 2026)
+    await page.waitForTimeout(1000);
+    await line.locator('select[aria-label=Model]').selectOption({ label: 'iPhone 13 128GB' });
     await line.locator('input[aria-label=Quantity]').fill('150');
+    await line.locator('[data-testid=line-colors] input[type=checkbox]').uncheck();
+    await line.locator('input[aria-label="Quantity Midnight"]').fill('100');
+    await line.locator('input[aria-label="Quantity Starlight"]').fill('51');
+    check((await page.locator('[data-testid=lines-problem]').count()) === 1 && await page.locator('button:has-text("Create order")').isDisabled(), 'colours 100 + 51 ≠ 150 → cannot create');
+    await line.locator('input[aria-label="Quantity Starlight"]').fill('50');
+    check((await page.locator('[data-testid=lines-problem]').count()) === 0, 'colours 100 + 50 = 150 → OK');
     await line.locator('input[aria-label="Unit price"]').fill('140');
     await line.locator('input[aria-label="Battery US$ per unit"]').fill('8');
     check((await page.textContent('[data-testid=total]')).includes('22,200.00'), 'live total = 150 × 140 + battery 150 × 8');

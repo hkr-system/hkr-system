@@ -60,6 +60,7 @@ export async function loadFormAccounts(db: DB) {
     id: a.id, code: a.code, name: a.name, payment_method: a.payment_method, delivery_setup: a.delivery_setup,
     has_intermediary: Boolean(a.intermediary_id), country: a.country, legal_name: a.legal_name,
     battery_line_separate: Boolean((a.invoice_format as { battery_line_separate?: boolean } | null)?.battery_line_separate ?? true),
+    ce_default: Boolean((a.invoice_format as { show_ce_text?: boolean } | null)?.show_ce_text),
     orders: n.get(a.id) ?? 0,
   }));
 }

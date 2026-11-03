@@ -6,7 +6,8 @@ import { loadFormAccounts, loadSkus, loadTerms } from "@/lib/orders/service";
 import { loadApprovedPrices } from "@/lib/price-lists/service";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
-import { OrderForm } from "@/components/orders/order-form";
+import { OrderForm, type Line } from "@/components/orders/order-form";
+import { modelKey } from "@/lib/price-lists/models";
 
 export const metadata: Metadata = { title: "Edit order" };
 
@@ -18,7 +19,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   const isAdmin = access.user.role === "admin";
   const [{ data: o }, { data: lines }, accounts, skus, terms, prices] = await Promise.all([
     db.from("orders").select("*, accounts(code)").eq("id", id).maybeSingle(),
-    db.from("order_lines").select("id, sku_id, description, qty, unit_price_usd, battery_new, battery_unit_usd, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
+    db.from("order_lines").select("id, sku_id, skus(color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
     loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db),
   ]);
   if (!o) notFound();
@@ -35,11 +36,19 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
       <OrderForm accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,
-          lines: (lines ?? []).map((l) => ({
-            sku_id: l.sku_id ?? "", description: l.description ?? "", qty: String(l.qty), unit_price: String(l.unit_price_usd),
-            battery_new: l.battery_new, battery_unit: String(l.battery_unit_usd ?? ""), base_price: base.get(l.id) != null ? String(base.get(l.id)) : "",
-            list_row_id: l.price_list_row_id ?? "", list_price: l.list_price_usd === null ? null : Number(l.list_price_usd),
-          })),
+          lines: (lines ?? []).map((l) => {
+            const legacy = (l.skus as { color: string } | null)?.color;   // a line from a one-colour SKU (before Nov 2 2026)
+            const split = (l.colors as { color: string; qty: number }[]).length ? (l.colors as { color: string; qty: number }[]) : legacy && !l.colors_mixed ? [{ color: legacy, qty: l.qty }] : [];
+            return ({
+            key: l.model && l.storage_gb ? modelKey(l.model, l.storage_gb) : "", model: l.model ?? "", storage_gb: l.storage_gb,
+            description: l.description ?? "", qty: String(l.qty), unit_price: String(l.unit_price_usd),
+            mixed: l.colors_mixed || !split.length,
+            colors: Object.fromEntries(split.map((c) => [c.color, String(c.qty)])),
+            ce: l.ce_marked, imei: l.imei_matching_color, battery: (l.battery_option ?? "") as Line["battery"],
+            battery_unit: String(l.battery_unit_usd ?? ""), base_price: base.get(l.id) != null ? String(base.get(l.id)) : "",
+            list_row_id: l.price_list_row_id ?? "", list_price: l.list_price_usd === null ? null : Number(l.list_price_usd), sku_id: l.sku_id ?? undefined,
+          });
+          }),
         }} />
     </>
   );

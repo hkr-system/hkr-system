@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 export type AccountValues = {
   id?: string; code?: string; name?: string; legal_name?: string | null; country?: string | null; market?: string | null;
   vat_eori?: string | null; billing_address?: string | null; company_ids?: string | null; billing_entity?: BillingEntity; intermediary_id?: string | null; payment_method?: PaymentMethod;
-  delivery_setup?: DeliverySetup; invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; show_note?: boolean };
+  delivery_setup?: DeliverySetup; invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; show_note?: boolean; plain_lines?: boolean };
   status?: AccountStatus; language?: string; tier?: string | null; drive_folder_url?: string | null;
   whatsapp_group_note?: string | null; notes?: string | null; owner?: string | null; specialist?: string | null;
 };
@@ -123,7 +123,8 @@ export function AccountForm({ mode, values = {}, intermediaries, team, isAdmin, 
         <Field label="Invoice format">
           <div className="grid gap-1.5 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" name="battery_line_separate" defaultChecked={fmt.battery_line_separate ?? true} className="size-4" /> Separate “New battery cell” line (otherwise absorbed in the price)</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="show_ce_text" defaultChecked={fmt.show_ce_text ?? false} className="size-4" /> Show CE text</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="show_ce_text" defaultChecked={fmt.show_ce_text ?? false} className="size-4" /> CE Marks on new order lines (ticked by default)</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="plain_lines" defaultChecked={fmt.plain_lines ?? false} className="size-4" /> Plain invoice lines: only “Used iPhone 12 128GB” (no battery, CE, IMEI or colours)</label>
             <label className="flex items-center gap-2"><input type="checkbox" name="show_note" defaultChecked={fmt.show_note ?? false} className="size-4" /> Show note</label>
           </div>
         </Field>

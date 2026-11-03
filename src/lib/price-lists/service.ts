@@ -21,20 +21,22 @@ export async function loadRows(db: DB, listId: string) {
   return (data ?? []).map((r) => ({ ...r, price_usd: Number(r.price_usd), floor_usd: r.floor_usd === null ? null : Number(r.floor_usd) })).sort(compareRows);
 }
 
-/** Approved client prices per account → { "<model>|<gb>": row } (order form). */
+/** Approved client prices per account → { "<model>|<gb>": row } (order form: model choices + prices). */
 export async function loadApprovedPrices(db: DB) {
   const { data } = await db.from("price_list_rows")
-    .select("id, account_id, model, storage_gb, price_usd, floor_usd, price_lists!inner(status, version, valid_until)")
+    .select("id, account_id, model, storage_gb, note, price_usd, floor_usd, price_lists!inner(status, version, valid_until)")
     .eq("price_lists.status", "approved").not("account_id", "is", null).limit(5000);
-  const out: Record<string, { version: number; validUntil: string | null; rows: Record<string, { id: string; price: number; floor: number | null }> }> = {};
-  for (const r of data ?? []) {
+  type Row = { id: string; model: string; storage_gb: number; note: string | null; price: number; floor: number | null };
+  const out: Record<string, { version: number; validUntil: string | null; rows: Record<string, Row> }> = {};
+  for (const r of [...(data ?? [])].sort(compareRows)) {
     const l = r.price_lists as unknown as { version: number; valid_until: string | null };
     const acc = (out[r.account_id!] ??= { version: l.version, validUntil: l.valid_until, rows: {} });
-    acc.rows[modelKey(r.model, r.storage_gb)] = { id: r.id, price: Number(r.price_usd), floor: r.floor_usd === null ? null : Number(r.floor_usd) };
+    acc.rows[modelKey(r.model, r.storage_gb)] = {
+      id: r.id, model: r.model, storage_gb: r.storage_gb, note: r.note, price: Number(r.price_usd), floor: r.floor_usd === null ? null : Number(r.floor_usd),
+    };
   }
   return out;
 }
-
 
 /** What the outputs need (price only: never floors or percentages). RLS decides who can load which list. */
 export async function loadListDoc(db: DB, id: string) {

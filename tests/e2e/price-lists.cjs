@@ -131,13 +131,17 @@ const goto = async (page, url, sel) => { await page.goto(BASE + url); await page
     await goto(page, '/orders/new', '[data-testid=order-account]');
     const ams = await page.locator('[data-testid=order-account] option', { hasText: 'AMS-NL-901' }).getAttribute('value');
     await page.selectOption('[data-testid=order-account]', ams);
-    const sku = await page.locator('[data-testid=order-line] select[aria-label=SKU] option', { hasText: 'iPhone 15 128GB' }).first().getAttribute('value');
-    await page.selectOption('[data-testid=order-line] select[aria-label=SKU]', sku);
+    const sku = await page.locator('[data-testid=order-line] select[aria-label=Model] option', { hasText: 'iPhone 15 128GB' }).first().getAttribute('value');
+    await page.selectOption('[data-testid=order-line] select[aria-label=Model]', sku);
     check((await page.inputValue('[data-testid=order-line] input[aria-label="Unit price"]')) === '402.9', 'unit price filled from the list (402.90)');
     check((await page.locator('[data-testid=price-hint]').innerText()).includes('From the price list'), 'line marked "from the price list"');
     await page.fill('[data-testid=order-line] input[aria-label="Unit price"]', '390');
     check((await page.locator('[data-testid=price-hint]').innerText()).includes('below the floor'), 'below the floor → warning');
     await page.fill('[data-testid=order-line] input[aria-label=Quantity]', '60');
+    // Magic invoice creator adds lines read from the client's message
+    await page.fill('[data-testid=magic-reader] textarea', '20 x iPhone 13 128 mixed');
+    await page.click('[data-testid=magic-read]');
+    check((await page.locator('[data-testid=order-line]').count()) === 2, 'magic reader added the iPhone 13 line');
     await page.screenshot({ path: path.join(DIR, 'pl-order-form.png'), fullPage: true });
     await page.click('button:has-text("Create order")');
     await page.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });

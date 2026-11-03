@@ -44,7 +44,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
     db.from("order_cycle").select("order_date, ship_date, paid_on, fully_paid, outstanding, pays_in_eur, processing_days, cash_cycle_days, total_usd").limit(10000),
     user.role === "admin" ? loadAssignments(db) : Promise.resolve(null),
     // units by model of the same orders as the revenue (status ≥ Invoiced, order date in the period)
-    db.from("order_lines").select("qty, unit_price_usd, skus(model, storage_gb, color), orders!inner(order_date, status)")
+    db.from("order_lines").select("qty, unit_price_usd, model, storage_gb, skus(model, storage_gb, color), orders!inner(order_date, status)")
       .gte("orders.order_date", from).lte("orders.order_date", to).neq("orders.status", "quoted").limit(20000),
   ]);
   // Order KPIs (Gabriel, Oct 27 2026): processing = deposit confirmed → shipped; cash cycle = invoice → fully paid
@@ -108,7 +108,8 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
   const models = new Map<string, number>();
   for (const l of lines ?? []) {
     const s = l.skus as { model: string; storage_gb: number; color: string } | null;
-    const k = s ? `${s.model} ${s.storage_gb}GB` : "Other";
+    const m = l.model ?? s?.model; const gb = l.storage_gb ?? s?.storage_gb;
+    const k = m ? `${m} ${gb ?? ""}GB` : "Other";
     models.set(k, (models.get(k) ?? 0) + l.qty);
   }
   const byModel = [...models.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => ({ label: k, value: v }));

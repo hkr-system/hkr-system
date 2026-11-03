@@ -635,14 +635,14 @@ isOneToOne: false
                   ]
                 },"order_lines": {
                   Row: {
-                    "account_id": string,"battery_new": boolean,"battery_unit_usd": number,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"list_price_usd": number | null,"order_id": string,"price_list_row_id": string | null,"price_source": string,"qty": number,"sku_id": string | null,"sort_order": number,"unit_price_usd": number,"updated_at": string
+                    "account_id": string,"battery_new": boolean,"battery_option": string | null,"battery_unit_usd": number,"ce_marked": boolean,"colors": NonNullable<Json>,"colors_mixed": boolean,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"imei_matching_color": boolean,"list_price_usd": number | null,"model": string | null,"order_id": string,"price_list_row_id": string | null,"price_source": string,"qty": number,"sku_id": string | null,"sort_order": number,"storage_gb": number | null,"unit_price_usd": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"list_price_usd"?: number | null,"order_id": string,"price_list_row_id"?: string | null,"price_source"?: string,"qty": number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd": number,"updated_at"?: string
+                    "account_id": string,"battery_new"?: boolean,"battery_option"?: string | null,"battery_unit_usd"?: number,"ce_marked"?: boolean,"colors"?: NonNullable<Json>,"colors_mixed"?: boolean,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"imei_matching_color"?: boolean,"list_price_usd"?: number | null,"model"?: string | null,"order_id": string,"price_list_row_id"?: string | null,"price_source"?: string,"qty": number,"sku_id"?: string | null,"sort_order"?: number,"storage_gb"?: number | null,"unit_price_usd": number,"updated_at"?: string
                   }
                   Update: {
-                    "account_id"?: string,"battery_new"?: boolean,"battery_unit_usd"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"list_price_usd"?: number | null,"order_id"?: string,"price_list_row_id"?: string | null,"price_source"?: string,"qty"?: number,"sku_id"?: string | null,"sort_order"?: number,"unit_price_usd"?: number,"updated_at"?: string
+                    "account_id"?: string,"battery_new"?: boolean,"battery_option"?: string | null,"battery_unit_usd"?: number,"ce_marked"?: boolean,"colors"?: NonNullable<Json>,"colors_mixed"?: boolean,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"imei_matching_color"?: boolean,"list_price_usd"?: number | null,"model"?: string | null,"order_id"?: string,"price_list_row_id"?: string | null,"price_source"?: string,"qty"?: number,"sku_id"?: string | null,"sort_order"?: number,"storage_gb"?: number | null,"unit_price_usd"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {

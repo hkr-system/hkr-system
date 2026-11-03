@@ -44,6 +44,7 @@ function setupFields(fd: FormData) {
       battery_line_separate: fd.get("battery_line_separate") === "on",
       show_ce_text: fd.get("show_ce_text") === "on",
       show_note: fd.get("show_note") === "on",
+      plain_lines: fd.get("plain_lines") === "on",
     },
     language: str(fd, "language") === "es" ? "es" : "en",
     tier: opt(fd, "tier"),

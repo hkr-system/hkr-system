@@ -7,6 +7,9 @@ import { loadTeam } from "@/lib/leads/service";
 import { countryName } from "@/lib/leads/countries";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { skuLabel } from "@/lib/orders/service";
+import { BATTERY_OPTIONS, colorLabel, colorsFor } from "@/lib/orders/colors";
+
+const colorLabelOf = (model: string | null, name: string) => { const c = colorsFor(model).find((x) => x.name === name); return c ? colorLabel(c) : name; };
 import {
   DELIVERY_SETUP_LABEL, FILE_KINDS, ORDER_NEXT_ACTION, ORDER_STATUSES, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, money, type OrderStatus,
 } from "@/lib/orders/constants";
@@ -38,7 +41,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
   const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }] = await Promise.all([
     db.from("order_overview").select("*").eq("id", id).single(),
-    db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, description, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
+    db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, price_source, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
     db.from("order_events").select("id, kind, from_status, to_status, body, file_id, user_id, created_at").eq("order_id", id).order("created_at", { ascending: false }).limit(100),
     db.from("files").select("id, kind, file_name, created_at").eq("owner_table", "orders").eq("owner_id", id).order("created_at", { ascending: false }),
@@ -113,9 +116,16 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 <TableBody>
                   {(lines ?? []).map((l) => {
                     const s = l.skus as { model: string; storage_gb: number; color: string; battery_eligible: boolean } | null;
+                    const split = (l.colors as { color: string; qty: number }[]) ?? [];
+                    const colorTxt = split.length ? split.map((c) => `${colorLabelOf(l.model, c.color)} ${c.qty}`).join(" · ") : l.colors_mixed ? "Mixed colours" : s?.color ?? "";
+                    const opts = [BATTERY_OPTIONS.find((b) => b.value === l.battery_option)?.label, l.ce_marked ? "CE Marks" : null, l.imei_matching_color ? "IMEI matching color" : null, l.price_source === "manual" ? "manual price" : null].filter(Boolean).join(" · ");
                     return (
                       <TableRow key={l.id}>
-                        <TableCell className="pl-4">{skuLabel(s) || l.description}{l.battery_new && (s?.battery_eligible ?? true) ? <span className="block text-xs text-muted-foreground">New Battery cell 0 Cycle</span> : null}</TableCell>
+                        <TableCell className="pl-4">
+                          {l.model ? `${l.model} ${l.storage_gb ? `${l.storage_gb}GB` : ""}` : skuLabel(s) || l.description}
+                          {colorTxt ? <span className="block text-xs text-muted-foreground">{colorTxt}</span> : null}
+                          {opts ? <span className="block text-xs text-muted-foreground">{opts}</span> : null}
+                        </TableCell>
                         <TableCell className="text-right" data-tabular>{l.qty}</TableCell>
                         <TableCell className="text-right" data-tabular>{money(l.unit_price_usd)}</TableCell>
                         <TableCell className="text-right" data-tabular>{money(l.qty * Number(l.unit_price_usd))}</TableCell>

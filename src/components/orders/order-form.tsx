@@ -1,12 +1,13 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { saveOrder, type ActionState } from "@/app/(app)/orders/actions";
 import { orderTotals } from "@/lib/orders/calc";
 import { DELIVERY_SETUP_LABEL, PAYMENT_METHOD_LABEL, money, type DeliverySetup, type PaymentMethod } from "@/lib/orders/constants";
 import { countryOptions } from "@/lib/leads/countries";
 import { modelKey } from "@/lib/price-lists/models";
+import { batteryLineEligible } from "@/lib/orders/colors";
+import { AddLineButton, LineEditor, MagicReader, emptyLine, lineProblem, lineToPayload, withChoice, type Line, type ModelChoice } from "./order-lines";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,14 +18,12 @@ import { Textarea } from "@/components/ui/textarea";
 export type FormAccount = {
   id: string; code: string; name: string; payment_method: PaymentMethod; delivery_setup: DeliverySetup;
   has_intermediary: boolean; battery_line_separate: boolean; country: string | null; legal_name: string | null; orders: number;
+  ce_default?: boolean;   // invoice format "show CE text" → CE Marks ticked on new lines
 };
 type Sku = { id: string; label: string; battery_eligible: boolean; model: string; storage_gb: number };
-type Line = {
-  sku_id: string; description: string; qty: string; unit_price: string; battery_new: boolean; battery_unit: string; base_price: string;
-  list_row_id?: string; list_price?: number | null;   // from the account's approved price list (Phase 6)
-};
 /** Approved list per account: "<model>|<gb>" → row (loadApprovedPrices). */
-export type AccountPrices = Record<string, { version: number; validUntil: string | null; rows: Record<string, { id: string; price: number; floor: number | null }> }>;
+export type AccountPrices = Record<string, { version: number; validUntil: string | null; rows: Record<string, { id: string; model: string; storage_gb: number; note: string | null; price: number; floor: number | null }> }>;
+export type { Line } from "./order-lines";
 
 export type OrderValues = {
   id?: string; account_id?: string; order_date?: string; payment_method?: PaymentMethod; delivery_setup?: DeliverySetup;
@@ -32,23 +31,6 @@ export type OrderValues = {
   freight_usd?: number; customs_usd?: number; rma_discount_usd?: number; eta_date?: string | null; notes?: string | null;
   ship_to?: Record<string, string>; lines?: Line[];
 };
-
-const emptyLine = (): Line => ({ sku_id: "", description: "", qty: "", unit_price: "", battery_new: true, battery_unit: "", base_price: "" });
-
-// Under the unit price: where it comes from, and a warning below the client's floor (SOP 5.5: the SD decides).
-function PriceHint({ line, floor }: { line: Line; floor: number | null }) {
-  if (!line.list_row_id || line.list_price === null || line.list_price === undefined) return null;
-  const unit = Number(line.unit_price);
-  if (line.unit_price !== "" && unit !== line.list_price) {
-    const below = floor !== null && unit < floor;
-    return (
-      <span className={`text-[11px] ${below ? "text-destructive" : "text-amber-700"}`} data-testid="price-hint">
-        Manual · list {money(line.list_price)}{below ? ` · below the floor ${money(floor!)}: the Sales Director decides` : ""}
-      </span>
-    );
-  }
-  return <span className="text-[11px] text-emerald-700" data-testid="price-hint">From the price list</span>;
-}
 
 function F({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
@@ -59,23 +41,34 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
+  const ceOf = (id: string) => accounts.find((a) => a.id === id)?.ce_default ?? false;
   const [accountId, setAccountId] = useState(values.account_id ?? (accounts.length === 1 ? accounts[0].id : ""));
   const account = accounts.find((a) => a.id === accountId);
   const [method, setMethod] = useState<PaymentMethod>(values.payment_method ?? account?.payment_method ?? "wire");
   const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? account?.delivery_setup ?? "client_label");
-  const [lines, setLines] = useState<Line[]>(values.lines?.length ? values.lines : [emptyLine()]);
+  const [lines, setLines] = useState<Line[]>(values.lines?.length ? values.lines : [emptyLine(ceOf(values.account_id ?? ""))]);
   const [freight, setFreight] = useState(String(values.freight_usd ?? 0));
   const [customs, setCustoms] = useState(String(values.customs_usd ?? 0));
   const [rma, setRma] = useState(String(values.rma_discount_usd ?? 0));
   const ship = values.ship_to ?? {};
-  const skuById = useMemo(() => new Map(skus.map((s) => [s.id, s])), [skus]);
   const separate = account?.battery_line_separate ?? true;
-  const cols = isAdmin ? "sm:grid-cols-[2fr_70px_110px_1fr_110px_110px_32px]" : "sm:grid-cols-[2fr_70px_110px_1fr_110px_32px]";
+  // model choices: the client's approved price list; without one, the models of the SKUs
+  const choicesFor = (acc: string): ModelChoice[] => {
+    const rows = prices[acc]?.rows;
+    if (rows && Object.keys(rows).length) {
+      return Object.entries(rows).map(([key, r]) => ({ key, model: r.model, storage_gb: r.storage_gb, note: r.note, rowId: r.id, price: r.price, floor: r.floor }));
+    }
+    const seen = new Map<string, ModelChoice>();
+    for (const k of skus) { const key = modelKey(k.model, k.storage_gb); if (!seen.has(key)) seen.set(key, { key, model: k.model, storage_gb: k.storage_gb, note: null }); }
+    return [...seen.values()];
+  };
+  const choices = useMemo(() => choicesFor(accountId), [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const problems = lines.map(lineProblem).filter(Boolean) as string[];
 
   const t = orderTotals({
     lines: lines.map((l) => ({
-      qty: Number(l.qty) || 0, unitPrice: Number(l.unit_price) || 0, batteryNew: l.battery_new,
-      batteryUnit: Number(l.battery_unit) || 0, batteryEligible: l.sku_id ? skuById.get(l.sku_id)?.battery_eligible ?? true : true,
+      qty: Number(l.qty) || 0, unitPrice: Number(l.unit_price) || 0, batteryNew: l.battery === "new",
+      batteryUnit: Number(l.battery_unit) || 0, batteryEligible: batteryLineEligible(l.model),
     })),
     batteryLineSeparate: separate, freight: Number(freight) || 0, customs: Number(customs) || 0, rmaDiscount: Number(rma) || 0,
     paymentMethod: method, depositPct: terms.depositPct, usdtFeePct: terms.usdtFeePct,
@@ -83,30 +76,21 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const firstOrder = account ? account.orders === 0 && !values.id : false;
   const minimum = firstOrder ? terms.sampleMinUsd : terms.moqUsd;
 
-  const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  const listRow = (acc: string, skuId: string) => {
-    const sku = skuById.get(skuId);
-    return sku ? prices[acc]?.rows[modelKey(sku.model, sku.storage_gb)] : undefined;
-  };
-  // A line follows the client's list: the list price is filled in unless a different price was typed by hand.
-  const withList = (l: Line, acc: string, skuId: string): Line => {
-    const row = listRow(acc, skuId);
-    const typedByHand = l.unit_price !== "" && Number(l.unit_price) !== l.list_price;
-    return { ...l, sku_id: skuId, list_row_id: row?.id ?? "", list_price: row?.price ?? null, unit_price: row && !typedByHand ? String(row.price) : l.unit_price };
-  };
-  const pickSku = (i: number, skuId: string) => setLines((ls) => ls.map((l, j) => (j === i ? withList(l, accountId, skuId) : l)));
+  const setLine = (i: number, patch: Partial<Line> | ((l: Line) => Line)) =>
+    setLines((ls) => ls.map((l, j) => (j === i ? (typeof patch === "function" ? patch(l) : { ...l, ...patch }) : l)));
   const pickAccount = (id: string) => {
     setAccountId(id);
     const a = accounts.find((x) => x.id === id);
     if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
-    setLines((ls) => ls.map((l) => (l.sku_id ? withList(l, id, l.sku_id) : l)));
+    const next = choicesFor(id);
+    setLines((ls) => ls.map((l) => (l.model ? withChoice(l, next.find((c) => c.key === modelKey(l.model, l.storage_gb ?? 0))) : { ...l, ce: ceOf(id) })));
   };
   const list = accountId ? prices[accountId] : undefined;
 
   return (
     <form action={action} className="grid gap-4" data-testid="order-form">
       {values.id ? <input type="hidden" name="id" value={values.id} /> : null}
-      <input type="hidden" name="lines" value={JSON.stringify(lines)} />
+      <input type="hidden" name="lines" value={JSON.stringify(lines.map(lineToPayload))} />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Order</CardTitle><CardDescription>SOP P2. The order number (ORD-NN) is given automatically per account.</CardDescription></CardHeader>
@@ -145,42 +129,15 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
-          <div className={`hidden gap-2 text-xs text-muted-foreground sm:grid ${cols}`}>
-            <span>Model / description</span><span>Qty</span><span>Unit US$</span><span>New battery</span><span className="text-right">Line US$</span>{isAdmin ? <span>Base US$ (admin)</span> : null}<span />
-          </div>
-          {lines.map((l, i) => {
-            const eligible = l.sku_id ? skuById.get(l.sku_id)?.battery_eligible ?? true : true;
-            return (
-              <div key={i} className={`grid gap-2 sm:items-center ${cols}`} data-testid="order-line">
-                <div className="grid gap-1">
-                  <NativeSelect value={l.sku_id} onChange={(e) => pickSku(i, e.target.value)} aria-label="SKU">
-                    <option value="">Free text…</option>
-                    {skus.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </NativeSelect>
-                  {!l.sku_id ? <Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder="Description" aria-label="Description" /> : null}
-                </div>
-                <Input value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} inputMode="numeric" aria-label="Quantity" />
-                <div className="grid gap-0.5">
-                  <Input value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} inputMode="decimal" aria-label="Unit price" />
-                  <PriceHint line={l} floor={l.sku_id ? listRow(accountId, l.sku_id)?.floor ?? null : null} />
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  {eligible ? (
-                    <>
-                      <label className="flex items-center gap-1"><input type="checkbox" checked={l.battery_new} onChange={(e) => setLine(i, { battery_new: e.target.checked })} /> 0 cycle</label>
-                      {separate && l.battery_new ? <Input value={l.battery_unit} onChange={(e) => setLine(i, { battery_unit: e.target.value })} inputMode="decimal" placeholder="US$/unit" className="w-20" aria-label="Battery US$ per unit" /> : null}
-                    </>
-                  ) : <span className="text-muted-foreground">No battery line (iPhone 16)</span>}
-                </div>
-                <span className="text-right text-sm" data-tabular>{money((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</span>
-                {isAdmin ? <Input value={l.base_price} onChange={(e) => setLine(i, { base_price: e.target.value })} inputMode="decimal" placeholder="optional" aria-label="Base price" /> : null}
-                <Button type="button" size="icon" variant="ghost" onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : [emptyLine()]))} aria-label="Remove line">
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            );
-          })}
-          <div><Button type="button" size="sm" variant="outline" onClick={() => setLines((ls) => [...ls, emptyLine()])}><Plus className="size-3.5" /> Add line</Button></div>
+          {!values.id ? (
+            <MagicReader choices={choices} ceDefault={ceOf(accountId)} disabled={!accountId}
+              onLines={(ls) => setLines((cur) => [...cur.filter((l) => l.model || l.description || l.qty), ...ls])} />
+          ) : null}
+          {lines.map((l, i) => (
+            <LineEditor key={i} line={l} i={i} choices={choices} isAdmin={isAdmin} separate={separate}
+              onChange={(p) => setLine(i, p)} onRemove={() => setLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : [emptyLine(ceOf(accountId))]))} />
+          ))}
+          <AddLineButton onAdd={() => setLines((ls) => [...ls, emptyLine(ceOf(accountId))])} />
         </CardContent>
       </Card>
 
@@ -225,7 +182,8 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
+        <Button type="submit" disabled={pending || problems.length > 0}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
+        {problems.length ? <p className="text-sm text-destructive" role="alert" data-testid="lines-problem">Fix the colours first: {problems[0]}</p> : null}
         {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
       </div>
     </form>

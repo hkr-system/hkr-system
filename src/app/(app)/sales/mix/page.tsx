@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { checkSection } from "@/lib/auth";
+import { expandByColor } from "@/lib/orders/colors";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/format";
 import { money } from "@/lib/orders/constants";
@@ -19,6 +20,7 @@ export const metadata: Metadata = { title: "Sales mix" };
 type Line = {
   id: string; qty: number; unit_price_usd: number; account_id: string;
   orders: { order_date: string; status: string; number: string }; skus: { model: string; storage_gb: number; color: string } | null;
+  model?: string | null; storage_gb?: number | null; colors?: unknown; colors_mixed?: boolean;
 };
 
 // Best-selling models and configurations, and the prices each client accepted (brief Phase 5 §7,
@@ -33,11 +35,11 @@ export default async function SalesMixPage({ searchParams }: PageProps<"/sales/m
   const { from, to } = periodRange(period, todayIn(user.timezone));
   const db = await createClient();
   const [{ data: raw }, { data: accounts }] = await Promise.all([
-    db.from("order_lines").select("id, qty, unit_price_usd, account_id, orders!inner(order_date, status, number), skus(model, storage_gb, color)")
+    db.from("order_lines").select("id, qty, unit_price_usd, account_id, orders!inner(order_date, status, number), model, storage_gb, colors, colors_mixed, skus(model, storage_gb, color)")
       .gte("orders.order_date", from).lte("orders.order_date", to).neq("orders.status", "quoted").limit(20000),
     db.from("accounts").select("id, code, name"),
   ]);
-  const lines = ((raw ?? []) as unknown as Line[]).filter((l) => l.skus);
+  const lines = ((raw ?? []) as unknown as Line[]).flatMap((l) => expandByColor(l));
   const { data: fin } = user.role === "admin" && lines.length
     ? await db.from("order_lines_finance").select("order_line_id, base_price_usd").in("order_line_id", lines.map((l) => l.id).slice(0, 5000))
     : { data: [] as { order_line_id: string; base_price_usd: number | null }[] };

@@ -29,7 +29,12 @@ function refresh(orderId?: string, accountId?: string) {
   if (accountId) revalidatePath(`/accounts/${accountId}`);
 }
 
-type LineInput = { sku_id: string | null; description: string | null; qty: number; unit_price: number; battery_new: boolean; battery_unit: number; base_price: number | null; list_row_id: string | null };
+type LineInput = {
+  sku_id: string | null; model: string | null; storage_gb: number | null; description: string | null; qty: number; unit_price: number;
+  colors_mixed: boolean; colors: { color: string; qty: number }[]; ce_marked: boolean; imei_matching_color: boolean;
+  battery_option: "new" | "boosted100" | "bh85_boosted" | "bh80" | null; battery_unit: number; base_price: number | null; list_row_id: string | null;
+};
+const BATTERY = ["new", "boosted100", "bh85_boosted", "bh80"];
 
 function parseLines(raw: string): { lines: LineInput[]; problem?: string } {
   let data: unknown;
@@ -38,15 +43,25 @@ function parseLines(raw: string): { lines: LineInput[]; problem?: string } {
   const lines: LineInput[] = [];
   for (const [i, l] of data.entries()) {
     const qty = Math.round(Number(l.qty));
-    const price = Number(l.unit_price);
-    if (!l.sku_id && !String(l.description ?? "").trim()) continue; // empty row
+    const price = Number(String(l.unit_price ?? "").replace(",", "."));
+    const model = String(l.model ?? "").trim() || null;
+    if (!l.sku_id && !model && !String(l.description ?? "").trim()) continue; // empty row
     if (!(qty > 0)) return { lines, problem: `Line ${i + 1}: quantity must be more than 0.` };
-    if (!(price >= 0)) return { lines, problem: `Line ${i + 1}: unit price is missing.` };
+    if (!(price >= 0) || String(l.unit_price ?? "").trim() === "") return { lines, problem: `Line ${i + 1}: unit price is missing.` };
+    const colors = (Array.isArray(l.colors) ? l.colors : [])
+      .map((c: { color?: unknown; qty?: unknown }) => ({ color: String(c.color ?? "").trim(), qty: Math.round(Number(c.qty)) }))
+      .filter((c: { color: string; qty: number }) => c.color && c.qty > 0);
+    const mixed = Boolean(l.colors_mixed) || (!colors.length && !l.sku_id);
+    const sum = colors.reduce((t: number, c: { qty: number }) => t + c.qty, 0);
+    if (!mixed && colors.length && sum !== qty) return { lines, problem: `Line ${i + 1}: the colours add up to ${sum} but the line has ${qty} units.` };
     lines.push({
-      sku_id: l.sku_id || null, description: String(l.description ?? "").trim() || null, qty, unit_price: price,
-      battery_new: Boolean(l.battery_new), battery_unit: Number(l.battery_unit) || 0,
+      sku_id: l.sku_id || null, model, storage_gb: Number(l.storage_gb) > 0 ? Math.round(Number(l.storage_gb)) : null,
+      description: String(l.description ?? "").trim() || null, qty, unit_price: price,
+      colors_mixed: mixed, colors: mixed ? [] : colors, ce_marked: Boolean(l.ce_marked), imei_matching_color: Boolean(l.imei_matching_color),
+      battery_option: BATTERY.includes(l.battery_option) ? l.battery_option : null,
+      battery_unit: Number(String(l.battery_unit ?? "").replace(",", ".")) || 0,
       base_price: l.base_price === "" || l.base_price === null || l.base_price === undefined ? null : Number(l.base_price),
-      list_row_id: l.sku_id && typeof l.list_row_id === "string" && /^[0-9a-f-]{36}$/.test(l.list_row_id) ? l.list_row_id : null,
+      list_row_id: typeof l.list_row_id === "string" && /^[0-9a-f-]{36}$/.test(l.list_row_id) ? l.list_row_id : null,
     });
   }
   if (!lines.length) return { lines, problem: "Add at least one line." };
@@ -94,8 +109,10 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
 
   const { data: inserted, error: lineErr } = await db.from("order_lines")
     .insert(lines.map((l, i) => ({
-      order_id: orderId!, account_id: accountId, sku_id: l.sku_id, description: l.description, qty: l.qty,
-      unit_price_usd: l.unit_price, battery_new: l.battery_new, battery_unit_usd: l.battery_unit, sort_order: i,
+      order_id: orderId!, account_id: accountId, sku_id: l.sku_id, model: l.model, storage_gb: l.storage_gb, description: l.description,
+      qty: l.qty, unit_price_usd: l.unit_price, battery_option: l.battery_option, battery_new: l.battery_option === "new",
+      battery_unit_usd: l.battery_option === "new" ? l.battery_unit : 0, colors_mixed: l.colors_mixed, colors: l.colors,
+      ce_marked: l.ce_marked, imei_matching_color: l.imei_matching_color, sort_order: i,
       price_list_row_id: l.list_row_id, // the database sets list price and source (list / manual)
     })))
     .select("id, sort_order");

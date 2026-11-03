@@ -364,6 +364,23 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   reused (voided keep theirs); replaces MMDDYYYY for new invoices. The order form no longer types INV-HK: the approved
   invoice fills `orders.hk_invoice_no`.
 
+## Order lines: model, colours, options, Magic invoice creator (Gabriel, Nov 2 2026)
+
+- A line = model + GB chosen from the client's APPROVED price list (no list → the models of the SKUs; or free text);
+  `order_lines.model`, `storage_gb` (SKU lines before Nov 2 are filled from the SKU by trigger).
+- Colours: Mixed (`colors_mixed`) or a split `colors` [{color, qty}] by the model's OFFICIAL colours shown as
+  "Midnight (Black)" (`src/lib/orders/colors.ts`, 12 → 16 series + 16e; add new models there). The split must add up to the
+  line quantity: blocked in the form, the action and the DB trigger `order_lines_options` (50 ≠ 25 + 26).
+- Options per line: CE Marks (ticked by default when the account's invoice format has show_ce_text), IMEI matching color,
+  ONE battery option: New batteries (only one billed: separate "New battery cell" line, US$/unit typed per line), Boosted
+  to 100%, 85%+ BH + Boosted, 80%+ BH (iPhone 14 and newer only — form + trigger). `battery_new` = option 'new'
+  (kept in step by the trigger); null option = lines before Nov 2. iPhone 16 series never gets the battery line.
+- Invoice description prints battery text, CE (UKCA for GB), "IMEI matching color", grade, "Colors: Midnight/Black(25), …" or
+  "Colors: Mixed" — unless the account's invoice_format.plain_lines is on → "Used iPhone 12 128GB" only.
+- Magic invoice creator (New order page): paste the client's order as it comes (EN/ES) → `src/lib/orders/magic.ts`
+  (rule-based, FREE, unit-tested; no AI API) reads model, GB, qty, colours (also "negros", "black" → Midnight…),
+  Mixed, battery, CE, IMEI matching; reports what it could not read; nothing is saved until "Create order".
+
 ## Intermediary orders (Gabriel, Nov 2 2026)
 
 - Flow: our invoice (USD) → the intermediary → they invoice the client in EUR → the client pays them → they pay US in USD.

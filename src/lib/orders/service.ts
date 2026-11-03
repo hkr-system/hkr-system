@@ -69,6 +69,8 @@ export async function loadFormAccounts(db: DB) {
     has_intermediary: Boolean(a.intermediary_id), country: a.country, legal_name: a.legal_name,
     battery_line_separate: Boolean((a.invoice_format as { battery_line_separate?: boolean } | null)?.battery_line_separate ?? true),
     ce_default: Boolean((a.invoice_format as { show_ce_text?: boolean } | null)?.show_ce_text),
+    // the account's default invoice format; each order carries its own copy (Gabriel, Nov 3 2026)
+    invoice_format: normalizeFormat(a.invoice_format),
     // Ship-to pre-filled (Gabriel, Nov 2 2026): the last order's delivery address; for a first order the account's own data
     ship_default: lastShip.get(a.id) ?? (() => {
       const lines = String(a.billing_address ?? "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
@@ -78,4 +80,11 @@ export async function loadFormAccounts(db: DB) {
     })(),
     orders: n.get(a.id) ?? 0,
   }));
+}
+
+export type InvoiceFormat = { battery_line_separate: boolean; show_ce_text: boolean; plain_lines: boolean; show_note: boolean };
+/** Invoice format with every option set (separate battery line on by default, the rest off). */
+export function normalizeFormat(f: unknown): InvoiceFormat {
+  const x = (f ?? {}) as Partial<InvoiceFormat>;
+  return { battery_line_separate: x.battery_line_separate ?? true, show_ce_text: Boolean(x.show_ce_text), plain_lines: Boolean(x.plain_lines), show_note: Boolean(x.show_note) };
 }

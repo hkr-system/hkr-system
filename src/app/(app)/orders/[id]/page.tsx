@@ -164,6 +164,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                   </>
                 )}
                 {o.partner_invoice_eur ? <div className="flex justify-between text-muted-foreground"><span>Client pays the intermediary (EUR, reference)</span><span>{money(o.partner_invoice_eur, "EUR")}</span></div> : null}
+                {(() => {
+                  const f = (o.invoice_format ?? {}) as { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean; show_note?: boolean };
+                  const parts = [f.battery_line_separate !== false ? "separate battery line" : "battery in the price", f.show_ce_text ? "CE Marks" : null, f.plain_lines ? "plain lines" : null, f.show_note ? "note" : null].filter(Boolean);
+                  return <p className="pt-1 text-xs text-muted-foreground" data-testid="order-format">Invoice format of this order: {parts.join(" · ")} (Edit order to change it)</p>;
+                })()}
               </div>
             </CardContent>
           </Card>

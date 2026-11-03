@@ -20,6 +20,7 @@ export type FormAccount = {
   has_intermediary: boolean; battery_line_separate: boolean; country: string | null; legal_name: string | null; orders: number;
   ce_default?: boolean;   // invoice format "show CE text" → CE Marks ticked on new lines
   ship_default?: Record<string, string>;   // last order's ship-to, else the account's own address
+  invoice_format?: { battery_line_separate: boolean; show_ce_text: boolean; plain_lines: boolean; show_note: boolean }; // the client's default
 };
 type Sku = { id: string; label: string; battery_eligible: boolean; model: string; storage_gb: number };
 /** Approved list per account: "<model>|<gb>" → row (loadApprovedPrices). */
@@ -31,7 +32,16 @@ export type OrderValues = {
   hk_invoice_no?: string | null; partner_invoice_no?: string | null; partner_invoice_eur?: number | null;
   freight_usd?: number; customs_usd?: number; rma_discount_usd?: number; eta_date?: string | null; notes?: string | null;
   ship_to?: Record<string, string>; lines?: Line[];
+  invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean; show_note?: boolean } | null;
 };
+
+const FORMAT_OPTIONS = [
+  ["battery_line_separate", "Separate “New battery cell” line (otherwise absorbed in the price)"],
+  ["show_ce_text", "CE Marks on new lines (ticked by default)"],
+  ["plain_lines", "Plain lines: only “Used iPhone 12 128GB” (no battery, CE, IMEI or colours)"],
+  ["show_note", "Show note"],
+] as const;
+type Fmt = Record<(typeof FORMAT_OPTIONS)[number][0], boolean>;
 
 function F({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
@@ -42,7 +52,11 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
-  const ceOf = (id: string) => accounts.find((a) => a.id === id)?.ce_default ?? false;
+  const fmtOf = (id: string): Fmt => ({ battery_line_separate: true, show_ce_text: false, plain_lines: false, show_note: false, ...(accounts.find((a) => a.id === id)?.invoice_format ?? {}) });
+  const [fmt, setFmt] = useState<Fmt>(() => (values.invoice_format && Object.keys(values.invoice_format).length
+    ? { ...fmtOf(values.account_id ?? ""), ...values.invoice_format } as Fmt
+    : fmtOf(values.account_id ?? (accounts.length === 1 ? accounts[0].id : ""))));
+  const ceOf = (id: string) => (id === (values.account_id ?? "") && values.invoice_format ? Boolean(fmt.show_ce_text) : fmtOf(id).show_ce_text);
   const [accountId, setAccountId] = useState(values.account_id ?? (accounts.length === 1 ? accounts[0].id : ""));
   const account = accounts.find((a) => a.id === accountId);
   const [method, setMethod] = useState<PaymentMethod>(values.payment_method ?? account?.payment_method ?? "wire");
@@ -55,7 +69,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [ship, setShip] = useState<Record<string, string>>(
     values.ship_to && Object.values(values.ship_to).some(Boolean) ? values.ship_to : shipFor(values.account_id ?? (accounts.length === 1 ? accounts[0].id : "")));
   const setS = (k: string) => (e: { target: { value: string } }) => setShip((s) => ({ ...s, [k]: e.target.value }));
-  const separate = account?.battery_line_separate ?? true;
+  const separate = fmt.battery_line_separate;
   // model choices: the client's approved price list; without one, the models of the SKUs
   const choicesFor = (acc: string): ModelChoice[] => {
     const rows = prices[acc]?.rows;
@@ -86,6 +100,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     setAccountId(id);
     const a = accounts.find((x) => x.id === id);
     if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
+    if (!values.id) setFmt(fmtOf(id));
     if (!values.id) setShip(shipFor(id));
     const next = choicesFor(id);
     setLines((ls) => ls.map((l) => (l.model ? withChoice(l, next.find((c) => c.key === modelKey(l.model, l.storage_gb ?? 0))) : { ...l, ce: ceOf(id) })));
@@ -96,6 +111,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     <form action={action} className="grid gap-4" data-testid="order-form">
       {values.id ? <input type="hidden" name="id" value={values.id} /> : null}
       <input type="hidden" name="lines" value={JSON.stringify(lines.map(lineToPayload))} />
+      <input type="hidden" name="invoice_format" value={JSON.stringify(fmt)} />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Order</CardTitle><CardDescription>SOP P2. The order number (ORD-NN) is given automatically per account.</CardDescription></CardHeader>
@@ -162,6 +178,23 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             </F>
             <F label="Phone"><Input name="ship_phone" value={ship.phone ?? ""} onChange={setS("phone")} /></F>
             <F label="Notes" className="sm:col-span-2"><Textarea name="notes" rows={2} defaultValue={values.notes ?? ""} /></F>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="invoice-format">
+          <CardHeader><CardTitle className="text-base">Invoice format (this order)</CardTitle><CardDescription>Taken from the client&apos;s default; change it for this invoice only.</CardDescription></CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            {FORMAT_OPTIONS.map(([k, label]) => (
+              <label key={k} className="flex items-start gap-2">
+                <input type="checkbox" className="mt-0.5" checked={fmt[k]} data-testid={`fmt-${k}`}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setFmt((f) => ({ ...f, [k]: on }));
+                    if (k === "show_ce_text") setLines((ls) => ls.map((l) => ({ ...l, ce: on })));
+                  }} />
+                <span>{label}</span>
+              </label>
+            ))}
           </CardContent>
         </Card>
 

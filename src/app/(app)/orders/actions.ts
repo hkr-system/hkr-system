@@ -82,6 +82,7 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     customs_usd: num(fd, "customs_usd"),
     eta_date: opt(fd, "eta_date"),
     notes: opt(fd, "notes"),
+    invoice_format: parseFormat(fd.get("invoice_format")),
     ship_to: {
       name: str(fd, "ship_name"), address: str(fd, "ship_address"), city: str(fd, "ship_city"),
       country: str(fd, "ship_country"), contact: str(fd, "ship_contact"), phone: str(fd, "ship_phone"),
@@ -253,4 +254,11 @@ export async function addOrderNote(_p: ActionState, fd: FormData): Promise<Actio
   if (error) return { error: friendly(error) };
   refresh(str(fd, "order_id"));
   return { ok: true };
+}
+
+function parseFormat(raw: FormDataEntryValue | null) {
+  try {
+    const x = JSON.parse(String(raw ?? "{}")) as Record<string, unknown>;
+    return { battery_line_separate: x.battery_line_separate !== false, show_ce_text: x.show_ce_text === true, plain_lines: x.plain_lines === true, show_note: x.show_note === true };
+  } catch { return null; }
 }

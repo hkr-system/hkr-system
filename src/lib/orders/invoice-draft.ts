@@ -35,7 +35,9 @@ export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<In
   const ship = (o.ship_to ?? {}) as Record<string, string>;
   const shipIso = ship.country || acc.country || null;
   const shipCountry = shipIso ? countryName(shipIso) : null;
-  const fmt = acc.invoice_format ?? {};
+  // the ORDER's invoice format (Nov 3 2026); orders without one fall back to the account's
+  const own = (o as unknown as { invoice_format: typeof acc.invoice_format }).invoice_format;
+  const fmt = (own && Object.keys(own).length ? own : acc.invoice_format) ?? {};
   const built = buildInvoiceLines({
     lines: (lines ?? []).map((l) => {
       const s = l.skus as { model: string; storage_gb: number; color: string; grade: string; battery_eligible: boolean } | null;

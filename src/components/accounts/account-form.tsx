@@ -120,7 +120,7 @@ export function AccountForm({ mode, values = {}, intermediaries, team, isAdmin, 
             {Object.entries(PAYMENT_METHOD_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </NativeSelect>
         </Field>
-        <Field label="Invoice format">
+        <Field label="Default invoice format (copied to each new order; change it on the order)">
           <div className="grid gap-1.5 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" name="battery_line_separate" defaultChecked={fmt.battery_line_separate ?? true} className="size-4" /> Separate “New battery cell” line (otherwise absorbed in the price)</label>
             <label className="flex items-center gap-2"><input type="checkbox" name="show_ce_text" defaultChecked={fmt.show_ce_text ?? false} className="size-4" /> CE Marks on new order lines (ticked by default)</label>

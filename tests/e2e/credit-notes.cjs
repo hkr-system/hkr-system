@@ -1,5 +1,6 @@
 // Credit notes on orders (Nov 3 2026): an approved credit note is applied to an order (no typed RMA discount), split
 // across two orders, becomes Applied when fully used; the invoice draft prints "Credit note <number>".
+// Invoice format per order: a new order copies the client's default and can change it for that invoice only.
 // Needs: app on :3000 against LOCAL Supabase right after `npm run db:reset` (it changes data).
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -45,7 +46,8 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
   if (await create.count()) {
     await create.click();
     await page.waitForTimeout(2500);
-    check((await page.locator('main').innerText()).includes('Credit note AMS-NL-901-CN-01'), 'invoice draft line: Credit note AMS-NL-901-CN-01');
+    const all = await page.evaluate(() => [...document.querySelectorAll('main textarea, main input')].map((e) => e.value).join('\n') + document.querySelector('main').innerText);
+    check(all.includes('Credit note AMS-NL-901-CN-01'), 'invoice draft line: Credit note AMS-NL-901-CN-01');
   } else check(true, 'invoice already exists (skipped)');
   await page.screenshot({ path: path.join(DIR, 'cn-order.png'), fullPage: true });
 
@@ -61,6 +63,29 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
   const cnPage = await page.locator('main').innerText();
   check(/Applied on invoices · US\$\s?25\.00 of US\$\s?25\.00/.test(cnPage) && /Applied/.test(cnPage), 'credit note fully used → Applied, both orders listed');
   await page.screenshot({ path: path.join(DIR, 'cn-page.png'), fullPage: true });
+
+  // invoice format per order: BER-DE-902 (default: battery in the price + CE Marks) → this order: no CE, plain lines
+  await page.goto(BASE + '/orders/new');
+  await page.waitForSelector('[data-testid=order-account]');
+  await page.waitForTimeout(800);
+  const ber = await page.locator('[data-testid=order-account] option', { hasText: 'BER-DE-902' }).getAttribute('value');
+  await page.selectOption('[data-testid=order-account]', ber);
+  check(!(await page.isChecked('[data-testid=fmt-battery_line_separate]')) && await page.isChecked('[data-testid=fmt-show_ce_text]'), 'new order copies the client default (battery in the price, CE Marks)');
+  await page.uncheck('[data-testid=fmt-show_ce_text]');
+  await page.check('[data-testid=fmt-plain_lines]');
+  const line = page.locator('[data-testid=order-line]').first();
+  await line.locator('input[aria-label=Model]').fill('ip13 128');
+  await page.locator('[role=option]', { hasText: 'iPhone 13 128GB' }).first().click();
+  await line.locator('input[aria-label=Quantity]').fill('100');
+  await line.locator('input[aria-label="Unit price"]').fill('200');
+  await page.click('button:has-text("Create order")');
+  await page.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });
+  await page.waitForSelector('[data-testid=order-format]');
+  check((await page.locator('[data-testid=order-format]').innerText()).includes('battery in the price · plain lines'), 'the order keeps its own format');
+  await page.locator('button', { hasText: 'Create invoice draft' }).click();
+  await page.waitForTimeout(2500);
+  const texts = await page.evaluate(() => [...document.querySelectorAll('main textarea, main input')].map((e) => e.value).join('\n') + document.querySelector('main').innerText);
+  check(texts.includes('Used iPhone 13 128GB'), 'invoice draft uses the order format (plain line)');
 
   await browser.close();
   console.log(fail ? `\n${fail} FAILED` : '\nALL PASSED');

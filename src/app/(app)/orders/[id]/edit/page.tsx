@@ -36,6 +36,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
       <OrderForm accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,
+          invoice_format: (o.invoice_format ?? null) as Record<string, boolean> | null,
           lines: (lines ?? []).map((l) => {
             const sk = l.skus as { model: string; storage_gb: number; color: string } | null;   // a line from a one-colour SKU (before Nov 2 2026)
             const legacy = sk?.color;

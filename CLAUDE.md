@@ -56,7 +56,8 @@ plain words, one step at a time, and say exactly what to click or paste.
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
 | 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list. Part B (weekly promotions, Haslet rotation) not started |
-| 5, 7 | Not started (Phase 5 sales mix partly pulled forward) |
+| 5 Dashboard, reports, queues | Built (Nov 3 2026): dashboard per role (§8 widgets + alerts), daily report (SOP P9, copy + 18:00 HK email), client updates (Thursday 3-line drafts EN/ES + RMA ask Tue/Wed), escalations "For the SD" (P8). Sales mix was pulled forward (Oct 27); promotion recommender waits for Phase 6B |
+| 7 | Not started (go-live pack pulled forward) |
 
 ## Folder layout
 
@@ -82,6 +83,8 @@ src/
     api/credit-notes/[id]/[pdf|xlsx] · api/rmas/batches/[id]/[xlsx|label]
     (app)/price-lists/     overview (base card + client lists), base/ (upload/edit, admin), [id]/ (list detail: engine decision,
                            approve, remove rows, outputs), actions.ts · api/price-lists/[id]/[xlsx|pdf|txt|wa]
+    (app)/dashboard/       Overview per role (page.tsx), report/ (daily report, admin + specialist), thursday/ ("Client updates":
+                           Thursday queue + RMA ask queue), escalations/ ("For the SD", ?account=&order= prefill), actions.ts
     (app)/finance/         admin: monthly plan (goals company + per owner, history, projection), actions.ts
     (app)/accounts/        overview/health (page.tsx), list/, new/ (wizard P1), [id]/ (?tab=overview|contacts|orders|rmas|price-lists|files|edit), actions.ts
     (app)/orders/          list (attention filters, KPIs), new/, [id]/ (detail: next action, payments, shipping), [id]/edit/, actions.ts
@@ -121,6 +124,9 @@ src/
                            "iPhone 15 Pro Max", sheet reader), outputs (+ outputs-pdf), service (params rpc, rows, approved prices)
     sales/                 series (day/week/month buckets), projection (suggestion), health (account health) —
                            all unit-tested; load (sales_orders rpc, periods); tabs (tab bars)
+    dashboard/             dates (HK week, dd-mmm, reportDue), report (SOP P9 text), updates (Thursday + RMA ask drafts EN/ES,
+                           queues), alerts, escalations (topics, P8 rule, §3.5 message) — all unit-tested; load (loadOps: one
+                           Promise.all for dashboard/report/queues), daily-email (called by the wa-worker tick), tabs
     section-badges.ts      red counters per menu item (live counts of pending work)
     files.ts               account-files bucket, SOP file names ([code]_ORD-NN_[KIND])
     notify.ts              in-app notifications + Brevo email (lead Qualified)
@@ -137,6 +143,7 @@ supabase/
   seed_phase4.sql          3 demo RMAs, 1 open Global Connect batch, 2 credit notes, demo payments for history orders (safe on hosted)
   seed_local_portal.sql    LOCAL ONLY: client logins daan@example.com (AMS-NL-901, EN) and carlos@example.com (MEX-MX-903, ES)
   templates/magic_link.html  portal sign-in email (token-hash link: works on any device) — paste it in the hosted project too
+  seed_phase5.sql          demo client updates (balance reminder, last week's Thursday update) + 2 escalations, demo accounts only (safe on hosted)
   seed_phase3.sql          Phase 3 demo accounts (codes 9xx, is_demo) + 12 orders, payments, IMEIs (safe on hosted)
   seed_local_users.sql     LOCAL ONLY: creates demo Auth users with password LocalDemo-2026!
   manual/delete_demo_data.sql  run ONCE by hand on hosted (SQL Editor) before real data: deletes demo accounts/leads/numbers
@@ -203,6 +210,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
+| `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
 
 Docker in Claude's cloud workspace: start it with `dockerd > /tmp/dockerd.log 2>&1 &` before `db:start`.
@@ -453,6 +461,29 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   `list_price_usd`, `price_source` list/manual set by trigger; a price below the floor shows a warning (SD decides, SOP 5.5),
   not a block; the base price lands in `order_lines_finance` (admin) unless typed.
 - Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
+
+## Dashboard, reports and queues (Phase 5, plan approved by Gabriel Nov 3 2026)
+
+- Week and "today" = Hong Kong dates; the week starts Monday (`client_updates.week_start`).
+- Dashboard widgets per brief §8 (RLS scopes bd to her accounts): open orders, pending shipment (Balance paid), payment overdue,
+  unanswered WhatsApp, Thursday update, For the SD, alerts, RMAs pending shipment by intermediary (+ next Friday batch countdown:
+  admin + specialist), sales this month vs last (admin; bd own accounts; not the specialist), leads by stage + 30-day change
+  (admin, bd), credit-note spend issued+applied (admin). Promotion widgets come with Phase 6B.
+- Alerts: deposit overdue after setting `deposit_overdue_days` (3) days in Invoiced; Ready to ship > 2 days; ETA passed; approved
+  return-to-HK units of intermediary clients not batched on Thursday/Friday before the cut-off; RMA waiting > 2 days for evidence.
+- Daily report (SOP P9 format exactly; "none" when empty): Open orders = Invoiced…Balance paid (stage words deposit pending /
+  deposit received / in production / ready); ready to ship = Ready to ship + Balance paid; pending balances = Ready to ship without
+  balance, "reminded dd-mmm (1st/2nd)" from `client_updates` kind balance_reminder ("I reminded the client today").
+  RMA stage words: awaiting evidence / with SD / awaiting return / return in transit / received HK / credit pending.
+  Email at `report_time` (18:00 HK, `weekdays` [1–5]) to active admin + specialist, sent by the every-minute wa-worker once a day
+  (setting `last_daily_report`); nothing is sent until BREVO_API_KEY exists.
+- Client updates: Thursday queue = accounts with an order Invoiced…Shipped or an open RMA, no `thursday` update this week; draft in
+  the ACCOUNT LANGUAGE (Gabriel) with the 3 SOP lines; never promises (dates only "as given by Hong Kong"). RMA ask (Tue/Wed) =
+  active/onboarding clients of each intermediary. "Mark as sent" logs it (undo same day by the author, or admin).
+- Escalations ("For the SD", SOP P8/§3.5): anyone with account access prepares one (topic + the 9 SOP fields); admins get a bell
+  (+ email with Brevo); only admin writes the decision / closes (trigger `escalations_guard`); the author is told. "Ask the SD"
+  buttons on the account and order pages. Menu counter: admin = open escalations; others = Thursday updates still to send
+  from the update day on.
 
 ## Client portal (/portal) — added by Gabriel Oct 27 2026 (not in the brief)
 

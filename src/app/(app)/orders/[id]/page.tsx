@@ -74,7 +74,10 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
           {["ready_to_ship", "balance_paid"].includes(status) ? (
             <span className={cn("text-xs font-medium", clear ? "text-emerald-700" : "text-amber-700")} data-testid="clear-to-ship">{clear ? "Clear to ship" : "Not clear to ship yet"}</span>
           ) : null}
-          {editable ? <Button asChild size="sm" variant="outline" className="ml-auto"><Link href={`/orders/${id}/edit`}>Edit order</Link></Button> : null}
+          <span className="ml-auto flex gap-2">
+            <Button asChild size="sm" variant="ghost"><Link href={`/dashboard/escalations?account=${acc.id}&order=${id}`}>Ask the SD</Link></Button>
+            {editable ? <Button asChild size="sm" variant="outline"><Link href={`/orders/${id}/edit`}>Edit order</Link></Button> : null}
+          </span>
         </div>
       </div>
 

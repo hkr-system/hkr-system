@@ -87,7 +87,10 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
           </h1>
           <AccountStatusBadge status={a.status as AccountStatus} />
           {a.is_demo ? <span className="text-xs text-muted-foreground">demo data</span> : null}
-          <div className="ml-auto"><Button asChild size="sm"><Link href={`/orders/new?account=${a.id}`}>New order</Link></Button></div>
+          <div className="ml-auto flex gap-2">
+            <Button asChild size="sm" variant="ghost"><Link href={`/dashboard/escalations?account=${a.id}`}>Ask the SD</Link></Button>
+            <Button asChild size="sm"><Link href={`/orders/new?account=${a.id}`}>New order</Link></Button>
+          </div>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {countryName(a.country)} · {a.market} · {inter ? `via ${inter} (pays EUR)` : "direct (pays USD)"} · {PAYMENT_METHOD_LABEL[a.payment_method]} · owner {names.get(as.owner ?? "") ?? "not set"}

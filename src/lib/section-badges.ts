@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { AppRole } from "@/lib/roles";
 import type { SectionKey } from "@/lib/nav";
+import { todayIn } from "@/lib/format";
+import { isoWeekday, weekStart } from "@/lib/dashboard/dates";
 
 // Red counters next to each menu item: live counts of pending work (not notifications), so a
 // number disappears only when the work is done. RLS limits every count to what the user may see.
@@ -12,9 +14,10 @@ import type { SectionKey } from "@/lib/nav";
 //   RMAs     — admin: RMAs to approve + units to batch; specialist: RMAs to verify + units to batch;
 //              bd: her clients' RMAs waiting (requested / to verify / to approve)
 //   Price lists — admin: drafts to approve + lists due for refresh; specialist: lists due (SOP P7, every 2 weeks)
+//   Dashboard — admin: escalations waiting for the SD; bd/specialist: Thursday updates still to send (from the update day on)
 export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole): Promise<Partial<Record<SectionKey, number>>> {
   const today = new Date().toISOString().slice(0, 10);
-  const [orders, chats, leads, rmas, priceLists] = await Promise.all([
+  const [orders, chats, leads, rmas, priceLists, dashboard] = await Promise.all([
     db.from("order_overview").select("status, payment_awaiting, deposit_confirmed, deposit_payable, balance_ok")
       .in("status", ["invoiced", "ready_to_ship"]).limit(1000)
       .then(async (r) => {
@@ -46,6 +49,25 @@ export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole)
           const due = rows.filter((l) => l.status === "approved" && l.valid_until && l.valid_until <= today).length;
           return due + (role === "admin" ? rows.filter((l) => l.status === "draft").length : 0);
         }),
+    role === "admin"
+      ? db.from("escalations").select("id", { count: "exact", head: true }).eq("status", "open").then((r) => r.count ?? 0)
+      : thursdayToSend(db),
   ]);
-  return { orders, whatsapp: chats, leads, rmas, "price-lists": priceLists };
+  return { orders, whatsapp: chats, leads, rmas, "price-lists": priceLists, dashboard };
+}
+
+// Clients with an open order or RMA and no Thursday update logged this week (Hong Kong week), counted from the update day on.
+async function thursdayToSend(db: SupabaseClient<Database>) {
+  const today = todayIn("Asia/Hong_Kong");
+  const { data: day } = await db.from("settings").select("value").eq("key", "thursday_weekday").maybeSingle();
+  const updateDay = Number(day?.value) >= 1 && Number(day?.value) <= 7 ? Number(day?.value) : 4;
+  if (isoWeekday(today) < updateDay) return 0;
+  const [o, r, u] = await Promise.all([
+    db.from("orders").select("account_id").in("status", ["invoiced", "deposit_paid", "in_preparation", "ready_to_ship", "balance_paid", "shipped"]).limit(5000),
+    db.from("rmas").select("account_id").neq("status", "closed").limit(5000),
+    db.from("client_updates").select("account_id").eq("kind", "thursday").eq("week_start", weekStart(today)).limit(5000),
+  ]);
+  const due = new Set([...(o.data ?? []), ...(r.data ?? [])].map((x) => x.account_id));
+  for (const x of u.data ?? []) due.delete(x.account_id);
+  return due.size;
 }

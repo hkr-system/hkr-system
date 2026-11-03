@@ -2,12 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminClientAvailable, createAdminClient } from "@/lib/supabase/admin";
 import { numberHealth, whatsappConfigured } from "@/lib/whatsapp/graph";
 import { ensureConversation, graphVersion, sendTemplateMessage } from "@/lib/whatsapp/service";
+import { maybeSendDailyReport } from "@/lib/dashboard/daily-email";
 import { fillBody, resolveVariables, type VariableSource } from "@/lib/whatsapp/templates";
 
 // Called every minute by Supabase cron (public.wa_worker_tick) with "Authorization: Bearer <CRON_SECRET>".
 // 1. starts approved broadcasts whose time has come; 2. sends queued recipients, never more per
 // number per 24 h than its daily_broadcast_limit; 3. once a day checks each number's quality and
-// pauses broadcasts when Meta rates it Low (RED) — brief §9.
+// pauses broadcasts when Meta rates it Low (RED) — brief §9; 4. emails the daily report at 18:00 HK (SOP P9).
 export const maxDuration = 60;
 const PER_TICK = 30;
 
@@ -113,5 +114,8 @@ async function run(request: NextRequest) {
       }
     }
   }
-  return NextResponse.json(summary);
+  // 4. SOP P9: the daily report email at the report time (18:00 HK, working days), once a day
+  let report: unknown = null;
+  try { report = await maybeSendDailyReport(now); } catch (e) { console.error("daily report email failed", e); report = { error: true }; }
+  return NextResponse.json({ ...summary, report });
 }

@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
 
 export type FormAccount = {
   id: string; code: string; name: string; payment_method: PaymentMethod; delivery_setup: DeliverySetup;
@@ -221,6 +222,10 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending || problems.length > 0}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
+        {/* leave without saving (Gabriel, Nov 3 2026) */}
+        <Button asChild type="button" variant="outline" data-testid="order-cancel">
+          <Link href={values.id ? `/orders/${values.id}` : "/orders"}>Cancel</Link>
+        </Button>
         {problems.length ? <p className="text-sm text-destructive" role="alert" data-testid="lines-problem">Fix the colours first: {problems[0]}</p> : null}
         {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
       </div>

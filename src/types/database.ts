@@ -55,6 +55,32 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"account_price_rules": {
+                  Row: {
+                    "account_id": string,"created_at": string,"created_by": string | null,"id": string,"increment_usd": number,"last_used_at": string | null,"model": string,"note": string | null,"storage_gb": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"increment_usd": number,"last_used_at"?: string | null,"model": string,"note"?: string | null,"storage_gb": number,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"increment_usd"?: number,"last_used_at"?: string | null,"model"?: string,"note"?: string | null,"storage_gb"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "account_price_rules_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "account_price_rules_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"accounts": {
                   Row: {
                     "billing_address": string | null,"billing_entity": Database["public"]['Enums']["billing_entity"],"code": string,"company_ids": string | null,"country": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"delivery_setup": Database["public"]['Enums']["delivery_setup"],"drive_folder_url": string | null,"id": string,"intermediary_id": string | null,"invoice_format": NonNullable<Json>,"is_demo": boolean,"language": string,"legal_name": string | null,"market": Database["public"]['Enums']["market"] | null,"name": string,"notes": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"status": Database["public"]['Enums']["account_status"],"tier": string | null,"updated_at": string,"vat_eori": string | null,"whatsapp_group_note": string | null
@@ -1043,14 +1069,14 @@ isOneToOne: true
                   ]
                 },"price_list_rows": {
                   Row: {
-                    "account_id": string | null,"adjusted_at": string | null,"adjusted_by": string | null,"created_at": string,"created_by": string | null,"engine_price_usd": number | null,"floor_usd": number | null,"id": string,"model": string,"note": string | null,"price_list_id": string,"price_usd": number,"sort_order": number,"storage_gb": number,"updated_at": string
+                    "account_id": string | null,"adjusted_at": string | null,"adjusted_by": string | null,"created_at": string,"created_by": string | null,"engine_price_usd": number | null,"floor_usd": number | null,"id": string,"model": string,"note": string | null,"price_list_id": string,"price_usd": number,"rule_increment_usd": number | null,"rule_price_usd": number | null,"sort_order": number,"storage_gb": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id"?: string | null,"adjusted_at"?: string | null,"adjusted_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine_price_usd"?: number | null,"floor_usd"?: number | null,"id"?: string,"model": string,"note"?: string | null,"price_list_id": string,"price_usd": number,"sort_order"?: number,"storage_gb": number,"updated_at"?: string
+                    "account_id"?: string | null,"adjusted_at"?: string | null,"adjusted_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine_price_usd"?: number | null,"floor_usd"?: number | null,"id"?: string,"model": string,"note"?: string | null,"price_list_id": string,"price_usd": number,"rule_increment_usd"?: number | null,"rule_price_usd"?: number | null,"sort_order"?: number,"storage_gb": number,"updated_at"?: string
                   }
                   Update: {
-                    "account_id"?: string | null,"adjusted_at"?: string | null,"adjusted_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine_price_usd"?: number | null,"floor_usd"?: number | null,"id"?: string,"model"?: string,"note"?: string | null,"price_list_id"?: string,"price_usd"?: number,"sort_order"?: number,"storage_gb"?: number,"updated_at"?: string
+                    "account_id"?: string | null,"adjusted_at"?: string | null,"adjusted_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine_price_usd"?: number | null,"floor_usd"?: number | null,"id"?: string,"model"?: string,"note"?: string | null,"price_list_id"?: string,"price_usd"?: number,"rule_increment_usd"?: number | null,"rule_price_usd"?: number | null,"sort_order"?: number,"storage_gb"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1868,6 +1894,14 @@ isOneToOne: false
                            },
 "price_list_set_percentages":
 { Args: { "p_extra": number,"p_list": string,"p_note"?: string,"p_rma": number }; Returns: undefined
+                           },
+"price_rule_remember":
+{ Args: { "p_row": string }; Returns: number
+                           },
+"price_rules_for":
+{ Args: { "p_account": string }; Returns: {
+              "id": string,"in_base": boolean,"increment_usd": number,"last_used_at": string,"model": string,"note": string,"storage_gb": number,"updated_at": string
+            }[]
                            },
 "rma_fault_categories":
 { Args: Record<PropertyKey, never>; Returns: (string)[]

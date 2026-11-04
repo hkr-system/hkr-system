@@ -184,7 +184,7 @@ export async function approveList(listId: string): Promise<PlState> {
 // Adjusted prices on a draft client list (Gabriel, Nov 3 2026). The database stamps who/when, keeps the engine price and
 // refuses a specialist's price below the floor (SOP 5.5: below the floor the SD decides).
 // ---------------------------------------------------------------------------
-export async function savePrices(listId: string, changes: { id: string; price: number }[]): Promise<PlState> {
+export async function savePrices(listId: string, changes: { id: string; price: number }[], remember: string[] = []): Promise<PlState> {
   await requireRole(PREPARERS);
   const db = await createClient();
   const { data: l } = await db.from("price_lists").select("account_id, status").eq("id", listId).maybeSingle();
@@ -194,9 +194,42 @@ export async function savePrices(listId: string, changes: { id: string; price: n
   for (const c of changes) {
     if (!(c.price >= 0)) return { error: "Every price must be a number." };
     const { error } = await db.from("price_list_rows").update({ price_usd: Math.round(c.price * 100) / 100 }).eq("id", c.id).eq("price_list_id", listId);
-    if (error) return { error: friendly(error), message: n ? `${n} prices saved before the error.` : undefined };
+    if (error) { refresh(l.account_id, listId); return { error: friendly(error) + (n ? ` (${n} prices were saved before it.)` : "") }; }
     n++;
   }
+  // "Remember for this client": price − base of the row becomes the client's rule (fixed US$ per model + GB)
+  let k = 0;
+  for (const id of remember) {
+    const { error } = await db.rpc("price_rule_remember", { p_row: id });
+    if (error) { refresh(l.account_id, listId); return { error: friendly(error) }; }
+    k++;
+  }
   refresh(l.account_id, listId);
-  return { ok: true, message: n ? `${n} price${n === 1 ? "" : "s"} saved.` : "Nothing changed." };
+  const parts = [n ? `${n} price${n === 1 ? "" : "s"} saved` : "", k ? `${k} rule${k === 1 ? "" : "s"} remembered for this client` : ""].filter(Boolean);
+  return { ok: true, message: parts.length ? parts.join(" · ") + "." : "Nothing changed." };
+}
+
+// ---------------------------------------------------------------------------
+// Client price rules (Gabriel, Nov 3 2026): fixed US$ over the base per model + GB, admin + specialist
+// ---------------------------------------------------------------------------
+export async function saveRules(accountId: string, rules: { id?: string; model: string; storage_gb: number; increment: number; note?: string | null }[],
+  deleted: string[]): Promise<PlState> {
+  await requireRole(PREPARERS);
+  const db = await createClient();
+  for (const r of rules) {
+    if (!r.model || !(r.storage_gb > 0) || !Number.isFinite(r.increment)) return { error: "Each rule needs a model, GB and an amount in US$." };
+  }
+  if (deleted.length) {
+    const { error } = await db.from("account_price_rules").delete().eq("account_id", accountId).in("id", deleted);
+    if (error) return { error: friendly(error) };
+  }
+  for (const r of rules) {
+    const row = { account_id: accountId, model: r.model, storage_gb: r.storage_gb, increment_usd: Math.round(r.increment * 100) / 100, note: r.note || null };
+    const { error } = r.id
+      ? await db.from("account_price_rules").update(row).eq("id", r.id).eq("account_id", accountId)
+      : await db.from("account_price_rules").upsert(row, { onConflict: "account_id,model,storage_gb" });
+    if (error) return { error: friendly(error) };
+  }
+  refresh(accountId);
+  return { ok: true, message: "Rules saved. They apply the next time a list is prepared." };
 }

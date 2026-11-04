@@ -73,6 +73,7 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
     return {
       id: r.id, label: rowLabel(r), gb: r.storage_gb, base: isAdmin ? baseOf.get(k) ?? null : null,
       engine: r.engine_price_usd, price: r.price_usd, floor: r.floor_usd, adjusted: !!r.adjusted_at,
+      rule: r.rule_increment_usd !== null && r.rule_price_usd !== null ? { increment: r.rule_increment_usd, price: r.rule_price_usd } : null,
       before: b ? { price: b.price_usd, adjusted: !!b.adjusted_at } : null,
     };
   });

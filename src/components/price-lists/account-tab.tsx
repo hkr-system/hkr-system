@@ -6,6 +6,7 @@ import { isDue, pctText } from "@/lib/price-lists/labels";
 import { DueBadge, ListStatusBadge } from "./badges";
 import { GetPriceList } from "./get-list";
 import { PrepareListButton } from "./list-actions";
+import { RulesEditor } from "./rules-editor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -29,6 +30,15 @@ export async function AccountPriceLists({ accountId, canPrepare, today }: { acco
     grid.set(k, g);
   }
   const skus = [...grid.values()].sort(compareRows);
+  // client price rules (admin + specialist): fixed US$ over the base, models offered = the latest list of this client
+  const latest = draft ?? current;
+  const [{ data: rules }, { data: latestRows }] = canPrepare
+    ? await Promise.all([
+        db.rpc("price_rules_for", { p_account: accountId }),
+        latest ? db.from("price_list_rows").select("model, storage_gb, note, sort_order").eq("price_list_id", latest.id) : Promise.resolve({ data: [] }),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const choices = [...(latestRows ?? [])].sort(compareRows).map((r) => ({ model: r.model, storage_gb: r.storage_gb, label: rowLabel(r) }));
 
   return (
     <div className="grid gap-4" data-testid="account-price-lists">
@@ -46,6 +56,22 @@ export async function AccountPriceLists({ accountId, canPrepare, today }: { acco
           {canPrepare && !draft ? <PrepareListButton accountId={accountId} label={current ? "Prepare the refresh" : "Prepare the first list"} primary /> : null}
         </CardContent>
       </Card>
+
+      {canPrepare ? (
+        <Card data-testid="price-rules">
+          <CardHeader>
+            <CardTitle className="text-base">Price rules</CardTitle>
+            <CardDescription>
+              A fixed US$ amount over the base per model, kept for this client: every new list uses new base + rule; models without a
+              rule follow the engine. A model that leaves the base leaves the list (its rule shows &quot;Discontinued&quot;).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RulesEditor accountId={accountId} choices={choices}
+              rules={(rules ?? []).map((r) => ({ ...r, increment_usd: Number(r.increment_usd), label: rowLabel({ model: r.model, note: null }) }))} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Versions</CardTitle></CardHeader>

@@ -17,10 +17,12 @@ export async function loadEngineParams(db: DB): Promise<EngineParams & { refresh
 
 /** Rows of one list, in catalogue order. */
 export async function loadRows(db: DB, listId: string) {
-  const { data } = await db.from("price_list_rows").select("id, model, storage_gb, note, price_usd, floor_usd, engine_price_usd, adjusted_at, sort_order").eq("price_list_id", listId);
+  const { data } = await db.from("price_list_rows").select("id, model, storage_gb, note, price_usd, floor_usd, engine_price_usd, adjusted_at, rule_increment_usd, rule_price_usd, sort_order").eq("price_list_id", listId);
   return (data ?? []).map((r) => ({
     ...r, price_usd: Number(r.price_usd), floor_usd: r.floor_usd === null ? null : Number(r.floor_usd),
     engine_price_usd: r.engine_price_usd === null ? null : Number(r.engine_price_usd),
+    rule_increment_usd: r.rule_increment_usd === null ? null : Number(r.rule_increment_usd),
+    rule_price_usd: r.rule_price_usd === null ? null : Number(r.rule_price_usd),
   })).sort(compareRows);
 }
 

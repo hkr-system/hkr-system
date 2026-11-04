@@ -55,7 +55,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
-| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list; adjustable prices per row with colours + margin/markup (Nov 3). Part B (weekly promotions, Haslet rotation) not started |
+| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list; adjustable prices per row with colours + margin/markup, client price rules in fixed US$ (Nov 3). Part B (weekly promotions, Haslet rotation) not started |
 | 5 Dashboard, reports, queues | Built (Nov 3 2026): dashboard per role (§8 widgets + alerts), daily report (SOP P9, copy + 18:00 HK email), client updates (Thursday 3-line drafts EN/ES + RMA ask Tue/Wed), escalations "For the SD" (P8). Sales mix was pulled forward (Oct 27); promotion recommender waits for Phase 6B |
 | 7 | Not started (go-live pack pulled forward) |
 
@@ -208,6 +208,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/rmas.cjs` | Phase 4 + portal browser test (after db:reset): RMAs, credit note PDF, batch, portal login by link, RMA request on a phone |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
+| `node tests/e2e/price-rules.cjs` | Client price rules (after db:reset): remember, account rules, new list = base + rule |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
@@ -515,6 +516,13 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   the page shows the previous version's price ("Before", "your price then" if it was adjusted). Colours (`src/lib/price-lists/
   adjust.ts`, unit-tested): red < real cost (admin only), yellow < engine price, green > Base × (1 + RMA_c + 1 %). Admin also sees
   Base, Real cost, Margin and Markup per row. e2e `tests/e2e/price-adjust.cjs`, pgTAP `13_price_adjustments`.
+- Client price rules (Gabriel, Nov 3 2026): table `account_price_rules` (account, model, GB, fixed `increment_usd` over the base,
+  note, last_used_at); admin + specialist manage them (RLS; bd none). `price_list_reprice`: a ruled model = base + rule
+  (`price_list_rows.rule_increment_usd / rule_price_usd`), others = engine, typed (adjusted) prices kept. "Remember" on a draft
+  row → rpc `price_rule_remember` (price − base, security definer: the base stays admin-only). Account → Price lists → "Price
+  rules" card (rpc `price_rules_for`: in_base false = "Discontinued — not in the base"; the model leaves the list, the rule stays
+  and applies again if the model returns). The list page shows "Client rules used in this list — check the amounts" (base admin
+  only, rule, rule price, vs engine, vs before). pgTAP `14_price_rules`, e2e `tests/e2e/price-rules.cjs`.
 - Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
 
 ## Dashboard, reports and queues (Phase 5, plan approved by Gabriel Nov 3 2026)

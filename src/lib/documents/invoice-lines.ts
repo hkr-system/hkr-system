@@ -18,8 +18,11 @@ export type BuildInput = {
   batteryLineSeparate: boolean;
   ceText: string | null;           // "CE Marked" / "UKCA" when the account's format shows it
   freight: number; customs: number; rmaDiscount: number;
+  // Nov 4 2026: shipping / customs per unit (qty × US$/unit on the invoice) or one total; other charges and discounts
+  freightUnit?: number | null; customsUnit?: number | null;
+  charges?: { description: string; qty: number | null; unit: number | null; amount: number }[];
   credits?: { number: string; amount: number }[]; // credit notes applied to the order (Nov 3 2026): one line each
-  paymentMethod: "wire" | "usdt";
+  paymentMethod: "wire" | "usdt" | "mixed";   // mixed: no USDT fee line (each USDT payment carries its fee)
   usdtFeePct: number;
   shipCountry: string | null;      // country name for "Shipping HK to …"
   plain?: boolean;                 // account wants "Used iPhone 12 128GB" and nothing else (no battery, CE, colours…)
@@ -96,8 +99,14 @@ export function buildInvoiceLines(i: BuildInput, plainOf?: (model: string, color
     for (const l of i.lines) if (l.batteryNew && l.batteryEligible !== false && l.batteryUnit > 0) byUnit.set(l.batteryUnit, (byUnit.get(l.batteryUnit) ?? 0) + l.qty);
     for (const [unit, qty] of byUnit) out.push({ kind: "battery", description: "New battery cell", qty, unit_price: unit, total: r2(qty * unit) });
   }
-  if (i.customs > 0) out.push({ kind: "customs", description: "Customs Clearance", ...perUnit(i.customs, pieces), total: r2(i.customs) });
-  if (i.freight > 0) out.push({ kind: "shipping", description: i.shipCountry ? `Shipping HK to ${i.shipCountry}` : "Shipping", ...perUnit(i.freight, pieces), total: r2(i.freight) });
+  // per unit → "qty × US$/unit"; one total for the shipment → one amount (older orders: split when it divides exactly)
+  const fixed = (total: number, unit: number | null | undefined) =>
+    unit === undefined ? perUnit(total, pieces) : unit !== null ? { qty: pieces, unit_price: r2(unit) } : { qty: null, unit_price: null };
+  if (i.customs > 0) out.push({ kind: "customs", description: "Customs Clearance", ...fixed(i.customs, i.customsUnit), total: r2(i.customs) });
+  if (i.freight > 0) out.push({ kind: "shipping", description: i.shipCountry ? `Shipping HK to ${i.shipCountry}` : "Shipping", ...fixed(i.freight, i.freightUnit), total: r2(i.freight) });
+  for (const c of i.charges ?? []) {
+    out.push({ kind: "other", description: c.description, qty: c.qty, unit_price: c.unit, total: r2(c.amount) });
+  }
   if (i.credits?.length) {
     for (const c of i.credits) out.push({ kind: "rma", description: `Credit note ${c.number}`, qty: null, unit_price: null, total: -r2(c.amount) });
   } else if (i.rmaDiscount > 0) out.push({ kind: "rma", description: "RMA discount", qty: null, unit_price: null, total: -r2(i.rmaDiscount) }); // orders before Nov 3

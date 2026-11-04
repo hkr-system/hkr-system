@@ -71,7 +71,9 @@ export const ACCOUNT_STATUS_STYLE: Record<AccountStatus, string> = {
   onboarding: "bg-sky-100 text-sky-800", active: "bg-emerald-100 text-emerald-800",
   paused: "bg-amber-100 text-amber-800", closed: "bg-zinc-200 text-zinc-600",
 };
-export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = { wire: "Wire", usdt: "USDT (TRC-20)" };
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = { wire: "Wire", usdt: "USDT (TRC-20)", mixed: "Mixed (USDT + wire)" };
+/** A single payment is wire or USDT; "Mixed" is only the order's way of paying (two payments). */
+export const PAYMENT_METHODS_ONE: PaymentMethod[] = ["wire", "usdt"];
 export const DELIVERY_SETUP_LABEL: Record<DeliverySetup, string> = {
   client_label: "Client label",
   our_booking: "Our courier booking",

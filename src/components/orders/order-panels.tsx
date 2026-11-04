@@ -1,5 +1,6 @@
 "use client";
 
+import { usdtPart } from "@/lib/orders/calc";
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -7,7 +8,7 @@ import {
 } from "@/app/(app)/orders/actions";
 import { parseImeis } from "@/lib/orders/imei";
 import {
-  DELIVERY_SETUP_LABEL, DIFFERENCE_REASONS, ORDER_STATUSES, ORDER_STATUS_LABEL, PAYMENT_DRIVEN, PAYMENT_METHOD_LABEL,
+  DELIVERY_SETUP_LABEL, DIFFERENCE_REASONS, ORDER_STATUSES, ORDER_STATUS_LABEL, PAYMENT_DRIVEN, PAYMENT_METHOD_LABEL, PAYMENT_METHODS_ONE,
   PAYMENT_TYPE_LABEL, money, nextStatus, type DeliverySetup, type OrderStatus, type PaymentMethod,
 } from "@/lib/orders/constants";
 import { FileUpload } from "@/components/orders/file-upload";
@@ -55,14 +56,20 @@ type Payment = {
   id: string; type: "deposit" | "balance" | "other"; amount: number; currency: "USD" | "EUR"; method: PaymentMethod; received_at: string;
   reference: string | null; expected_amount: number | null; difference: number | null; difference_reason: string | null;
   status: "awaiting_confirmation" | "confirmed"; proof_file_id: string | null; notes: string | null;
+  received_usd?: number | null; usdt_covers_usd?: number | null; usdt_fee_usd?: number | null; usdt_fee_lost_usd?: number | null;
 };
 
 export type Ledger = { date: string; label: string; total: number; note: string | null };
 
-export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, payments, isAdmin, defaultMethod, payCurrency, dueDeposit, dueBalance, showForm = true, ledger }: {
+export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, payments, isAdmin, defaultMethod, payCurrency, dueDeposit, dueBalance, showForm = true, ledger, usdtFeePct = 0.85 }: {
   orderId: string; accountId: string; accountCode: string; orderNumber: string; payments: Payment[]; isAdmin: boolean;
   defaultMethod: PaymentMethod; payCurrency: "USD" | "EUR"; dueDeposit: number; dueBalance: number; showForm?: boolean; ledger?: Ledger;
+  usdtFeePct?: number;
 }) {
+  // mixed order (part USDT, part wire): a USDT payment brings the part it covers + the fee (Gabriel, Nov 4 2026)
+  const mixed = defaultMethod === "mixed";
+  const [method, setMethod] = useState<"wire" | "usdt">(defaultMethod === "usdt" ? "usdt" : "wire");
+  const [covers, setCovers] = useState("");
   const router = useRouter();
   const [state, action, pending] = useActionState<ActionState, FormData>(recordPayment, {});
   const [type, setType] = useState<"deposit" | "balance" | "other">(dueDeposit > 0 ? "deposit" : "balance");
@@ -70,7 +77,9 @@ export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, pa
   const [proof, setProof] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const due = type === "deposit" ? dueDeposit : type === "balance" ? dueBalance : null;
-  const diff = due !== null && amount ? Number(amount) - due : null;
+  const usdtMixed = mixed && method === "usdt";
+  const split = usdtMixed && covers && amount ? usdtPart(Number(amount), Number(covers), usdtFeePct) : null;
+  const diff = due !== null && amount ? (split ? split.applied : Number(amount)) - due : null;
   const reasonLabel = (k: string | null) => DIFFERENCE_REASONS.find(([v]) => v === k)?.[1] ?? "";
 
   return (
@@ -117,6 +126,12 @@ export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, pa
                     <td className="px-3 py-2 align-top">
                       <span className="font-medium">{PAYMENT_TYPE_LABEL[p.type]}</span>
                       <span className="text-xs text-muted-foreground"> · {PAYMENT_METHOD_LABEL[p.method]}{p.reference ? ` · ${p.reference}` : ""}</span>
+                      {p.usdt_covers_usd != null ? (
+                        <span className="block text-xs text-muted-foreground" data-testid="usdt-split">
+                          Received {money(p.received_usd ?? p.amount, p.currency)} in USDT · covers {money(p.usdt_covers_usd, p.currency)} + fee {money(p.usdt_fee_usd ?? 0, p.currency)}
+                          {Number(p.usdt_fee_lost_usd) > 0 ? <span className="text-destructive"> · fee not received {money(p.usdt_fee_lost_usd, p.currency)} = financial loss</span> : null}
+                        </span>
+                      ) : null}
                       {p.proof_file_id ? <a href={`/api/files/${p.proof_file_id}`} target="_blank" rel="noreferrer" className="ml-2 text-xs underline">proof</a> : null}
                       {p.difference !== null && Number(p.difference) !== 0 ? (
                         <span className={`block text-xs ${Number(p.difference) < 0 ? "text-destructive" : "text-amber-700"}`}>
@@ -179,13 +194,31 @@ export function PaymentsPanel({ orderId, accountId, accountCode, orderNumber, pa
         </div>
         <div className="grid gap-1.5"><Label>Amount on the proof ({payCurrency})</Label>
           <Input name="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          {due !== null ? <span className="text-xs text-muted-foreground">Due: {money(due, payCurrency)}{diff !== null && Math.abs(diff) > 0.004 ? ` · difference ${money(diff, payCurrency)}` : ""}</span> : null}
+          {due !== null && !usdtMixed ? <span className="text-xs text-muted-foreground">Due: {money(due, payCurrency)}{diff !== null && Math.abs(diff) > 0.004 ? ` · difference ${money(diff, payCurrency)}` : ""}</span> : null}
         </div>
         <div className="grid gap-1.5"><Label>Method</Label>
-          <NativeSelect name="method" defaultValue={defaultMethod}>
-            {Object.entries(PAYMENT_METHOD_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          <NativeSelect name="method" value={method} onChange={(e) => setMethod(e.target.value as "wire" | "usdt")}>
+            {PAYMENT_METHODS_ONE.map((k) => <option key={k} value={k}>{PAYMENT_METHOD_LABEL[k]}</option>)}
           </NativeSelect>
+          {mixed ? <span className="text-xs text-muted-foreground">Mixed order: record the USDT part and the wire part as two payments.</span> : null}
         </div>
+        {usdtMixed ? (
+          <div className="grid gap-1.5 rounded-md border border-dashed bg-background p-2 sm:col-span-3" data-testid="usdt-covers">
+            <Label>Part of the invoice this USDT payment covers (US$)</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <Input name="usdt_covers" inputMode="decimal" value={covers} onChange={(e) => setCovers(e.target.value)} className="w-36" placeholder={due ? String(due) : ""} required />
+              {covers ? <span className="text-sm">Expected in USDT: <b data-testid="usdt-expected">{money(usdtPart(Number(covers), Number(covers), usdtFeePct).expected, payCurrency)}</b> ({money(Number(covers), payCurrency)} + {usdtFeePct} %)</span> : null}
+            </div>
+            {split ? (
+              <span className={`text-xs ${split.feeLost > 0 ? "text-destructive" : "text-emerald-700"}`} data-testid="usdt-check">
+                {split.feeLost > 0
+                  ? `The fee did not arrive complete: ${money(split.feeLost, payCurrency)} will be a financial loss (not asked from the client).`
+                  : "Complete: the part covered + the fee arrived."}
+                {due !== null && split.applied < Number(covers) - 0.004 ? ` · ${money(Number(covers) - split.applied, payCurrency)} of the part covered is still due.` : ""}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         <div className="grid gap-1.5"><Label>Value date</Label><Input type="date" name="received_at" defaultValue={new Date().toISOString().slice(0, 10)} /></div>
         <div className="grid gap-1.5"><Label>Reference (MT103 / TXID)</Label><Input name="reference" /></div>
         <div className="grid gap-1.5"><Label>Reason of a difference</Label>

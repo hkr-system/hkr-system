@@ -31,7 +31,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
 
   // 15 months of history before January feed the suggestion (seasonality needs last year)
   const histFrom = addMonths(months[0], -15);
-  const [rows, team, { data: goals }, { data: history }, { data: projections }, { data: accounts }, assign] = await Promise.all([
+  const [rows, team, { data: goals }, { data: history }, { data: projections }, { data: accounts }, assign, { data: losses }] = await Promise.all([
     loadSales(db, histFrom, `${year}-12-31`),
     loadTeam(db),
     db.from("sales_goals").select("month, owner_user_id, amount_usd").gte("month", months[0]).lte("month", months[11]),
@@ -39,7 +39,11 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
     db.from("sales_projections").select("month, amount_usd, suggested_usd").gte("month", months[0]).lte("month", months[11]),
     db.from("accounts").select("id, code, name"),
     loadAssignments(db),
+    // financial losses: USDT fees of mixed payments that did not arrive (Gabriel, Nov 4 2026)
+    db.from("orders_finance").select("financial_loss_usd, orders!inner(order_date)").gt("financial_loss_usd", 0)
+      .gte("orders.order_date", `${year}-01-01`).lte("orders.order_date", `${year}-12-31`),
   ]);
+  const lossYear = (losses ?? []).reduce((t, l) => t + Number(l.financial_loss_usd), 0);
   const owners = team.filter((t) => t.role === "bd" || t.role === "admin");
   const system = new Map<string, number>();
   for (const r of rows) system.set(monthStart(r.order_date), (system.get(monthStart(r.order_date)) ?? 0) + r.total_usd);
@@ -88,7 +92,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/finance"
           <StatTile label="Year goal (company)" value={goalYear ? usd(goalYear) : "—"} sub={goalYear ? `${Math.round((ytd / goalYear) * 100)}% reached` : "Set monthly goals below"} />
           <StatTile label="Year projection" value={projYear ? usd(projYear) : "—"} />
           <StatTile label={`Net margin ${year}`} value={usd(margin)} sub={yearRev ? `${((margin / yearRev) * 100).toFixed(1)} % of system revenue` : undefined} />
-          <StatTile label="Credit-note spend" value="—" sub="Phase 4" />
+          <StatTile label={`Financial losses ${year}`} value={usd(lossYear)} sub="USDT fees not received (already out of the margin)" />
         </div>
 
         <Card>

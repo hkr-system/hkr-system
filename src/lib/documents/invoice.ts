@@ -49,7 +49,9 @@ export async function loadInvoiceDoc(db: SupabaseClient<Database>, id: string): 
     consignee: splitLines(inv.consignee), shipTo: splitLines(inv.ship_to),
     notify: (inv.notify ?? {}) as Notify, shipment: (inv.shipment ?? {}) as Shipment,
     lines, total: Number(inv.total_usd),
-    payment: (inv.payment_method === "usdt" ? issuer.usdt_lines : issuer.bank_lines) ?? [],
+    // a mixed order (part USDT, part wire) shows both payment instructions (Nov 4 2026)
+    payment: (inv.payment_method === "usdt" ? issuer.usdt_lines ?? []
+      : inv.payment_method === "mixed" ? [...(issuer.bank_lines ?? []), ...(issuer.usdt_lines ?? [])] : issuer.bank_lines ?? []),
   };
 }
 

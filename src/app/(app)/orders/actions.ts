@@ -68,18 +68,45 @@ function parseLines(raw: string): { lines: LineInput[]; problem?: string } {
   return { lines };
 }
 
+/** Other charges / discounts typed on the order form: description + amount, or qty × US$/unit. */
+function parseCharges(json: string): { charges: { description: string; qty: number | null; unit: number | null; amount: number }[]; problem?: string } {
+  let raw: unknown;
+  try { raw = JSON.parse(json || "[]"); } catch { return { charges: [], problem: "The other charges could not be read." }; }
+  const out: { description: string; qty: number | null; unit: number | null; amount: number }[] = [];
+  for (const c of Array.isArray(raw) ? raw as Record<string, string>[] : []) {
+    const d = String(c.description ?? "").trim();
+    const n = (v: unknown) => Number(String(v ?? "").replace(",", ".").replace("−", "-"));
+    const qty = String(c.qty ?? "").trim() ? Math.round(n(c.qty)) : null;
+    const unit = String(c.unit ?? "").trim() ? Math.round(n(c.unit) * 100) / 100 : null;
+    const amount = qty !== null && unit !== null ? Math.round(qty * unit * 100) / 100 : Math.round(n(c.amount) * 100) / 100;
+    if (!d && !amount) continue;                       // an empty row is ignored
+    if (!d) return { charges: [], problem: "Each other charge needs a description (it is printed on the invoice)." };
+    if (qty !== null && !(qty > 0)) return { charges: [], problem: `${d}: the quantity must be a number above 0.` };
+    if (!Number.isFinite(amount) || amount === 0) return { charges: [], problem: `${d}: write the amount (negative for a discount).` };
+    out.push({ description: d, qty: qty !== null && unit !== null ? qty : null, unit: qty !== null && unit !== null ? unit : null, amount });
+  }
+  return { charges: out };
+}
+
 export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireRole(STAFF);
   const db = await createClient();
   const id = opt(fd, "id");
   const { lines, problem } = parseLines(str(fd, "lines"));
   if (problem) return { error: problem };
+  const { charges, problem: chargeProblem } = parseCharges(str(fd, "charges"));
+  if (chargeProblem) return { error: chargeProblem };
   const fields = {
     order_date: str(fd, "order_date") || new Date().toISOString().slice(0, 10),
     payment_method: (str(fd, "payment_method") || "wire") as PaymentMethod,
     delivery_setup: (str(fd, "delivery_setup") || "client_label") as DeliverySetup,
     freight_usd: num(fd, "freight_usd"),
     customs_usd: num(fd, "customs_usd"),
+    // per unit (US$ × units, kept up to date by the database) or one total for the shipment (Nov 4 2026)
+    freight_mode: str(fd, "freight_mode") === "unit" ? "unit" : "total",
+    freight_unit_usd: str(fd, "freight_mode") === "unit" ? num(fd, "freight_unit_usd") : null,
+    customs_mode: str(fd, "customs_mode") === "unit" ? "unit" : "total",
+    customs_unit_usd: str(fd, "customs_mode") === "unit" ? num(fd, "customs_unit_usd") : null,
     eta_date: opt(fd, "eta_date"),
     notes: opt(fd, "notes"),
     invoice_format: parseFormat(fd.get("invoice_format")),
@@ -136,6 +163,20 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     })))
     .select("id, sort_order");
   if (lineErr) return { error: friendly(lineErr) };
+
+  // other charges / discounts: replaced as a whole, like the lines
+  if (id) {
+    const { error: cdErr } = await db.from("order_charges").delete().eq("order_id", orderId!);
+    if (cdErr) return { error: friendly(cdErr) };
+  }
+  if (charges.length) {
+    const { error: chErr } = await db.from("order_charges").insert(charges.map((c, i) => ({
+      order_id: orderId!, account_id: accountId, description: c.description, qty: c.qty, unit_usd: c.unit, amount_usd: c.amount, sort_order: i,
+    })));
+    if (chErr) return { error: friendly(chErr) };
+  }
+  const { data: tot } = await db.from("orders").select("total_usd").eq("id", orderId!).maybeSingle();
+  if (tot && Number(tot.total_usd) < 0) return { error: "The discounts are larger than the order: the total is below zero. Correct them and save again." };
 
   if (user.role === "admin") {
     const fin = (inserted ?? [])
@@ -196,9 +237,13 @@ export async function recordPayment(_p: ActionState, fd: FormData): Promise<Acti
   const amount = num(fd, "amount");
   if (!(amount > 0)) return { error: "Enter the amount on the proof." };
   const reason = opt(fd, "difference_reason");
+  const method = (str(fd, "method") === "usdt" ? "usdt" : "wire") as PaymentMethod;   // one payment = wire OR USDT
+  // a USDT payment of a MIXED order: the part of the invoice it covers; the database works out the 0.85 % and any loss
+  const covers = str(fd, "usdt_covers") ? num(fd, "usdt_covers") : null;
+  if (covers !== null && !(covers > 0)) return { error: "Write the part of the invoice this USDT payment covers (US$)." };
   const { error } = await db.from("payments").insert({
     order_id: orderId, account_id: str(fd, "account_id"), type: (str(fd, "type") || "deposit") as PaymentType, amount,
-    method: (str(fd, "method") || "wire") as PaymentMethod, received_at: str(fd, "received_at") || new Date().toISOString().slice(0, 10),
+    method, usdt_covers_usd: method === "usdt" ? covers : null, received_at: str(fd, "received_at") || new Date().toISOString().slice(0, 10),
     reference: opt(fd, "reference"), difference_reason: reason, notes: opt(fd, "notes"), proof_file_id: opt(fd, "proof_file_id"),
   });
   if (error) return { error: friendly(error) };

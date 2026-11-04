@@ -17,10 +17,11 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   const { id } = await params;
   const db = await createClient();
   const isAdmin = access.user.role === "admin";
-  const [{ data: o }, { data: lines }, accounts, skus, terms, prices, intermediaries, addresses] = await Promise.all([
+  const [{ data: o }, { data: lines }, accounts, skus, terms, prices, intermediaries, addresses, { data: charges }] = await Promise.all([
     db.from("orders").select("*, accounts(code)").eq("id", id).maybeSingle(),
     db.from("order_lines").select("id, sku_id, skus(model, storage_gb, color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
     loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db),
+    db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", id).order("sort_order"),
   ]);
   if (!o) notFound();
   const fin = isAdmin && lines?.length
@@ -38,6 +39,10 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,
           invoice_format: (o.invoice_format ?? null) as Record<string, boolean> | null,
+          freight_mode: o.freight_mode as "unit" | "total", customs_mode: o.customs_mode as "unit" | "total",
+          charges: (charges ?? []).map((c) => ({
+            description: c.description, qty: c.qty === null ? "" : String(c.qty), unit: c.unit_usd === null ? "" : String(c.unit_usd), amount: String(c.amount_usd),
+          })),
           lines: (lines ?? []).map((l) => {
             const sk = l.skus as { model: string; storage_gb: number; color: string } | null;   // a line from a one-colour SKU (before Nov 2 2026)
             const legacy = sk?.color;

@@ -43,20 +43,22 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   if (!o) notFound();
   const acc = o.accounts as unknown as { id: string; code: string; name: string; country: string | null; invoice_format: { battery_line_separate?: boolean } | null; intermediaries: { name: string } | null };
 
-  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: intermediaries }] = await Promise.all([
+  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: intermediaries }, { data: charges }, { data: feeSetting }] = await Promise.all([
     db.from("order_overview").select("*").eq("id", id).single(),
     db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, price_source, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
     db.from("order_events").select("id, kind, from_status, to_status, body, file_id, user_id, created_at").eq("order_id", id).order("created_at", { ascending: false }).limit(100),
     db.from("files").select("id, kind, file_name, created_at").eq("owner_table", "orders").eq("owner_id", id).order("created_at", { ascending: false }),
     loadTeam(db),
-    isAdmin ? db.from("orders_finance").select("base_cost_usd, real_cost_usd, margin_pct").eq("order_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    isAdmin ? db.from("orders_finance").select("base_cost_usd, real_cost_usd, margin_pct, financial_loss_usd").eq("order_id", id).maybeSingle() : Promise.resolve({ data: null }),
     db.from("invoices").select("id, number, status, version, invoice_date, consignee, ship_to, notify, shipment, lines, total_usd, file_pdf_id, file_xlsx_id").eq("order_id", id).neq("status", "void").maybeSingle(),
     db.from("settings").select("value").eq("key", "invoice_issuers").maybeSingle(),
     db.from("credit_note_applications").select("id, credit_note_id, amount_usd, credit_notes(number)").eq("order_id", id).order("created_at"),
     db.from("credit_notes").select("id, number, amount, currency, status, reason, rmas(number), credit_note_applications(amount_usd)")
       .eq("account_id", acc.id).in("status", ["approved", "issued", "applied"]).order("number"),
     db.from("intermediaries").select("id, name").order("name"),
+    db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", id).order("sort_order"),
+    db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
   ]);
   const imName = (intermediaries ?? []).find((i) => i.id === o.intermediary_id)?.name ?? null;
   const appliedCn = (cnApplied ?? []).map((a) => ({ id: a.id, credit_note_id: a.credit_note_id, number: (a.credit_notes as unknown as { number: string }).number, amount: Number(a.amount_usd) }));
@@ -175,8 +177,11 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               <div className="ml-auto grid max-w-sm gap-1 px-4 pt-3 text-sm" data-tabular data-testid="order-summary">
                 <div className="flex justify-between"><span>Products ({o.pieces} pcs)</span><span>{money(o.subtotal_usd)}</span></div>
                 {Number(o.battery_line_usd) ? <div className="flex justify-between"><span>New battery cell line</span><span>{money(o.battery_line_usd)}</span></div> : null}
-                {Number(o.freight_usd) ? <div className="flex justify-between"><span>Freight</span><span>{money(o.freight_usd)}</span></div> : null}
-                {Number(o.customs_usd) ? <div className="flex justify-between"><span>Customs</span><span>{money(o.customs_usd)}</span></div> : null}
+                {Number(o.freight_usd) ? <div className="flex justify-between"><span>Shipping{o.freight_mode === "unit" ? ` (${o.pieces} × ${money(o.freight_unit_usd ?? 0)})` : ""}</span><span>{money(o.freight_usd)}</span></div> : null}
+                {Number(o.customs_usd) ? <div className="flex justify-between"><span>Customs{o.customs_mode === "unit" ? ` (${o.pieces} × ${money(o.customs_unit_usd ?? 0)})` : ""}</span><span>{money(o.customs_usd)}</span></div> : null}
+                {(charges ?? []).map((c, i) => (
+                  <div key={i} className="flex justify-between gap-3" data-testid="summary-charge"><span>{c.description}{c.qty !== null ? ` (${c.qty} × ${money(c.unit_usd ?? 0)})` : ""}</span><span className={Number(c.amount_usd) < 0 ? "text-emerald-700" : ""}>{Number(c.amount_usd) < 0 ? "−" : ""}{money(Math.abs(Number(c.amount_usd)))}</span></div>
+                ))}
                 {Number(o.rma_discount_usd) ? <div className="flex justify-between"><span>{appliedCn.length ? `Credit notes (${appliedCn.map((a) => a.number).join(", ")})` : "RMA discount"}</span><span>−{money(o.rma_discount_usd)}</span></div> : null}
                 {Number(o.usdt_fee_usd) ? <div className="flex justify-between"><span>USDT fee</span><span>{money(o.usdt_fee_usd)}</span></div> : null}
                 <div className="flex justify-between border-t pt-1 font-semibold"><span>Invoice total</span><span>{money(o.total_usd)}</span></div>
@@ -218,7 +223,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             <CardContent>
               <PaymentsPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number} isAdmin={isAdmin}
                 payments={(payments ?? []) as never} defaultMethod={o.payment_method} payCurrency={cur} dueDeposit={dueDeposit} dueBalance={dueBalance}
-                showForm={editable || dueDeposit + dueBalance > 0}
+                showForm={editable || dueDeposit + dueBalance > 0} usdtFeePct={Number(feeSetting?.value ?? 0.85) || 0.85}
                 ledger={{ date: o.order_date, label: o.hk_invoice_no ? `Invoice ${o.hk_invoice_no}` : `Order ${o.number} (invoice not approved yet)`, total: Number(o.total_usd),
                   note: appliedCn.length ? `includes credit notes ${appliedCn.map((a) => `${a.number} −${money(a.amount)}`).join(", ")}` : null }} />
             </CardContent>
@@ -298,9 +303,12 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               <CardContent className="grid gap-1 text-sm" data-tabular>
                 <div className="flex justify-between text-muted-foreground"><span>Base list price</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
                 <div className="flex justify-between"><span>Real cost (base ÷ 1 + base margin)</span><span>{money(finance.data?.real_cost_usd ?? null)}</span></div>
-                <div className="flex justify-between"><span>Profit</span><span data-testid="profit">{finance.data?.real_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.real_cost_usd)) : "—"}</span></div>
+                {Number(finance.data?.financial_loss_usd) > 0 ? (
+                  <div className="flex justify-between text-destructive" data-testid="financial-loss"><span>Financial loss (USDT fee not received)</span><span>−{money(finance.data!.financial_loss_usd)}</span></div>
+                ) : null}
+                <div className="flex justify-between"><span>Profit</span><span data-testid="profit">{finance.data?.real_cost_usd != null ? money(Number(o.total_usd) - Number(finance.data.real_cost_usd) - Number(finance.data.financial_loss_usd ?? 0)) : "—"}</span></div>
                 <div className="flex justify-between font-medium" title="Profit ÷ invoice total: which part of what the client pays is profit"><span>Margin (profit ÷ invoice total)</span><span data-testid="margin">{finance.data?.margin_pct != null ? `${Number(finance.data.margin_pct).toFixed(2)} %` : "—"}</span></div>
-                <div className="flex justify-between font-medium" title="Profit ÷ real cost: how much was added on top of what the phones cost"><span>Markup (profit ÷ real cost)</span><span data-testid="markup">{finance.data?.real_cost_usd ? `${((Number(o.total_usd) - Number(finance.data.real_cost_usd)) / Number(finance.data.real_cost_usd) * 100).toFixed(2)} %` : "—"}</span></div>
+                <div className="flex justify-between font-medium" title="Profit ÷ real cost: how much was added on top of what the phones cost"><span>Markup (profit ÷ real cost)</span><span data-testid="markup">{finance.data?.real_cost_usd ? `${((Number(o.total_usd) - Number(finance.data.real_cost_usd) - Number(finance.data.financial_loss_usd ?? 0)) / Number(finance.data.real_cost_usd) * 100).toFixed(2)} %` : "—"}</span></div>
               </CardContent>
             </Card></div> : null}
       </OrderTabs>

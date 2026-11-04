@@ -2,7 +2,8 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { saveOrder, type ActionState } from "@/app/(app)/orders/actions";
-import { orderTotals } from "@/lib/orders/calc";
+import { orderTotals, shippingTotal } from "@/lib/orders/calc";
+import { ChargesEditor, chargesTotal, type Charge } from "./order-charges";
 import { DELIVERY_SETUP_LABEL, PAYMENT_METHOD_LABEL, money, type DeliverySetup, type PaymentMethod } from "@/lib/orders/constants";
 import { countryOptions } from "@/lib/leads/countries";
 import { modelKey } from "@/lib/price-lists/models";
@@ -36,7 +37,9 @@ export type { Line } from "./order-lines";
 export type OrderValues = {
   id?: string; account_id?: string; order_date?: string; payment_method?: PaymentMethod; delivery_setup?: DeliverySetup;
   hk_invoice_no?: string | null; partner_invoice_no?: string | null; partner_invoice_eur?: number | null;
-  freight_usd?: number; customs_usd?: number; rma_discount_usd?: number; eta_date?: string | null; notes?: string | null;
+  freight_usd?: number; customs_usd?: number; rma_discount_usd?: number;
+  freight_mode?: "unit" | "total"; freight_unit_usd?: number | null; customs_mode?: "unit" | "total"; customs_unit_usd?: number | null;
+  charges?: Charge[]; eta_date?: string | null; notes?: string | null;
   ship_to?: Record<string, string>; lines?: Line[]; intermediary_id?: string | null; address_id?: string | null;
   invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean; show_note?: boolean } | null;
 };
@@ -69,8 +72,14 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [method, setMethod] = useState<PaymentMethod>(values.payment_method ?? account?.payment_method ?? "wire");
   const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? account?.delivery_setup ?? "client_label");
   const [lines, setLines] = useState<Line[]>(values.lines?.length ? values.lines : [emptyLine(ceOf(values.account_id ?? ""))]);
-  const [freight, setFreight] = useState(String(values.freight_usd ?? 0));
-  const [customs, setCustoms] = useState(String(values.customs_usd ?? 0));
+  // shipping and customs: per unit (US$ × units) or one total for the shipment; other charges / discounts (Gabriel, Nov 4 2026)
+  const [freightMode, setFreightMode] = useState<"unit" | "total">(values.freight_mode ?? "total");
+  const [freightUnit, setFreightUnit] = useState(values.freight_unit_usd != null ? String(values.freight_unit_usd) : "");
+  const [freight, setFreight] = useState(String(values.freight_mode === "unit" ? "" : values.freight_usd ?? 0));
+  const [customsMode, setCustomsMode] = useState<"unit" | "total">(values.customs_mode ?? "total");
+  const [customsUnit, setCustomsUnit] = useState(values.customs_unit_usd != null ? String(values.customs_unit_usd) : "");
+  const [customs, setCustoms] = useState(String(values.customs_mode === "unit" ? "" : values.customs_usd ?? 0));
+  const [charges, setCharges] = useState<Charge[]>(values.charges ?? []);
   const rma = String(values.rma_discount_usd ?? 0); // credit notes applied on the order page (Nov 3 2026), never typed
   const shipFor = (id: string) => accounts.find((a) => a.id === id)?.ship_default ?? {};
   const [ship, setShip] = useState<Record<string, string>>(
@@ -105,12 +114,16 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const choices = useMemo(() => choicesFor(accountId), [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
   const problems = lines.map(lineProblem).filter(Boolean) as string[];
 
+  const pcs = lines.reduce((n, l) => n + (Math.round(Number(String(l.qty).replace(",", "."))) || 0), 0);
+  const freightTotal = shippingTotal(freightMode, Number(freightUnit) || 0, Number(freight) || 0, pcs);
+  const customsTotal = shippingTotal(customsMode, Number(customsUnit) || 0, Number(customs) || 0, pcs);
+  const chargesSum = chargesTotal(charges);
   const t = orderTotals({
     lines: lines.map((l) => ({
       qty: Number(l.qty) || 0, unitPrice: Number(l.unit_price) || 0, batteryNew: l.battery === "new",
       batteryUnit: Number(l.battery_unit) || 0, batteryEligible: batteryLineEligible(l.model),
     })),
-    batteryLineSeparate: separate, freight: Number(freight) || 0, customs: Number(customs) || 0, rmaDiscount: Number(rma) || 0,
+    batteryLineSeparate: separate, freight: freightTotal, customs: customsTotal, charges: chargesSum, rmaDiscount: Number(rma) || 0,
     paymentMethod: method, depositPct: terms.depositPct, usdtFeePct: terms.usdtFeePct,
   });
   const firstOrder = account ? account.orders === 0 && !values.id : false;
@@ -193,7 +206,31 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             <LineEditor key={i} line={l} i={i} choices={choices} isAdmin={isAdmin} separate={separate}
               onChange={(p) => setLine(i, p)} onRemove={() => setLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : [emptyLine(ceOf(accountId))]))} />
           ))}
-          <AddLineButton onAdd={() => setLines((ls) => [...ls, emptyLine(ceOf(accountId))])} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <AddLineButton onAdd={() => setLines((ls) => [...ls, emptyLine(ceOf(accountId))])} />
+            <UnitsSummary lines={lines} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="order-charges">
+        <CardHeader>
+          <CardTitle className="text-base">Shipping, customs and other charges</CardTitle>
+          <CardDescription>Per unit (US$ × the {pcs} units of this order) or one amount for the whole shipment. Other charges print as their own line on the invoice; a negative amount is a discount.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <input type="hidden" name="freight_mode" value={freightMode} />
+          <input type="hidden" name="customs_mode" value={customsMode} />
+          <input type="hidden" name="freight_usd" value={freightMode === "total" ? freight : String(freightTotal)} />
+          <input type="hidden" name="customs_usd" value={customsMode === "total" ? customs : String(customsTotal)} />
+          <input type="hidden" name="freight_unit_usd" value={freightMode === "unit" ? freightUnit : ""} />
+          <input type="hidden" name="customs_unit_usd" value={customsMode === "unit" ? customsUnit : ""} />
+          <input type="hidden" name="charges" value={JSON.stringify(charges)} />
+          <FeeRow label="Shipping" testId="freight" mode={freightMode} setMode={setFreightMode} unit={freightUnit} setUnit={setFreightUnit}
+            total={freight} setTotal={setFreight} pcs={pcs} computed={freightTotal} />
+          <FeeRow label="Customs" testId="customs" mode={customsMode} setMode={setCustomsMode} unit={customsUnit} setUnit={setCustomsUnit}
+            total={customs} setTotal={setCustoms} pcs={pcs} computed={customsTotal} />
+          <ChargesEditor charges={charges} onChange={setCharges} />
         </CardContent>
       </Card>
 
@@ -260,10 +297,12 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
           <CardContent className="grid gap-2 text-sm" data-tabular>
             <div className="flex justify-between"><span>Products ({t.pieces} pcs)</span><span>{money(t.subtotal)}</span></div>
             {separate ? <div className="flex justify-between"><span>New battery cell line</span><span>{money(t.battery)}</span></div> : null}
-            <div className="flex items-center justify-between gap-2"><span>Freight</span><Input name="freight_usd" value={freight} onChange={(e) => setFreight(e.target.value)} inputMode="decimal" className="h-7 w-28 text-right" /></div>
-            <div className="flex items-center justify-between gap-2"><span>Customs</span><Input name="customs_usd" value={customs} onChange={(e) => setCustoms(e.target.value)} inputMode="decimal" className="h-7 w-28 text-right" /></div>
+            <div className="flex justify-between"><span>Shipping{freightMode === "unit" ? ` (${pcs} × ${money(Number(freightUnit) || 0)})` : ""}</span><span data-testid="total-freight">{money(freightTotal)}</span></div>
+            <div className="flex justify-between"><span>Customs{customsMode === "unit" ? ` (${pcs} × ${money(Number(customsUnit) || 0)})` : ""}</span><span data-testid="total-customs">{money(customsTotal)}</span></div>
+            {charges.length ? <div className="flex justify-between"><span>Other charges / discounts</span><span data-testid="total-charges">{money(chargesSum)}</span></div> : null}
             {Number(rma) ? <div className="flex items-center justify-between gap-2" title="Applied on the order page from approved credit notes"><span>Credit notes (−)</span><span className="tabular-nums">{Number(rma).toFixed(2)}</span></div> : null}
             {method === "usdt" ? <div className="flex justify-between"><span>USDT fee {terms.usdtFeePct} %</span><span>{money(t.usdtFee)}</span></div> : null}
+            {method === "mixed" ? <p className="text-xs text-muted-foreground">Mixed: no USDT fee on the invoice — each USDT payment brings the part it covers + {terms.usdtFeePct} %.</p> : null}
             <div className="flex justify-between border-t pt-2 font-semibold"><span>Invoice total</span><span data-testid="total">{money(t.total)}</span></div>
             <div className="flex justify-between text-muted-foreground"><span>Deposit {terms.depositPct} %</span><span data-testid="deposit">{money(t.deposit)}</span></div>
             <div className="flex justify-between text-muted-foreground"><span>Balance before shipment</span><span>{money(t.balance)}</span></div>
@@ -277,14 +316,62 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending || problems.length > 0}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
+        <Button type="submit" disabled={pending || problems.length > 0 || t.total < 0}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
         {/* leave without saving (Gabriel, Nov 3 2026) */}
         <Button asChild type="button" variant="outline" data-testid="order-cancel">
           <Link href={values.id ? `/orders/${values.id}` : "/orders"}>Cancel</Link>
         </Button>
         {problems.length ? <p className="text-sm text-destructive" role="alert" data-testid="lines-problem">Fix the colours first: {problems[0]}</p> : null}
+        {t.total < 0 ? <p className="text-sm text-destructive" role="alert">The discounts are larger than the order.</p> : null}
         {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
       </div>
     </form>
+  );
+}
+
+/** "47 units · 3 lines" under the lines, with the units per model (Gabriel, Nov 4 2026). */
+function UnitsSummary({ lines }: { lines: Line[] }) {
+  const byModel = new Map<string, number>();
+  let total = 0;
+  for (const l of lines) {
+    const q = Math.round(Number(String(l.qty).replace(",", "."))) || 0;
+    if (!q) continue;
+    total += q;
+    const name = l.model ? `${l.model}${l.storage_gb ? ` ${l.storage_gb}GB` : ""}` : l.description || "Other";
+    byModel.set(name, (byModel.get(name) ?? 0) + q);
+  }
+  return (
+    <div className="text-right text-sm" data-testid="units-summary">
+      <span className="font-semibold">Total: {total} unit{total === 1 ? "" : "s"}</span>
+      <span className="text-muted-foreground"> · {lines.length} line{lines.length === 1 ? "" : "s"}</span>
+      {byModel.size > 1 ? <span className="block text-xs text-muted-foreground">{[...byModel].map(([m, q]) => `${m}: ${q}`).join(" · ")}</span> : null}
+    </div>
+  );
+}
+
+/** Shipping / customs: per unit (US$ × units) or one total for the shipment. */
+function FeeRow({ label, testId, mode, setMode, unit, setUnit, total, setTotal, pcs, computed }: {
+  label: string; testId: string; mode: "unit" | "total"; setMode: (m: "unit" | "total") => void; unit: string; setUnit: (v: string) => void;
+  total: string; setTotal: (v: string) => void; pcs: number; computed: number;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[110px_1fr_auto] sm:items-center" data-testid={`fee-${testId}`}>
+      <span className="text-sm font-medium">{label}</span>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "unit"} onChange={() => setMode("unit")} className="size-4" data-testid={`${testId}-mode-unit`} /> Per unit</label>
+        <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "total"} onChange={() => setMode("total")} className="size-4" data-testid={`${testId}-mode-total`} /> Total for the shipment</label>
+        {mode === "unit" ? (
+          <span className="flex items-center gap-1.5">US$
+            <Input value={unit} onChange={(e) => setUnit(e.target.value)} inputMode="decimal" className="h-8 w-24 text-right" aria-label={`${label} US$ per unit`} data-testid={`${testId}-unit`} />
+            <span className="text-muted-foreground">per unit × {pcs}</span>
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5">US$
+            <Input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" className="h-8 w-28 text-right" aria-label={`${label} total US$`} data-testid={`${testId}-total`} />
+          </span>
+        )}
+      </div>
+      <span className="text-right text-sm font-medium" data-tabular>{money(computed)}</span>
+    </div>
   );
 }

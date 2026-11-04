@@ -210,6 +210,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
 | `node tests/e2e/price-rules.cjs` | Client price rules (after db:reset): remember, account rules, new list = base + rule |
+| `node tests/e2e/order-charges.cjs` | Units, shipping per unit/total, charges + discount, Mixed payment with a USDT fee loss (after db:reset) |
 | `node tests/e2e/samsung.cjs` | Samsung lists (after db:reset): Samsung base upload, client Samsung list, both lists on account/order/portal |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
@@ -541,6 +542,25 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   and applies again if the model returns). The list page shows "Client rules used in this list — check the amounts" (base admin
   only, rule, rule price, vs engine, vs before). pgTAP `14_price_rules`, e2e `tests/e2e/price-rules.cjs`.
 - Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
+
+## Shipping, customs, other charges; mixed payments (Gabriel, Nov 4 2026)
+
+- Order form: "Total: N units" under the lines (per model too); card "Shipping, customs and other charges":
+  shipping and customs each per unit (`*_mode = 'unit'`, `*_unit_usd` × pieces, recomputed by `order_recalc` when the lines
+  change) or one total for the shipment (`'total'`, every older order). Invoice: per unit → qty × unit; total → one amount.
+- Other charges / discounts: table `order_charges` (description, optional qty × unit, amount ≠ 0; + = extra charge like a
+  debit note, − = discount without a credit note); `orders.charges_usd` = Σ (trigger); each prints as its own invoice line
+  after shipping/customs; counted in the total, deposit and USDT fee. Total below zero is refused in the action.
+- Payment method "Mixed (USDT + wire)": NO USDT fee line on the invoice; the invoice shows both payment instructions. A single
+  payment is wire OR usdt (DB refuses 'mixed'). A USDT payment of a mixed order states "covers US$X of the invoice":
+  expected = X × 1.0085; trigger `payments_before_usdt` keeps `received_usd` (what arrived), sets `amount` = what it pays of
+  the invoice, `usdt_fee_usd`, `usdt_fee_lost_usd`. Gabriel's rule: 5,042.50 for 5,000 = complete; 5,000 = covers 5,000 and
+  the 42.50 fee is a FINANCIAL LOSS (never asked again); 4,900 = loss 42.50 + US$100 still due. Pure-USDT orders unchanged
+  (fee line on the invoice). Same rule in `src/lib/orders/calc.ts` usdtPart (unit-tested with these examples).
+- Financial losses (confirmed payments) → `orders_finance.financial_loss_usd`; margin % and `sales_orders.margin_usd` subtract
+  them; order Finance tab shows the loss; Finance page tile "Financial losses <year>".
+- Fixed Nov 4: editing an order failed — `intermediary_id`, `address_id`, `invoice_format` had no column UPDATE grant (orders
+  use column grants: add every new editable column to the grant). pgTAP `16_order_charges_mixed`, e2e `tests/e2e/order-charges.cjs`.
 
 ## Samsung price lists (Gabriel, Nov 4 2026)
 

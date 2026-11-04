@@ -58,6 +58,9 @@ const lineHeight = (text: string) => Math.max(19.5, descriptionRows(text) * 11 +
 const fmtLongDate = (d: string) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
   .format(new Date(`${d.slice(0, 10)}T00:00:00Z`));
 
+/** yyyy-mm-dd → mm-dd-yyyy (the US order HKR's invoices use). */
+export const usDate = (d: string) => { const [y, m, dd] = d.slice(0, 10).split("-"); return `${m}-${dd}-${y}`; };
+
 export function buildInvoiceSheet(i: LayoutInput): Sheet {
   const cells = new Map<string, Cell>();
   const merges: string[] = [];
@@ -117,7 +120,7 @@ export function buildInvoiceSheet(i: LayoutInput): Sheet {
   const four = (xs: string[]) => [xs[0], xs[1], xs[2], xs.slice(3).join(", ")];
   four(i.consignee).forEach((v, k) => set(`L${8 + k}`, v ?? ""));
   four(i.shipTo).forEach((v, k) => set(`T${8 + k}`, v ?? ""));
-  set("T12", i.date.slice(0, 10));
+  set("T12", `Invoice Date: ${usDate(i.date)}`);   // Gabriel, Nov 4 2026: "Invoice Date: 11-04-2026"
   set("N13", i.notify.contact ?? "");
   set("N14", i.notify.address ?? "");
   set("N16", i.notify.phone ?? "");

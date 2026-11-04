@@ -14,7 +14,7 @@ import type { SavedAddress } from "@/components/orders/order-form";
 const KIND: [string, string][] = [["client", "Client (direct)"], ["forwarder", "Forwarder"], ["clearance", "Clearance company"], ["other", "Other"]];
 type Row = Omit<SavedAddress, "account_id"> & { key: string; notes?: string | null };
 const FIELDS: [keyof Row, string, string][] = [
-  ["company", "Company / consignee", ""], ["contact_name", "Contact", ""], ["phone", "Phone", ""], ["email", "Email", ""],
+  ["company", "Company / consignee", ""], ["contact_name", "Contact name", ""], ["phone", "Phone", ""], ["email", "Email", ""],
   ["address", "Address", "sm:col-span-2"], ["city", "City", ""],
 ];
 

@@ -375,6 +375,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - "Mark as sent" stores `[code]_ORD-NN_INV-HK(_vN).pdf/.xlsx` (kind INV-HK) in the order folder → client portal shows them.
   Downloads on the fly: /api/invoices/<id>/pdf|xlsx (drafts say DRAFT).
 - USDT fee: 0.85 % is the current one (Gabriel, Oct 30 2026).
+- Nov 4 2026 (Gabriel): the date cell reads "Invoice Date: MM-DD-YYYY"; the notify party "Contact:" shows a person's NAME (the
+  order's reception contact if it has letters, else the account's first contact). Ultimate consignee = the account's legal name +
+  billing address (Account → Edit), Ship to = the order's address; the stamp prints only once an admin approves.
 - Invoice number (Gabriel, Nov 2 2026): `<client code>-INV-NN`, a sequence per account (`invoice_next_number_for`), never
   reused (voided keep theirs); replaces MMDDYYYY for new invoices. The order form no longer types INV-HK: the approved
   invoice fills `orders.hk_invoice_no`.

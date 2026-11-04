@@ -20,7 +20,7 @@ describe("invoice in the original grid", () => {
     expect(v("V5")).toBe("Invoice No: AMS-NL-901-INV-01");
     expect([v("B8"), v("B9"), v("B11")]).toEqual(["Exporter Ltd", "Street 1", "Kowloon"]);
     expect(v("L11")).toBe("Netherlands, VAT NL123"); // a 5th consignee line joins the 4th row
-    expect(v("T12")).toBe("2026-11-03");
+    expect(v("T12")).toBe("Invoice Date: 11-03-2026");
     expect([v("B24"), v("D24"), v("Q24"), v("Y26"), v("B26")]).toEqual([1, "Line 1", "China", 50, null]); // only products get a number
     expect(v("D28")).toBe("Payment: USDT TRC-20");
     expect(v("Y33")).toBe(500);

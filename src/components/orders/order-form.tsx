@@ -260,7 +260,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
               </div>
             ) : null}
             <F label="Company / consignee"><Input name="ship_name" value={ship.name ?? ""} onChange={setS("name")} /></F>
-            <F label="Reception contact"><Input name="ship_contact" value={ship.contact ?? ""} onChange={setS("contact")} /></F>
+            <F label="Reception contact name"><Input name="ship_contact" placeholder="Name of the person (the phone goes below)" value={ship.contact ?? ""} onChange={setS("contact")} /></F>
             <F label="Address" className="sm:col-span-2"><Input name="ship_address" value={ship.address ?? ""} onChange={setS("address")} /></F>
             <F label="City"><Input name="ship_city" value={ship.city ?? ""} onChange={setS("city")} /></F>
             <F label="Country">

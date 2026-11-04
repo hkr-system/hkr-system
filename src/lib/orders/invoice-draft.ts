@@ -72,7 +72,8 @@ export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<In
     consignee: [acc.legal_name || acc.name, ...address, acc.vat_eori ? `VAT / EORI: ${acc.vat_eori}` : "", ...splitLines(acc.company_ids)].filter(Boolean).join("\n"),
     ship_to: [ship.name || acc.legal_name || acc.name, ship.address, ship.city, shipCountry, ship.phone].filter(Boolean).join("\n"),
     notify: {
-      contact: ship.contact || c?.name || acc.legal_name || acc.name,
+      // the contact's NAME (Gabriel, Nov 4 2026): a phone typed in the contact field is not a name → the account's first contact
+      contact: (/[a-z]/i.test(ship.contact ?? "") ? ship.contact : "") || c?.name || acc.legal_name || acc.name,
       address: address[0] ?? "",
       phone: [ship.phone || c?.phone_e164, c?.email].filter(Boolean).join(" / "),
     },

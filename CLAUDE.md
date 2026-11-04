@@ -589,6 +589,10 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   (invoice date = the Invoiced status event, else order date); "to collect" = payable − confirmed payments of unpaid orders.
 - /sales shows orders made (period), paid, pending payment (today), to collect (USD + EUR), avg processing, avg cash cycle,
   average order (not for the specialist). The account page shows the same per client ("Orders at a glance").
+- Account overview tiles (Gabriel, Nov 3 2026): Lifetime sales (Σ invoice totals ≥ Invoiced; not for the specialist), Lifetime
+  margin (on the real cost; admin, bd own accounts via sales_orders), RMA units to send to HK (return-to-HK units waiting for a
+  batch + in open batches, next cut-off, open RMAs), Credit notes still to give (approved − applied on invoices; also drafts
+  waiting for the SD and RMA credits that have no credit note yet).
 - /sales/mix: best models and configurations, price by model (admin also margin), prices accepted by each client vs the
   average. Price vs the list offered and "how much more we can charge" (SOP §5.3 R_c / Extra_c) come with Phase 6, admin only.
 

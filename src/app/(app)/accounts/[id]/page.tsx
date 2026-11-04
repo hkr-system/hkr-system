@@ -5,7 +5,7 @@ import { checkSection } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { countryName } from "@/lib/leads/countries";
 import { loadTeam } from "@/lib/leads/service";
-import { formatDateTime, todayIn } from "@/lib/format";
+import { formatDate, formatDateTime, todayIn } from "@/lib/format";
 import { loadAssignments, loadIntermediaries, loadTerms } from "@/lib/orders/service";
 import { BILLING_ENTITY_LABEL, DELIVERY_SETUP_LABEL, FILE_KINDS, PAYMENT_METHOD_LABEL, money, type AccountStatus } from "@/lib/orders/constants";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import type { RmaStatus } from "@/lib/rmas/constants";
 import { OrdersTable, type OrderRow } from "@/components/orders/orders-table";
 import { FileUpload } from "@/components/orders/file-upload";
 import { Button } from "@/components/ui/button";
+import { loadSales } from "@/lib/sales/load";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditLock } from "@/components/edit-lock";
@@ -43,7 +44,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
   const { data: a } = await db.from("accounts").select("*, intermediaries(name)").eq("id", id).maybeSingle();
   if (!a) notFound();
 
-  const [team, assign, contacts, orders, files, intermediaries, terms, chats, rmas, cns, portalUsers, cycle] = await Promise.all([
+  const [team, assign, contacts, orders, files, intermediaries, terms, chats, rmas, cns, portalUsers, cycle, cnApps, rmaUnits, sales] = await Promise.all([
     loadTeam(db),
     loadAssignments(db, [id]),
     db.from("contacts").select("id, name, role, phone_e164, email, language, whatsapp_opt_in").eq("account_id", id).order("created_at"),
@@ -52,10 +53,14 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     loadIntermediaries(db),
     loadTerms(db),
     db.from("wa_conversations").select("id, contact_name, contact_phone, last_inbound_at").eq("account_id", id).order("last_message_at", { ascending: false }).limit(5),
-    db.from("rma_overview").select("id, number, status, units, units_not_found, credit_usd, cap_usd, created_at").eq("account_id", id).order("created_at", { ascending: false }),
-    db.from("credit_notes").select("id, number, status, amount, currency, issued_on, applied_invoice_no").eq("account_id", id).order("created_at", { ascending: false }),
+    db.from("rma_overview").select("id, number, status, units, units_not_found, units_to_batch, credit_usd, cap_usd, created_at").eq("account_id", id).order("created_at", { ascending: false }),
+    db.from("credit_notes").select("id, number, status, amount, currency, issued_on, applied_invoice_no, rma_id").eq("account_id", id).order("created_at", { ascending: false }),
     db.from("portal_users").select("id, email, language, active, last_login_at, created_at, contacts(name)").eq("account_id", id).order("created_at"),
     db.from("order_cycle").select("total_usd, order_date, outstanding, pays_in_eur, processing_days, cash_cycle_days, fully_paid").eq("account_id", id),
+    db.from("credit_note_applications").select("amount_usd").eq("account_id", id),
+    db.from("rma_units").select("batch_id, rma_batches(status, cutoff_date)").eq("account_id", id).eq("resolution", "return_hk").in("unit_status", ["reported", "verified", "awaiting_shipment"]),
+    // lifetime sales and margin (Gabriel, Nov 3 2026): the specialist sees no revenue; a bd only her accounts (rpc rules)
+    user.role === "account_specialist" ? Promise.resolve([]) : loadSales(db, "2000-01-01", todayIn("Asia/Hong_Kong")),
   ]);
   const cyc = cycle.data ?? [];
   const avgOf = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
@@ -77,6 +82,24 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
   const inter = (a.intermediaries as { name: string } | null)?.name;
   const fmt = (a.invoice_format ?? {}) as { battery_line_separate?: boolean; show_ce_text?: boolean; show_note?: boolean };
   const today = todayIn(user.timezone);
+  // money and RMAs at a glance (Gabriel, Nov 3 2026)
+  const life = (sales as Awaited<ReturnType<typeof loadSales>>).filter((x) => x.account_id === id);
+  const lifeSales = life.reduce((t, x) => t + x.total_usd, 0);
+  const lifeMargin = life.some((x) => x.margin_usd !== null) ? life.reduce((t, x) => t + (x.margin_usd ?? 0), 0) : null;
+  const cnRows = (cns.data ?? []).filter((c) => c.currency === "USD");
+  const cnDraft = cnRows.filter((c) => c.status === "draft").reduce((t, c) => t + Number(c.amount), 0);
+  const cnGranted = cnRows.filter((c) => ["approved", "issued", "applied"].includes(c.status)).reduce((t, c) => t + Number(c.amount), 0);
+  const cnApplied = (cnApps.data ?? []).reduce((t, x) => t + Number(x.amount_usd), 0);
+  const cnLeft = Math.max(0, Math.round((cnGranted - cnApplied) * 100) / 100);
+  const withCn = new Set(cnRows.filter((c) => c.status !== "cancelled" && c.rma_id).map((c) => c.rma_id));
+  const rmaCreditNoCn = (rmas.data ?? []).filter((r) => r.status !== "closed" && !withCn.has(r.id)).reduce((t, r) => t + Number(r.credit_usd ?? 0), 0);
+  const openRmas = (rmas.data ?? []).filter((r) => r.status !== "closed").length;
+  type RU = { batch_id: string | null; rma_batches: { status: string; cutoff_date: string } | null };
+  const units = (rmaUnits.data ?? []) as unknown as RU[];
+  const toBatch = units.filter((u) => !u.batch_id).length;
+  const inOpenBatch = units.filter((u) => u.rma_batches?.status === "open");
+  const openBatches = new Set(inOpenBatch.map((u) => u.batch_id)).size;
+  const nextCutoff = inOpenBatch.map((u) => u.rma_batches!.cutoff_date).sort()[0] ?? null;
 
   return (
     <>
@@ -110,10 +133,38 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
 
       {tab === "overview" ? (
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="grid content-start gap-4">
           <Card>
             <CardHeader><CardTitle>Open orders</CardTitle></CardHeader>
             <CardContent className="px-0"><OrdersTable orders={open} showAccount={false} today={today} /></CardContent>
           </Card>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="account-money">
+            {user.role !== "account_specialist" ? (
+              <div className="rounded-xl border bg-card p-3">
+                <div className="text-xs text-muted-foreground">Lifetime sales</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums" data-testid="life-sales">{money(lifeSales)}</div>
+                <div className="text-xs text-muted-foreground">{life.length} invoiced order{life.length === 1 ? "" : "s"}</div>
+              </div>
+            ) : null}
+            {lifeMargin !== null ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                <div className="text-xs text-emerald-800">Lifetime margin</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums text-emerald-800" data-testid="life-margin">{money(lifeMargin)}</div>
+                <div className="text-xs text-emerald-800">{lifeSales ? `${(lifeMargin / lifeSales * 100).toFixed(2)} % of sales` : "—"} · on the real cost</div>
+              </div>
+            ) : null}
+            <Link href={`/accounts/${id}?tab=rmas`} className={`rounded-xl border p-3 hover:bg-muted/40 ${toBatch + inOpenBatch.length ? "border-amber-300 bg-amber-50/60" : "bg-card"}`} data-testid="account-rma-batches">
+              <div className="text-xs text-muted-foreground">RMA units to send to HK</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums">{toBatch + inOpenBatch.length}</div>
+              <div className="text-xs text-muted-foreground">{toBatch} waiting for a batch · {inOpenBatch.length} in {openBatches} open batch{openBatches === 1 ? "" : "es"}{nextCutoff ? ` (cut-off ${formatDate(nextCutoff)})` : ""} · {openRmas} open RMA{openRmas === 1 ? "" : "s"}</div>
+            </Link>
+            <Link href="/rmas/credit-notes" className={`rounded-xl border p-3 hover:bg-muted/40 ${cnLeft + cnDraft + rmaCreditNoCn ? "border-red-200 bg-red-50/50" : "bg-card"}`} data-testid="account-credit-notes">
+              <div className="text-xs text-muted-foreground">Credit notes still to give</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-red-700" data-testid="cn-left">{money(cnLeft)}</div>
+              <div className="text-xs text-muted-foreground">approved {money(cnGranted)} · applied on invoices {money(cnApplied)}{cnDraft ? ` · draft (SD to approve) ${money(cnDraft)}` : ""}{rmaCreditNoCn ? ` · RMA credits without a credit note ${money(rmaCreditNoCn)}` : ""}</div>
+            </Link>
+          </div>
+          </div>
           <div className="grid content-start gap-4">
             <Card data-testid="account-order-stats">
               <CardHeader><CardTitle>Orders at a glance</CardTitle></CardHeader>

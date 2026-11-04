@@ -33,18 +33,14 @@ export function marketForCountry(code: string | null | undefined): Market | null
   return COUNTRY_CODES.includes(c) ? "ROW" : null;
 }
 
-const namesEn = new Intl.DisplayNames(["en"], { type: "region" });
-const namesEs = new Intl.DisplayNames(["es"], { type: "region" });
+// Fixed names (made once from Intl, Nov 4 2026): the server's and the browser's Intl data differ ("Hong Kong SAR China" vs
+// "Hong Kong", "Falkland Islands (Islas Malvinas)"), which broke page hydration. Both now read this same table.
+import NAMES from "./country-names.json";
+const TABLE = NAMES as { en: Record<string, string>; es: Record<string, string> };
 
 export function countryName(code: string | null | undefined, lang: "en" | "es" = "en") {
   if (!code) return "—";
-  try {
-    // the extra name in brackets differs between the server's and the browser's data ("Falkland Islands (Islas Malvinas)")
-    // and broke the page hydration (Nov 4 2026): it is dropped
-    return ((lang === "es" ? namesEs : namesEn).of(code.toUpperCase()) ?? code).replace(/\s+\([^)]*\)$/, "");
-  } catch {
-    return code;
-  }
+  return TABLE[lang][code.toUpperCase()] ?? code;
 }
 
 export function countryOptions(lang: "en" | "es" = "en") {

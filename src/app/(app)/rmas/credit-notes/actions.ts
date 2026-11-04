@@ -48,9 +48,16 @@ export async function saveCreditNote(input: CnInput): Promise<ActionState> {
   }
   const { error: e2 } = await db.from("credit_note_lines").insert(lines.map((l) => ({ ...l, credit_note_id: id!, account_id: input.accountId })));
   if (e2) return { error: friendly(e2) };
+  // an admin corrected an issued / applied credit note (Gabriel, Nov 4 2026): the saved PDF + xlsx (portal, printing)
+  // are made again from the corrected content, so the file you open is never the old version
+  const { data: st } = await db.from("credit_notes").select("status").eq("id", id!).maybeSingle();
+  if (st && ["issued", "applied"].includes(st.status)) {
+    const problem = await storeDocuments(id!);
+    if (problem) return { error: `Saved, but the files could not be made again: ${problem}` };
+  }
   revalidatePath("/rmas/credit-notes");
   revalidatePath(`/rmas/credit-notes/${id}`);
-  return { ok: true, id: id!, message: "Saved." };
+  return { ok: true, id: id!, message: st && ["issued", "applied"].includes(st.status) ? "Saved. The PDF and xlsx were made again with the changes." : "Saved." };
 }
 
 // Generates the PDF + xlsx and stores them in the account files (RMA folder, order folder or general).

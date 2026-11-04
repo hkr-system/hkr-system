@@ -131,6 +131,17 @@ export async function markInvoiceSent(id: string): Promise<InvoiceState> {
   return { ok: true, message: "Sent: PDF and xlsx saved in the order documents (the client sees them in the portal)." };
 }
 
+// One step for an admin (Gabriel, Nov 4 2026: the separate "Approve" is unnecessary for admins): the draft becomes the final
+// invoice (number on the order, stamp, frozen) and its PDF + xlsx are saved in the order documents at once.
+export async function issueInvoice(id: string): Promise<InvoiceState> {
+  await requireRole(["admin"]);
+  const a = await approveInvoice(id);
+  if (a.error) return a;
+  const s = await markInvoiceSent(id);
+  if (s.error) return s;
+  return { ok: true, message: "Invoice issued: final PDF (with the stamp) and xlsx saved in the order documents; the client sees them in the portal." };
+}
+
 export async function reopenInvoice(id: string): Promise<InvoiceState> {
   await requireRole(["admin"]);
   const db = await createClient();

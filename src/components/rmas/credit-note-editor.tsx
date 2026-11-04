@@ -94,7 +94,7 @@ export function CreditNoteEditor({ value, accounts, orders, editable }: {
 
       {editable ? (
         <div className="flex items-center gap-3">
-          <Button onClick={save} disabled={pending || !v.accountId} data-testid="save-cn">{pending ? "Saving…" : v.id ? "Save draft" : "Create draft"}</Button>
+          <Button onClick={save} disabled={pending || !v.accountId} data-testid="save-cn">{pending ? "Saving…" : !v.id ? "Create draft" : status && status !== "draft" ? "Save changes" : "Save draft"}</Button>
           {msg.error ? <span className="text-sm text-destructive" role="alert">{msg.error}</span> : null}
           {msg.ok ? <span className="text-sm text-emerald-700">{msg.ok}</span> : null}
         </div>
@@ -126,8 +126,8 @@ export function CnStatusControls({ id, status, isAdmin, hasFiles }: { id: string
             <Button size="sm" disabled={pending} onClick={() => run("applied")} data-testid="cn-apply">Mark applied</Button>
           </>
         ) : null}
-        {["issued", "applied"].includes(status) && !hasFiles ? (
-          <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { const r = await regenerateCreditNoteFiles(id); setMsg(r.error ? { error: r.error } : { ok: r.message }); router.refresh(); })}>Save the files again</Button>
+        {["issued", "applied"].includes(status) ? (
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { const r = await regenerateCreditNoteFiles(id); setMsg(r.error ? { error: r.error } : { ok: r.message }); router.refresh(); })}>{hasFiles ? "Make the PDF + xlsx again" : "Save the files"}</Button>
         ) : null}
         {isAdmin && !["cancelled", "draft"].includes(status) ? <Button size="sm" variant="ghost" disabled={pending} onClick={() => { if (confirm("Cancel this credit note?")) run("cancelled"); }}>Cancel</Button> : null}
         {status === "draft" ? <Button size="sm" variant="ghost" disabled={pending} onClick={() => { if (confirm("Delete this draft?")) start(async () => { const r = await deleteCreditNote(id); if (r.error) setMsg({ error: r.error }); else router.push("/rmas/credit-notes"); }); }}>Delete draft</Button> : null}

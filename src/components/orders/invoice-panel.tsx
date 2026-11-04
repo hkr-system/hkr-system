@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileDown, FileSpreadsheet } from "lucide-react";
 import {
-  approveInvoice, createInvoiceDraft, deleteInvoiceDraft, markInvoiceSent, refreshInvoiceFromOrder, reopenInvoice, saveInvoiceDraft,
+  createInvoiceDraft, issueInvoice, deleteInvoiceDraft, markInvoiceSent, refreshInvoiceFromOrder, reopenInvoice, saveInvoiceDraft,
   type InvoiceState,
 } from "@/app/(app)/orders/invoice-actions";
 import { money } from "@/lib/orders/constants";
@@ -112,7 +112,7 @@ export function InvoicePanel({ orderId, invoice, orderTotal, role, issuerReady }
             <Button type="submit" size="sm" variant="outline" disabled={saving}>{saving ? "Saving…" : "Save draft"}</Button>
             <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => run(() => refreshInvoiceFromOrder(invoice.id))}>Take lines again from the order</Button>
             <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => run(() => refreshInvoiceFromOrder(invoice.id, true))}>…and addresses</Button>
-            {isAdmin ? <Button type="button" size="sm" disabled={pending || differs} onClick={() => run(() => approveInvoice(invoice.id))}>Approve</Button> : <span className="self-center text-xs text-muted-foreground">An admin approves it.</span>}
+            {isAdmin ? <Button type="button" size="sm" disabled={pending || differs} data-testid="issue-invoice" onClick={() => run(() => issueInvoice(invoice.id))}>{pending ? "Issuing…" : "Issue invoice (final)"}</Button> : <span className="self-center text-xs text-muted-foreground">An admin issues it.</span>}
             {isAdmin ? <Button type="button" size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => run(() => deleteInvoiceDraft(invoice.id))}>Delete draft</Button> : null}
           </div>
         </form></EditLock>

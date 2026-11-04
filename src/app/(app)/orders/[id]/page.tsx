@@ -301,6 +301,11 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         {isAdmin ? <div data-tab="finance"><Card data-testid="finance">
               <CardHeader><CardTitle>Finance (admin only)</CardTitle></CardHeader>
               <CardContent className="grid gap-1 text-sm" data-tabular>
+                {/* the profit is worked out on the invoice total, which already has the applied credit notes taken off */}
+                <div className="flex justify-between font-medium" data-testid="fin-invoice-total"><span>Invoice total{Number(o.rma_discount_usd) ? " (after credit notes)" : ""}</span><span>{money(o.total_usd)}</span></div>
+                {Number(o.rma_discount_usd) ? (
+                  <div className="flex justify-between text-muted-foreground" data-testid="fin-credit-notes"><span>· credit notes applied ({appliedCn.map((a) => a.number).join(", ") || "RMA discount"})</span><span>−{money(o.rma_discount_usd)}</span></div>
+                ) : null}
                 <div className="flex justify-between text-muted-foreground"><span>Base list price</span><span>{money(finance.data?.base_cost_usd ?? null)}</span></div>
                 <div className="flex justify-between"><span>Real cost (base ÷ 1 + base margin)</span><span>{money(finance.data?.real_cost_usd ?? null)}</span></div>
                 {Number(finance.data?.financial_loss_usd) > 0 ? (

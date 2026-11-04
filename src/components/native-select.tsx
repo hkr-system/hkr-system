@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rankOptions, type Opt } from "@/lib/search-options";
@@ -70,6 +71,25 @@ export function NativeSelect({ className, children, value, defaultValue, onChang
     listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active, open]);
 
+  // the list floats above the page (portal), so a card's edge never cuts it (Gabriel, Nov 4 2026: the account Status
+  // dropdown at the bottom of a card showed only one option); it opens upwards when there is no room below
+  const [pos, setPos] = React.useState<{ left: number; width: number; top?: number; bottom?: number; maxH: number } | null>(null);
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = inputRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const below = window.innerHeight - r.bottom - 8; const above = r.top - 8;
+      const up = below < 180 && above > below;
+      setPos({ left: r.left, width: Math.max(r.width, 192), maxH: Math.min(256, Math.max(120, up ? above : below)),
+        ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
+
   return (
     <div className={cn("relative w-full min-w-0", className)} data-slot="search-select">
       <select
@@ -107,9 +127,10 @@ export function NativeSelect({ className, children, value, defaultValue, onChang
         className="h-8 w-full min-w-0 rounded-lg border border-input bg-background py-0 pl-2 pr-7 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
       />
       <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-      {open && !disabled ? (
+      {open && !disabled && pos ? createPortal(
         <ul id={listId} ref={listRef} role="listbox"
-          className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full min-w-48 overflow-auto rounded-lg border bg-popover p-1 text-sm shadow-md">
+          style={{ position: "fixed", left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxH }}
+          className="z-[100] overflow-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md">
           {shown.length ? shown.map((o, i) => (
             <li key={`${o.value}-${i}`} role="option" aria-selected={o.value === current} data-index={i}
               onMouseDown={(e) => { e.preventDefault(); choose(o); }}
@@ -119,7 +140,7 @@ export function NativeSelect({ className, children, value, defaultValue, onChang
               {o.label || <span className="text-muted-foreground">—</span>}
             </li>
           )) : <li className="px-2 py-1.5 text-muted-foreground">No match</li>}
-        </ul>
+        </ul>, document.body,
       ) : null}
     </div>
   );

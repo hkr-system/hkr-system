@@ -77,7 +77,7 @@ async function openOrder(page, code, number) {
     await desc.fill(before.replace(' GB / ', ' GB / Physical SIM / '));
     await page.click('button:has-text("Save draft")');
     await page.waitForSelector('[data-testid=invoice-message]');
-    check(!(await page.$('[data-testid=invoice-panel] button:has-text("Approve")')), 'specialist has no Approve button');
+    check(!(await page.$('[data-testid=issue-invoice]')), 'specialist cannot issue the invoice (an admin does)');
     const pdf = await page.request.get(page.url().replace(/\/orders\/.*/, '') + (await page.getAttribute('a:has-text("PDF")', 'href')));
     check(pdf.status() === 200 && pdf.headers()['content-type'] === 'application/pdf', 'draft PDF downloads');
     await page.screenshot({ path: `${DIR}/invoice-draft.png`, fullPage: true });
@@ -88,19 +88,18 @@ async function openOrder(page, code, number) {
   {
     const { ctx, page } = await login(browser, 'gabriel');
     await page.goto(orderUrl);
-    await page.click('[data-testid=invoice-panel] button:has-text("Approve")');
-    await page.waitForFunction(() => document.querySelector('[data-testid=invoice-status]')?.textContent === 'Approved');
-    check(true, 'admin approved the invoice');
+    // one step for an admin (Nov 4 2026): "Issue invoice (final)" = approved + PDF/xlsx saved, no separate Approve
+    await page.click('[data-testid=issue-invoice]');
+    await page.waitForFunction(() => document.querySelector('[data-testid=invoice-status]')?.textContent === 'Sent', null, { timeout: 60000 });
+    check(true, 'admin issued the invoice in one step');
     const number = (await page.textContent('[data-testid=invoice-number]')).replace('No. ', '').trim();
-    check((await page.textContent('main')).includes(`Our invoice ${number}`), 'order shows the approved invoice number');
+    check((await page.textContent('main')).includes(`Our invoice ${number}`), 'order shows the invoice number');
     const href = await page.getAttribute('a:has-text("PDF")', 'href');
     const pdf = await page.request.get(BASE + href);
     fs.writeFileSync(path.join(DIR, 'invoice-approved.pdf'), await pdf.body());
     const xlsx = await page.request.get(BASE + href.replace('/pdf', '/xlsx'));
     fs.writeFileSync(path.join(DIR, 'invoice-approved.xlsx'), await xlsx.body());
     check(xlsx.status() === 200 && xlsx.headers()['content-disposition'].includes('_INV-HK.xlsx'), 'xlsx named [code]_ORD-NN_INV-HK');
-    await page.click('button:has-text("Mark as sent to the client")');
-    await page.waitForFunction(() => document.querySelector('[data-testid=invoice-status]')?.textContent === 'Sent');
     await page.reload();
     const docs = await page.textContent('main');
     check(docs.includes('MEX-MX-903_ORD-03_INV-HK.pdf') && docs.includes('MEX-MX-903_ORD-03_INV-HK.xlsx'), 'sent invoice stored in the order documents');

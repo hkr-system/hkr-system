@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { EditLock } from "@/components/edit-lock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/native-select";
 import { saveRules } from "@/app/(app)/price-lists/actions";
 
 export type Rule = { id: string; model: string; storage_gb: number; increment_usd: number; note: string | null; last_used_at: string | null; in_base: boolean; label: string };
@@ -91,11 +92,11 @@ export function RulesEditor({ accountId, rules, choices }: {
           </table>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Model for a new rule" data-testid="rule-pick"
-            className="h-8 rounded-md border bg-background px-2 text-sm">
+          <NativeSelect value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Model for a new rule" data-testid="rule-pick"
+            className="w-64">
             <option value="">Add a model…</option>
             {free.map((c) => <option key={`${c.model}|${c.storage_gb}`} value={`${c.model}|${c.storage_gb}`}>{c.label} {c.storage_gb} GB</option>)}
-          </select>
+          </NativeSelect>
           <Button type="button" size="sm" variant="outline" onClick={add} disabled={!pick}>Add</Button>
           <Button type="submit" size="sm" disabled={pending} data-testid="save-rules">{pending ? "Saving…" : "Save rules"}</Button>
         </div>

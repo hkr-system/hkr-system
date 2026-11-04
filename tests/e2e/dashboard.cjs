@@ -77,9 +77,9 @@ const goto = async (page, url, sel) => { await page.goto(BASE + url); await page
     await goto(page, '/dashboard/escalations', '[data-testid=decide-rule]');
     check((await page.locator('[data-testid=decide-rule]').innerText()).includes('a date Hong Kong has not given'), 'decide-alone rule shown (SOP P8)');
     await page.click('[data-testid=new-escalation] summary');
-    const berId = await page.locator('#esc-account option', { hasText: 'BER-DE-902' }).getAttribute('value');
-    await page.selectOption('#esc-account', berId);
-    await page.selectOption('#esc-topic', 'carrier');
+    const berId = await page.locator('select[name=account_id] option', { hasText: 'BER-DE-902' }).getAttribute('value');
+    await page.selectOption('select[name=account_id]', berId);
+    await page.selectOption('select[name=topic]', 'carrier');
     await page.fill('#esc-what', 'Client asks if the units work on Vodafone DE.');
     await page.fill('#esc-asks', 'Carrier compatibility answer');
     await page.click('[data-testid=escalation-submit]');

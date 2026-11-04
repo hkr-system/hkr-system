@@ -5,7 +5,7 @@ import { createAccount, updateAccount, type ActionState } from "@/app/(app)/acco
 import { suggestCode } from "@/lib/accounts/code";
 import { countryOptions, marketForCountry } from "@/lib/leads/countries";
 import {
-  ACCOUNT_STATUS_LABEL, BILLING_ENTITY_LABEL, DELIVERY_SETUP_LABEL, PAYMENT_METHOD_LABEL,
+  ACCOUNT_STATUS_LABEL, BILLING_ENTITY_LABEL, PAYMENT_METHOD_LABEL,
   type AccountStatus, type BillingEntity, type DeliverySetup, type PaymentMethod,
 } from "@/lib/orders/constants";
 import { NativeSelect } from "@/components/native-select";
@@ -26,7 +26,7 @@ export type AccountValues = {
 type Props = {
   mode: "new" | "edit";
   values?: AccountValues;
-  intermediaries: { id: string; name: string }[];
+  intermediaries?: { id: string; name: string }[]; // not used any more: the route is chosen per order (Nov 4 2026)
   team: { user_id: string; full_name: string; role: string | null }[];
   isAdmin: boolean;
   lastCodeSeq: number;
@@ -56,17 +56,15 @@ function Step({ n, title, description, children }: { n: number; title: string; d
   );
 }
 
-export function AccountForm({ mode, values = {}, intermediaries, team, isAdmin, lastCodeSeq }: Props) {
+export function AccountForm({ mode, values = {}, team, isAdmin, lastCodeSeq }: Props) {
   const [state, action, pending] = useActionState<ActionState, FormData>(mode === "new" ? createAccount : updateAccount, {});
   const [name, setName] = useState(values.name ?? "");
   const [country, setCountry] = useState(values.country ?? "");
   const [codeTouched, setCodeTouched] = useState(mode === "edit");
   const [code, setCode] = useState(values.code ?? "");
-  const [intermediary, setIntermediary] = useState(values.intermediary_id ?? "");
   const suggested = useMemo(() => suggestCode(name, country, lastCodeSeq), [name, country, lastCodeSeq]);
   const shownCode = codeTouched ? code : suggested;
   const market = marketForCountry(country);
-  const fmt = values.invoice_format ?? { battery_line_separate: true };
   const countries = countryOptions("en");
 
   return (
@@ -103,16 +101,10 @@ export function AccountForm({ mode, values = {}, intermediaries, team, isAdmin, 
         ) : null}
       </Step>
 
-      <Step n={2} title="Invoicing and payment" description="Brief §6: EU accounts via an intermediary pay EUR to the intermediary; everyone else pays USD to Hong Kong.">
+      <Step n={2} title="Invoicing and payment" description="Route (intermediary or direct), logistics company, invoice format and delivery are chosen on each order.">
         <Field label="Billing entity">
           <NativeSelect name="billing_entity" defaultValue={values.billing_entity ?? "ever_state"}>
             {Object.entries(BILLING_ENTITY_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </NativeSelect>
-        </Field>
-        <Field label="Route" hint={intermediary ? "Route B: the client pays EUR (intermediary invoice)." : "Direct: the client pays USD."}>
-          <NativeSelect name="intermediary_id" value={intermediary} onChange={(e) => setIntermediary(e.target.value)} data-testid="intermediary">
-            <option value="">Direct (no intermediary)</option>
-            {intermediaries.map((i) => <option key={i.id} value={i.id}>Via {i.name}</option>)}
           </NativeSelect>
         </Field>
         <Field label="Payment method">
@@ -120,22 +112,9 @@ export function AccountForm({ mode, values = {}, intermediaries, team, isAdmin, 
             {Object.entries(PAYMENT_METHOD_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </NativeSelect>
         </Field>
-        <Field label="Default invoice format (copied to each new order; change it on the order)">
-          <div className="grid gap-1.5 text-sm">
-            <label className="flex items-center gap-2"><input type="checkbox" name="battery_line_separate" defaultChecked={fmt.battery_line_separate ?? true} className="size-4" /> Separate “New battery cell” line (otherwise absorbed in the price)</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="show_ce_text" defaultChecked={fmt.show_ce_text ?? false} className="size-4" /> CE Marks on new order lines (ticked by default)</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="plain_lines" defaultChecked={fmt.plain_lines ?? false} className="size-4" /> Plain invoice lines: only “Used iPhone 12 128GB” (no battery, CE, IMEI or colours)</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="show_note" defaultChecked={fmt.show_note ?? false} className="size-4" /> Show note</label>
-          </div>
-        </Field>
       </Step>
 
-      <Step n={3} title="Delivery, team and records">
-        <Field label="Delivery set-up (default for new orders)">
-          <NativeSelect name="delivery_setup" defaultValue={values.delivery_setup ?? "client_label"}>
-            {Object.entries(DELIVERY_SETUP_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </NativeSelect>
-        </Field>
+      <Step n={3} title="Team and records">
         <Field label="Language">
           <NativeSelect name="language" defaultValue={values.language ?? "en"}>
             <option value="en">English</option><option value="es">Spanish</option>

@@ -46,7 +46,6 @@ function tmpFile(name, content) {
     await page.fill('input[name=name]', 'Brick Phones');
     await page.selectOption('select[name=country]', 'NL');
     check((await page.inputValue('[data-testid=account-code]')) === 'BRI-NL-001', 'client code suggested BRI-NL-001 (demo 9xx codes do not count)');
-    await page.selectOption('[data-testid=intermediary]', { label: 'Via Global Connect' });
     await page.fill('input[name=contact_name]', 'Bram de Boer');
     await page.fill('input[name=contact_phone]', '+31 6 1199 0099');
     await page.click('button:has-text("Create account")');
@@ -70,6 +69,13 @@ function tmpFile(name, content) {
     check((await page.locator('[data-testid=lines-problem]').count()) === 1 && await page.locator('button:has-text("Create order")').isDisabled(), 'colours 100 + 51 ≠ 150 → cannot create');
     await line.locator('input[aria-label="Quantity Starlight"]').fill('50');
     check((await page.locator('[data-testid=lines-problem]').count()) === 0, 'colours 100 + 50 = 150 → OK');
+    // route + saved address per order (Nov 4 2026)
+    await page.selectOption('[data-testid=order-route]', { label: 'Via Global Connect (invoices the client in EUR)' });
+    await page.selectOption('[data-testid=order-address]', 'new');
+    await page.fill('input[name=new_address_label]', 'NL forwarder (Demo Cargo)');
+    await page.fill('input[name=ship_name]', 'Demo Cargo BV');
+    await page.fill('input[name=ship_address]', 'Cargoweg 1');
+    await page.fill('input[name=ship_city]', 'Schiphol');
     await line.locator('input[aria-label="Unit price"]').fill('140');
     await line.locator('input[aria-label="Battery US$ per unit"]').fill('8');
     check((await page.textContent('[data-testid=total]')).includes('22,200.00'), 'live total = 150 × 140 + battery 150 × 8');
@@ -79,6 +85,7 @@ function tmpFile(name, content) {
     await page.click('button:has-text("Create order")');
     await page.waitForURL(/\/orders\/[0-9a-f-]{36}$/);
     newOrderUrl = page.url();
+    check((await page.textContent('body')).includes('Demo Cargo BV'), 'order ships to the new address');
     check((await page.textContent('[data-testid=page-title]')).includes('BRI-NL-001 ORD-01'), 'order numbered ORD-01');
     check(!(await page.$('[data-testid=finance]')), 'specialist: no finance card');
     await page.click('[data-testid=advance]');

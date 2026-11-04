@@ -433,10 +433,25 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Payments = an account statement: the invoice as the charge, confirmed payments as received with a running balance;
   proofs awaiting an admin are shown in brackets and do not lower the balance; footer = balance still due.
 - Intermediary per ORDER: `orders.intermediary_id` (any company: Global Connect, Galimix, DWT…; "Direct" = none). A new order
-  takes the account's intermediary as default; changed on the order's Intermediary tab (admin can add a new company there).
+  takes the client's LAST order's route (Nov 4); chosen on the order form or the Intermediary tab (admin can add a company there).
   RMA batches still group by the ACCOUNT's intermediary.
 - Older browser tests keep every tab panel visible and click every ✏️ automatically (`tests/e2e/unlock.cjs`);
   `tests/e2e/edit-lock.cjs` checks the lock and the tabs themselves.
+
+## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
+
+- Every dropdown is searchable "Google style": `components/native-select.tsx` keeps a hidden real <select> (forms, onChange and
+  Playwright `selectOption` keep working) under a text box that filters as you type (`src/lib/search-options.ts`, unit-tested:
+  accents/case ignored, every word must match, names starting with the text first). Keep using NativeSelect with <option>s.
+- The account wizard no longer asks Route, invoice format or delivery set-up: they are chosen on each ORDER (order form →
+  "Route (who invoices the client)", "Delivery set-up", "Invoice format (this order)"). The account columns intermediary_id,
+  currency, invoice_format, delivery_setup now mean "what the client's LAST order used" (trigger `orders_remember_on_account`),
+  so a new order starts from the last choice and the RMA batches / RMA ask queue (grouped by the account's intermediary) work.
+- Saved addresses per client "like Amazon" (`account_addresses`: label, kind client/forwarder/clearance/other, company, contact,
+  phone, email, address, city, country, archived; RLS has_account_access, delete admin only). Account → Contacts tab →
+  "Shipping addresses" (✏️). Order form → "Saved address" (pre-picks the last order's) or "+ New address…" (saved to the list
+  unless unticked). `orders.address_id` + the order keeps its own copy in `ship_to` (now with email). LATAM forwarders only
+  receive/dispatch (the client pays HKR in USD) — they are NOT intermediaries.
 
 ## Intermediary orders (Gabriel, Nov 2 2026)
 
@@ -605,8 +620,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   (invoice date = the Invoiced status event, else order date); "to collect" = payable − confirmed payments of unpaid orders.
 - /sales shows orders made (period), paid, pending payment (today), to collect (USD + EUR), avg processing, avg cash cycle,
   average order (not for the specialist). The account page shows the same per client ("Orders at a glance").
-- Account overview tiles (Gabriel, Nov 3 2026): Lifetime sales (Σ invoice totals ≥ Invoiced; not for the specialist), Lifetime
-  margin (on the real cost; admin, bd own accounts via sales_orders), RMA units to send to HK (return-to-HK units waiting for a
+- Account overview tiles (Gabriel, Nov 3–4 2026): Lifetime sales (Σ invoice totals ≥ Invoiced; not for the specialist), Lifetime
+  gross margin (on the real cost; admin, bd own accounts via sales_orders; shown even at US$0), Sales · last 30 days and Gross
+  margin · last 30 days (order_date in the last 30 HK days, same visibility), RMA units to send to HK (return-to-HK units waiting for a
   batch + in open batches, next cut-off, open RMAs), Credit notes still to give (approved − applied on invoices; also drafts
   waiting for the SD and RMA credits that have no credit note yet).
 - /sales/mix: best models and configurations, price by model (admin also margin), prices accepted by each client vs the

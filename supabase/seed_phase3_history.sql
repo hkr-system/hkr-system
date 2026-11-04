@@ -16,15 +16,15 @@ begin
               where ac.is_demo and o.order_date < current_date - 100) then
     return; -- already seeded
   end if;
-  for a in select id, code, payment_method, delivery_setup from public.accounts where is_demo order by code loop
+  for a in select id, code, payment_method, delivery_setup, intermediary_id from public.accounts where is_demo order by code loop
     for m in 3..11 loop
       -- not every account orders every month: a simple, repeatable pattern
       continue when (m + length(a.code) + ascii(substr(a.code, 1, 1))) % 3 = 0;
       insert into public.orders (account_id, status, order_date, payment_method, delivery_setup, hk_invoice_no,
-                                 ship_date, delivered_date, tracking, courier, notes)
+                                 ship_date, delivered_date, tracking, courier, notes, intermediary_id)
       values (a.id, 'closed', (date_trunc('month', current_date) - make_interval(months => m))::date + (m * 3 % 25),
               a.payment_method, a.delivery_setup, 'DEMO-' || m, current_date - m * 30 + 10, current_date - m * 30 + 16,
-              'DEMO', 'DHL', 'Demo history order')
+              'DEMO', 'DHL', 'Demo history order', a.intermediary_id)
       returning id into v_order;
       for k in 1..2 loop
         v_sku := v_skus[1 + ((m + k + ascii(substr(a.code, 2, 1))) % array_length(v_skus, 1))];

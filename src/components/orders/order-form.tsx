@@ -21,8 +21,13 @@ export type FormAccount = {
   has_intermediary: boolean; battery_line_separate: boolean; country: string | null; legal_name: string | null; orders: number;
   ce_default?: boolean;   // invoice format "show CE text" → CE Marks ticked on new lines
   ship_default?: Record<string, string>;   // last order's ship-to, else the account's own address
-  invoice_format?: { battery_line_separate: boolean; show_ce_text: boolean; plain_lines: boolean; show_note: boolean }; // the client's default
+  invoice_format?: { battery_line_separate: boolean; show_ce_text: boolean; plain_lines: boolean; show_note: boolean }; // the client's last order
+  intermediary_id?: string | null;   // route of the client's last order
+  last_address_id?: string | null;   // saved address of the client's last order
 };
+export type SavedAddress = { id: string; account_id: string; label: string; kind: string; company: string | null; contact_name: string | null;
+  phone: string | null; email: string | null; address: string | null; city: string | null; country: string | null; archived: boolean };
+const KIND_LABEL: Record<string, string> = { client: "Client (direct)", forwarder: "Forwarder", clearance: "Clearance company", other: "Other" };
 type Sku = { id: string; label: string; battery_eligible: boolean; model: string; storage_gb: number };
 /** Approved list per account: "<model>|<gb>" → row (loadApprovedPrices). */
 export type AccountPrices = Record<string, { version: number; validUntil: string | null; rows: Record<string, { id: string; model: string; storage_gb: number; note: string | null; price: number; floor: number | null }> }>;
@@ -32,7 +37,7 @@ export type OrderValues = {
   id?: string; account_id?: string; order_date?: string; payment_method?: PaymentMethod; delivery_setup?: DeliverySetup;
   hk_invoice_no?: string | null; partner_invoice_no?: string | null; partner_invoice_eur?: number | null;
   freight_usd?: number; customs_usd?: number; rma_discount_usd?: number; eta_date?: string | null; notes?: string | null;
-  ship_to?: Record<string, string>; lines?: Line[];
+  ship_to?: Record<string, string>; lines?: Line[]; intermediary_id?: string | null; address_id?: string | null;
   invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean; show_note?: boolean } | null;
 };
 
@@ -48,8 +53,9 @@ function F({ label, children, className }: { label: string; children: React.Reac
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {} }: {
+export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [] }: {
   accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
+  intermediaries?: { id: string; name: string }[]; addresses?: SavedAddress[];
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
@@ -70,6 +76,21 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [ship, setShip] = useState<Record<string, string>>(
     values.ship_to && Object.values(values.ship_to).some(Boolean) ? values.ship_to : shipFor(values.account_id ?? (accounts.length === 1 ? accounts[0].id : "")));
   const setS = (k: string) => (e: { target: { value: string } }) => setShip((s) => ({ ...s, [k]: e.target.value }));
+  // route (who invoices the client) and the saved address are chosen per order (Gabriel, Nov 4 2026)
+  const initialAccount = values.account_id ?? (accounts.length === 1 ? accounts[0].id : "");
+  const [route, setRoute] = useState<string>(values.id ? values.intermediary_id ?? "" : accounts.find((a) => a.id === initialAccount)?.intermediary_id ?? "");
+  const addrOf = (id: string) => addresses.filter((x) => x.account_id === id && !x.archived);
+  const lastAddr = (id: string) => { const a = accounts.find((x) => x.id === id)?.last_address_id; return a && addrOf(id).some((x) => x.id === a) ? a : ""; };
+  const [addrId, setAddrId] = useState<string>(values.id ? values.address_id ?? "" : lastAddr(initialAccount));
+  const [newAddr, setNewAddr] = useState({ label: "", kind: "forwarder", email: "", save: true });
+  const fillFrom = (x: SavedAddress) => setShip({ name: x.company ?? "", contact: x.contact_name ?? "", phone: x.phone ?? "", email: x.email ?? "",
+    address: x.address ?? "", city: x.city ?? "", country: x.country ?? "" });
+  const pickAddress = (id: string) => {
+    setAddrId(id);
+    const x = addresses.find((a) => a.id === id);
+    if (x) fillFrom(x);
+    else if (id === "new") setShip({});
+  };
   const separate = fmt.battery_line_separate;
   // model choices: the client's approved price list; without one, the models of the SKUs
   const choicesFor = (acc: string): ModelChoice[] => {
@@ -102,7 +123,13 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     const a = accounts.find((x) => x.id === id);
     if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
     if (!values.id) setFmt(fmtOf(id));
-    if (!values.id) setShip(shipFor(id));
+    if (!values.id) {
+      setRoute(a?.intermediary_id ?? "");
+      const last = lastAddr(id);
+      setAddrId(last);
+      const x = addresses.find((y) => y.id === last);
+      if (x) fillFrom(x); else setShip(shipFor(id));
+    }
     const next = choicesFor(id);
     setLines((ls) => ls.map((l) => (l.model ? withChoice(l, next.find((c) => c.key === modelKey(l.model, l.storage_gb ?? 0))) : { ...l, ce: ceOf(id) })));
   };
@@ -113,6 +140,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       {values.id ? <input type="hidden" name="id" value={values.id} /> : null}
       <input type="hidden" name="lines" value={JSON.stringify(lines.map(lineToPayload))} />
       <input type="hidden" name="invoice_format" value={JSON.stringify(fmt)} />
+      <input type="hidden" name="address_id" value={addrId === "new" ? "" : addrId} />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Order</CardTitle><CardDescription>SOP P2. The order number (ORD-NN) is given automatically per account.</CardDescription></CardHeader>
@@ -136,8 +164,14 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             </NativeSelect>
           </F>
           <F label="Our invoice no. (INV-HK)"><Input value={values.hk_invoice_no ?? ""} placeholder="Given automatically by the invoice (CODE-INV-NN)" disabled readOnly /></F>
-          {account?.has_intermediary ? (
-            <p className="text-sm text-muted-foreground sm:col-span-3">Via an intermediary: add their invoice (number, EUR amount) on the order page when it arrives. They pay us in USD.</p>
+          <F label="Route (who invoices the client)">
+            <NativeSelect name="intermediary_id" value={route} onChange={(e) => setRoute(e.target.value)} data-testid="order-route">
+              <option value="">Direct: the client pays HKR in USD</option>
+              {intermediaries.map((i) => <option key={i.id} value={i.id}>Via {i.name} (invoices the client in EUR)</option>)}
+            </NativeSelect>
+          </F>
+          {route ? (
+            <p className="text-sm text-muted-foreground sm:col-span-2 sm:self-end">Via an intermediary: add their invoice (number, EUR amount) on the order page when it arrives. They pay us in USD.</p>
           ) : null}
         </CardContent>
       </Card>
@@ -165,9 +199,30 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <Card>
-          <CardHeader><CardTitle className="text-base">Ship to (this order)</CardTitle><CardDescription>Filled in from the client&apos;s last order (or its account data for a first order); change it if this order goes elsewhere.</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-base">Ship to (this order)</CardTitle><CardDescription>Pick one of the client&apos;s saved addresses (direct, forwarder, clearance company…) or add a new one. Changes typed here apply to this order only.</CardDescription></CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <F label="Consignee"><Input name="ship_name" value={ship.name ?? ""} onChange={setS("name")} /></F>
+            <F label="Saved address" className="sm:col-span-2">
+              <NativeSelect value={addrId} onChange={(e) => pickAddress(e.target.value)} disabled={!accountId} data-testid="order-address">
+                <option value="">{addrOf(accountId).length ? "— Not from the list (this order only) —" : "— No saved addresses yet —"}</option>
+                {addrOf(accountId).map((x) => <option key={x.id} value={x.id}>{x.label} · {KIND_LABEL[x.kind] ?? x.kind}{x.city || x.country ? ` · ${[x.city, x.country].filter(Boolean).join(", ")}` : ""}</option>)}
+                <option value="new">+ New address…</option>
+              </NativeSelect>
+            </F>
+            {addrId === "new" ? (
+              <div className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2 sm:grid-cols-3" data-testid="new-address">
+                <F label="Name for the list *"><Input name="new_address_label" value={newAddr.label} placeholder="e.g. Miami forwarder (XYZ Cargo)" onChange={(e) => setNewAddr((n) => ({ ...n, label: e.target.value }))} /></F>
+                <F label="Kind">
+                  <NativeSelect name="new_address_kind" value={newAddr.kind} onChange={(e) => setNewAddr((n) => ({ ...n, kind: e.target.value }))}>
+                    {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </NativeSelect>
+                </F>
+                <label className="flex items-center gap-2 self-end pb-1.5 text-sm">
+                  <input type="checkbox" name="new_address_save" checked={newAddr.save} onChange={(e) => setNewAddr((n) => ({ ...n, save: e.target.checked }))} className="size-4" />
+                  Save to this client&apos;s addresses
+                </label>
+              </div>
+            ) : null}
+            <F label="Company / consignee"><Input name="ship_name" value={ship.name ?? ""} onChange={setS("name")} /></F>
             <F label="Reception contact"><Input name="ship_contact" value={ship.contact ?? ""} onChange={setS("contact")} /></F>
             <F label="Address" className="sm:col-span-2"><Input name="ship_address" value={ship.address ?? ""} onChange={setS("address")} /></F>
             <F label="City"><Input name="ship_city" value={ship.city ?? ""} onChange={setS("city")} /></F>
@@ -178,6 +233,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
               </NativeSelect>
             </F>
             <F label="Phone"><Input name="ship_phone" value={ship.phone ?? ""} onChange={setS("phone")} /></F>
+            <F label="Email"><Input name="ship_email" type="email" value={ship.email ?? ""} onChange={setS("email")} /></F>
             <F label="Notes" className="sm:col-span-2"><Textarea name="notes" rows={2} defaultValue={values.notes ?? ""} /></F>
           </CardContent>
         </Card>

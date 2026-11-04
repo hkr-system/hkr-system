@@ -52,13 +52,15 @@ export async function loadFormAccounts(db: DB) {
   const [{ data: accs }, { data: counts }, { data: contacts }] = await Promise.all([
     db.from("accounts").select("id, code, name, payment_method, delivery_setup, intermediary_id, invoice_format, country, legal_name, billing_address, status")
       .neq("status", "closed").order("code"),
-    db.from("orders").select("account_id, ship_to, created_at").order("created_at", { ascending: false }).limit(5000),
+    db.from("orders").select("account_id, ship_to, address_id, created_at").order("created_at", { ascending: false }).limit(5000),
     db.from("contacts").select("account_id, name, phone_e164, created_at").not("account_id", "is", null).order("created_at").limit(5000),
   ]);
   const n = new Map<string, number>();
   const lastShip = new Map<string, Record<string, string>>();
+  const lastAddress = new Map<string, string | null>();
   for (const o of counts ?? []) {
     n.set(o.account_id, (n.get(o.account_id) ?? 0) + 1);
+    if (!lastAddress.has(o.account_id)) lastAddress.set(o.account_id, o.address_id);   // newest first
     const st = (o.ship_to ?? {}) as Record<string, string>;
     if (!lastShip.has(o.account_id) && (st.address || st.city)) lastShip.set(o.account_id, st);   // newest first
   }
@@ -67,6 +69,9 @@ export async function loadFormAccounts(db: DB) {
   return (accs ?? []).map((a) => ({
     id: a.id, code: a.code, name: a.name, payment_method: a.payment_method, delivery_setup: a.delivery_setup,
     has_intermediary: Boolean(a.intermediary_id), country: a.country, legal_name: a.legal_name,
+    // route + logistics are chosen per order (Gabriel, Nov 4 2026): a new order starts from the client's last order
+    intermediary_id: a.intermediary_id as string | null,
+    last_address_id: lastAddress.get(a.id) ?? null,
     battery_line_separate: Boolean((a.invoice_format as { battery_line_separate?: boolean } | null)?.battery_line_separate ?? true),
     ce_default: Boolean((a.invoice_format as { show_ce_text?: boolean } | null)?.show_ce_text),
     // the account's default invoice format; each order carries its own copy (Gabriel, Nov 3 2026)
@@ -87,4 +92,16 @@ export type InvoiceFormat = { battery_line_separate: boolean; show_ce_text: bool
 export function normalizeFormat(f: unknown): InvoiceFormat {
   const x = (f ?? {}) as Partial<InvoiceFormat>;
   return { battery_line_separate: x.battery_line_separate ?? true, show_ce_text: Boolean(x.show_ce_text), plain_lines: Boolean(x.plain_lines), show_note: Boolean(x.show_note) };
+}
+
+export type Address = { id: string; account_id: string; label: string; kind: "client" | "forwarder" | "clearance" | "other";
+  company: string | null; contact_name: string | null; phone: string | null; email: string | null; address: string | null;
+  city: string | null; country: string | null; notes: string | null; archived: boolean };
+/** Saved shipping addresses of the clients this user can see (Nov 4 2026: "like the address list in Amazon"). */
+export async function loadAddresses(db: DB, accountId?: string): Promise<Address[]> {
+  let q = db.from("account_addresses").select("id, account_id, label, kind, company, contact_name, phone, email, address, city, country, notes, archived")
+    .order("label");
+  if (accountId) q = q.eq("account_id", accountId);
+  const { data } = await q;
+  return (data ?? []) as Address[];
 }

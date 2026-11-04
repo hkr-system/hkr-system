@@ -94,7 +94,7 @@ begin
     v_acc := (select id from public.accounts where code = r.code);
     insert into public.orders (account_id, status, order_date, payment_method, delivery_setup, partner_invoice_eur,
                                partner_invoice_no, hk_invoice_no, eta_date, tracking, courier, ship_date, delivered_date,
-                               freight_usd, ship_to)
+                               freight_usd, ship_to, intermediary_id)
     select v_acc, r.status::public.order_status, current_date - r.days_ago, a.payment_method, a.delivery_setup, r.eur,
            case when r.eur is not null then 'GC-' || to_char(current_date - r.days_ago, 'YYMMDD') end,
            case when r.status <> 'quoted' then to_char(current_date - r.days_ago, 'MMDDYYYY') || '-1' end,
@@ -102,7 +102,8 @@ begin
            case when r.status in ('shipped', 'delivered', 'closed') then current_date - r.days_ago + 12 end,
            case when r.status in ('delivered', 'closed') then current_date - r.days_ago + 18 end,
            case when a.delivery_setup = 'our_booking' then 650 else 0 end,
-           jsonb_build_object('name', a.legal_name, 'country', a.country, 'contact', 'Reception', 'address', 'Demo street 1')
+           jsonb_build_object('name', a.legal_name, 'country', a.country, 'contact', 'Reception', 'address', 'Demo street 1'),
+           a.intermediary_id
       from public.accounts a where a.id = v_acc
     returning id into v_order;
 

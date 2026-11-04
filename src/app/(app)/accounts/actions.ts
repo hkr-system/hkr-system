@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CODE_RE } from "@/lib/accounts/code";
 import { marketForCountry } from "@/lib/leads/countries";
 import { normalizePhone } from "@/lib/leads/normalize";
-import type { AccountStatus, BillingEntity, DeliverySetup, FileKind, PaymentMethod } from "@/lib/orders/constants";
+import type { AccountStatus, BillingEntity, FileKind, PaymentMethod } from "@/lib/orders/constants";
 import { FILE_KINDS } from "@/lib/orders/constants";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string };
@@ -25,7 +25,6 @@ function friendly(e: { code?: string; message: string }) {
 
 function setupFields(fd: FormData) {
   const country = str(fd, "country").toUpperCase() || null;
-  const intermediary = opt(fd, "intermediary_id");
   return {
     name: str(fd, "name"),
     legal_name: opt(fd, "legal_name"),
@@ -35,17 +34,7 @@ function setupFields(fd: FormData) {
     billing_address: opt(fd, "billing_address"),
     company_ids: opt(fd, "company_ids"),
     billing_entity: (str(fd, "billing_entity") || "ever_state") as BillingEntity,
-    intermediary_id: intermediary,
-    // SOP §2.4: with an EU intermediary invoice the client pays EUR, otherwise USD
-    currency: (intermediary ? "EUR" : "USD") as "EUR" | "USD",
     payment_method: (str(fd, "payment_method") || "wire") as PaymentMethod,
-    delivery_setup: (str(fd, "delivery_setup") || "client_label") as DeliverySetup,
-    invoice_format: {
-      battery_line_separate: fd.get("battery_line_separate") === "on",
-      show_ce_text: fd.get("show_ce_text") === "on",
-      show_note: fd.get("show_note") === "on",
-      plain_lines: fd.get("plain_lines") === "on",
-    },
     language: str(fd, "language") === "es" ? "es" : "en",
     tier: opt(fd, "tier"),
     drive_folder_url: opt(fd, "drive_folder_url"),
@@ -182,4 +171,31 @@ export async function registerFile(input: {
   if (input.rmaId) revalidatePath(`/rmas/${input.rmaId}`);
   revalidatePath(`/accounts/${input.accountId}`);
   return { ok: true, id: data.id };
+}
+
+// ---------------------------------------------------------------------------
+// Saved shipping addresses (Gabriel, Nov 4 2026: "like the address list in Amazon"); anyone with the account edits them,
+// an address no longer used is marked "Not used any more" (old orders keep their own copy)
+// ---------------------------------------------------------------------------
+type AddressInput = { id?: string; label: string; kind: string; company: string | null; contact_name: string | null; phone: string | null;
+  email: string | null; address: string | null; city: string | null; country: string | null; archived: boolean };
+export async function saveAddresses(accountId: string, rows: AddressInput[]): Promise<ActionState> {
+  await requireRole(STAFF);
+  const db = await createClient();
+  const kinds = ["client", "forwarder", "clearance", "other"] as const;
+  for (const r of rows) if (!r.label.trim()) return { error: "Every address needs a name for the list (e.g. “Miami forwarder”)." };
+  for (const r of rows) {
+    const clean = (v: string | null) => (v ?? "").trim() || null;
+    const row = {
+      account_id: accountId, label: r.label.trim(), kind: (kinds as readonly string[]).includes(r.kind) ? (r.kind as (typeof kinds)[number]) : "other",
+      company: clean(r.company), contact_name: clean(r.contact_name), phone: clean(r.phone), email: clean(r.email),
+      address: clean(r.address), city: clean(r.city), country: clean(r.country), archived: Boolean(r.archived),
+    };
+    const { error } = r.id
+      ? await db.from("account_addresses").update(row).eq("id", r.id).eq("account_id", accountId)
+      : await db.from("account_addresses").insert(row);
+    if (error) return { error: friendly(error) };
+  }
+  revalidatePath(`/accounts/${accountId}`);
+  return { ok: true, message: "Addresses saved." };
 }

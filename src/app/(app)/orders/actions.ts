@@ -85,12 +85,31 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     invoice_format: parseFormat(fd.get("invoice_format")),
     ship_to: {
       name: str(fd, "ship_name"), address: str(fd, "ship_address"), city: str(fd, "ship_city"),
-      country: str(fd, "ship_country"), contact: str(fd, "ship_contact"), phone: str(fd, "ship_phone"),
+      country: str(fd, "ship_country"), contact: str(fd, "ship_contact"), phone: str(fd, "ship_phone"), email: str(fd, "ship_email"),
     },
+    // route + saved address per order (Gabriel, Nov 4 2026)
+    intermediary_id: opt(fd, "intermediary_id"),
+    address_id: opt(fd, "address_id"),
   };
 
   let orderId = id;
   let accountId = str(fd, "account_id");
+  if (id) {
+    const { data: cur0 } = await db.from("orders").select("account_id").eq("id", id).maybeSingle();
+    if (cur0) accountId = cur0.account_id;
+  }
+  // "+ New address…" → saved to the client's list (unless unticked) and used by this order
+  const newLabel = str(fd, "new_address_label");
+  if (newLabel && fd.get("new_address_save") === "on" && accountId) {
+    const kind = (["client", "forwarder", "clearance", "other"].includes(str(fd, "new_address_kind")) ? str(fd, "new_address_kind") : "other") as "client" | "forwarder" | "clearance" | "other";
+    const { data: addr, error: aErr } = await db.from("account_addresses").insert({
+      account_id: accountId, label: newLabel, kind, company: fields.ship_to.name || null, contact_name: fields.ship_to.contact || null,
+      phone: fields.ship_to.phone || null, email: fields.ship_to.email || null, address: fields.ship_to.address || null,
+      city: fields.ship_to.city || null, country: fields.ship_to.country || null,
+    }).select("id").single();
+    if (aErr) return { error: friendly(aErr) };
+    fields.address_id = addr.id;
+  }
   if (id) {
     const { data: cur } = await db.from("orders").select("status, account_id").eq("id", id).maybeSingle();
     if (!cur) return { error: "Order not found." };
@@ -102,9 +121,7 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     if (delErr) return { error: friendly(delErr) };
   } else {
     if (!accountId) return { error: "Choose the account." };
-    // a new order starts with the client's usual intermediary; it can be changed on the order (Nov 3 2026)
-    const { data: acc } = await db.from("accounts").select("intermediary_id").eq("id", accountId).maybeSingle();
-    const { data, error } = await db.from("orders").insert({ ...fields, account_id: accountId, intermediary_id: acc?.intermediary_id ?? null }).select("id").single();
+    const { data, error } = await db.from("orders").insert({ ...fields, account_id: accountId }).select("id").single();
     if (error) return { error: friendly(error) };
     orderId = data.id;
   }

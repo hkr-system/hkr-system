@@ -81,7 +81,7 @@ export function NativeSelect({ className, children, value, defaultValue, onChang
         tabIndex={-1}
         aria-hidden
         aria-label={ariaLabel}
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+        className="pointer-events-none absolute inset-0 h-full w-full !opacity-0"
         {...props}
       >
         {children}

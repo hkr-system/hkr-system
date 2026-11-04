@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FILES_BUCKET } from "@/lib/files";
 import { parseSheetRows, modelKey, type ParsedRow } from "@/lib/price-lists/models";
+import { isBrand, type Brand } from "@/lib/brands";
 import { applyCombined, extraDecision, rmaDecision, type EngineInputs } from "@/lib/price-lists/engine";
 import { listFileBase, toXlsx } from "@/lib/price-lists/outputs";
 import { toPdf } from "@/lib/price-lists/outputs-pdf";
@@ -13,6 +14,7 @@ import { loadEngineParams, loadListDoc, loadLogo } from "@/lib/price-lists/servi
 
 export type PlState = { ok?: boolean; error?: string; message?: string };
 export type ParseState = PlState & { rows?: (ParsedRow & { hasSku: boolean })[]; problems?: string[]; fileName?: string };
+const brandFrom = (v: unknown): Brand => (isBrand(v) ? v : "iphone");
 
 const PREPARERS = ["admin", "account_specialist"] as const;
 
@@ -49,7 +51,7 @@ export async function parseBaseFile(_p: ParseState, fd: FormData): Promise<Parse
       return v;
     }));
   });
-  const parsed = parseSheetRows(rows);
+  const parsed = parseSheetRows(rows, brandFrom(fd.get("brand")));
   const db = await createClient();
   const { data: skus } = await db.from("skus").select("model, storage_gb");
   const have = new Set((skus ?? []).map((s) => modelKey(s.model, s.storage_gb)));
@@ -58,7 +60,7 @@ export async function parseBaseFile(_p: ParseState, fd: FormData): Promise<Parse
 
 type BaseRowInput = { model: string; storage_gb: number; note: string | null; price: number };
 
-export async function saveBaseList(rowsJson: string, sourceFile: string | null, validFrom: string | null): Promise<PlState> {
+export async function saveBaseList(rowsJson: string, sourceFile: string | null, validFrom: string | null, brandIn: Brand = "iphone"): Promise<PlState> {
   await requireRole(["admin"]);
   let rows: BaseRowInput[];
   try { rows = JSON.parse(rowsJson); } catch { return { error: "The prices could not be read." }; }
@@ -74,7 +76,7 @@ export async function saveBaseList(rowsJson: string, sourceFile: string | null, 
 
   const db = await createClient();
   const { data: list, error } = await db.from("price_lists")
-    .insert({ account_id: null, source_file: sourceFile, valid_from: validFrom || new Date().toISOString().slice(0, 10) })
+    .insert({ account_id: null, brand: brandFrom(brandIn), source_file: sourceFile, valid_from: validFrom || new Date().toISOString().slice(0, 10) })
     .select("id, version").single();
   if (error) return { error: friendly(error) };
   const { error: re } = await db.from("price_list_rows").insert(rows.map((r, i) => ({
@@ -90,7 +92,8 @@ export async function saveBaseList(rowsJson: string, sourceFile: string | null, 
 // ---------------------------------------------------------------------------
 // Client lists
 // ---------------------------------------------------------------------------
-export async function prepareList(accountId: string): Promise<PlState> {
+export async function prepareList(accountId: string, brandIn: Brand = "iphone"): Promise<PlState> {
+  const brand = brandFrom(brandIn);
   const user = await requireRole(PREPARERS);
   const db = await createClient();
   const [{ data: inputs, error: ie }, params] = await Promise.all([
@@ -109,7 +112,7 @@ export async function prepareList(accountId: string): Promise<PlState> {
     trimmed: applied.extra !== extra.value,
   };
   const { data: id, error } = await db.rpc("price_list_create_draft", {
-    p_account: accountId, p_rma: applied.rma, p_extra: applied.extra, p_engine: engine as never,
+    p_account: accountId, p_rma: applied.rma, p_extra: applied.extra, p_engine: engine as never, p_brand: brand,
   });
   if (error) return { error: friendly(error) };
   refresh(accountId, id as string);
@@ -155,14 +158,14 @@ export async function approveList(listId: string): Promise<PlState> {
   await requireRole(["admin"]);
   const db = await createClient();
   const { data: l, error } = await db.from("price_lists").update({ status: "approved" }).eq("id", listId).eq("status", "draft")
-    .select("account_id, valid_from").maybeSingle();
+    .select("account_id, valid_from, brand").maybeSingle();
   if (error) return { error: friendly(error) };
   if (!l) return { error: "Only a draft can be approved." };
   if (!l.account_id) { refresh(null, listId); return { ok: true, message: "Approved." }; }
 
   const doc = await loadListDoc(db, listId);
   if (!doc) return { ok: true, message: "Approved." };
-  const base = listFileBase(doc.code, l.valid_from);
+  const base = listFileBase(doc.code, l.valid_from, l.brand);
   const [xlsx, pdf] = await Promise.all([toXlsx(doc.rows, doc.meta), loadLogo().then((logo) => toPdf(doc.rows, doc.meta, logo))]);
   for (const [ext, body, mime] of [["xlsx", xlsx, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], ["pdf", pdf, "application/pdf"]] as const) {
     const path = `${l.account_id}/pricelists/${base}.${ext}`;

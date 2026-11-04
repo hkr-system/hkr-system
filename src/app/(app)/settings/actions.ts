@@ -168,7 +168,7 @@ export async function updateInvoiceIssuer(_prev: SettingState, formData: FormDat
 
 // --- SKUs (Oct 30 2026): add real SKUs before real orders ---------------------
 // One per line: "model, storage GB, colour[, grade]" — e.g. "iPhone 14 Pro, 256, Deep Purple".
-// iPhone 16 series never carries the separate battery line (brief §6), so it is created as not eligible.
+// iPhone 16 series never carries the separate battery line (brief §6), so it is created as not eligible; Samsung neither.
 export async function addSkus(_prev: SettingState, formData: FormData): Promise<SettingState> {
   await requireRole(["admin"]);
   const rows: { model: string; storage_gb: number; color: string; grade: string; battery_eligible: boolean }[] = [];
@@ -180,7 +180,7 @@ export async function addSkus(_prev: SettingState, formData: FormData): Promise<
     if (!model || !Number.isInteger(gb) || gb <= 0 || !color) {
       return { error: `Line ${i + 1}: use "model, storage GB, colour" (e.g. iPhone 14 Pro, 256, Deep Purple).` };
     }
-    rows.push({ model, storage_gb: gb, color, grade: grade || "A+++", battery_eligible: !/^iphone\s*16\b/i.test(model) });
+    rows.push({ model, storage_gb: gb, color, grade: grade || "A+++", battery_eligible: /^iphone/i.test(model) && !/^iphone\s*16\b/i.test(model) }); // Samsung: never
   }
   const supabase = await createClient();
   const { error } = await supabase.from("skus").upsert(rows, { onConflict: "model,storage_gb,color,grade", ignoreDuplicates: true });

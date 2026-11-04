@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { checkSection } from "@/lib/auth";
+import { BRAND_LABEL } from "@/lib/brands";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
 import { modelKey, rowLabel } from "@/lib/price-lists/models";
@@ -44,12 +45,12 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
   const { id } = await params;
   const db = await createClient();
   const { data: l } = await db.from("price_lists")
-    .select("id, account_id, version, status, valid_from, valid_until, base_list_id, rma_c, extra_c, engine, source_file, approved_at, created_at, accounts(code, name)")
+    .select("id, account_id, brand, version, status, valid_from, valid_until, base_list_id, rma_c, extra_c, engine, source_file, approved_at, created_at, accounts(code, name)")
     .eq("id", id).maybeSingle();
   if (!l) notFound();
   const acc = l.accounts as unknown as { code: string; name: string } | null;
   const isBase = !l.account_id;
-  const prevQ = db.from("price_lists").select("id, version").lt("version", l.version).neq("status", "draft")
+  const prevQ = db.from("price_lists").select("id, version").eq("brand", l.brand).lt("version", l.version).neq("status", "draft")
     .order("version", { ascending: false }).limit(1);
   const [rows, { data: prev }, baseRows, { data: bm }] = await Promise.all([
     loadRows(db, id),
@@ -81,7 +82,7 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
   return (
     <>
       <PageHeader
-        title={isBase ? `Base list v${l.version}` : `${acc?.code} · price list v${l.version}`}
+        title={isBase ? `${BRAND_LABEL[l.brand]} base list v${l.version}` : `${acc?.code} · ${BRAND_LABEL[l.brand]} price list v${l.version}`}
         description={isBase ? "Admin only. Client lists are built from the approved base." : `${acc?.name} · valid ${fmtDate(l.valid_from)} – ${l.valid_until ? fmtDate(l.valid_until) : "—"}`}>
         <div className="flex items-center gap-3">
           <ListStatusBadge status={l.status} />

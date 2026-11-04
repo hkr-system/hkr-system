@@ -2,6 +2,8 @@
 // — "Midnight (Black)" — so the team and the client read the same thing (Gabriel, Nov 2 2026).
 // Order lines carry either "Mixed" or a split by these colours that must add up to the line quantity.
 
+import { brandOf, samsungKey } from "@/lib/brands";
+
 export type ModelColor = { name: string; plain: string };
 const C = (name: string, plain: string): ModelColor => ({ name, plain });
 
@@ -25,14 +27,52 @@ const CATALOG: [RegExp, ModelColor[]][] = [
   [/^iphone 16e$/i, IP16E], [/^iphone 16( plus)?$/i, IP16], [/^iphone 16 pro( max)?$/i, IP16PRO],
 ];
 
-/** Official colours of a model ("iPhone 14 Pro Max" → Space Black, Silver, Gold, Deep Purple); [] when unknown. */
+// Samsung (Gabriel, Nov 4 2026): official names from Samsung's launch colours, incl. the colours sold only online,
+// matched on the model key ("S24 Ultra", "Galaxy S24 Ultra", "s24u" → "s24 ultra").
+const NOTE10 = [C("Aura Glow", "Silver"), C("Aura Black", "Black"), C("Aura White", "White"), C("Aura Pink", "Pink"), C("Aura Red", "Red"), C("Aura Blue", "Blue")];
+const NOTE10P = [C("Aura Glow", "Silver"), C("Aura Black", "Black"), C("Aura White", "White"), C("Aura Blue", "Blue")];
+const S20 = [C("Cosmic Gray", "Grey"), C("Cloud Blue", "Blue"), C("Cloud Pink", "Pink"), C("Cloud White", "White"), C("Aura Red", "Red")];
+const S20P = [C("Cosmic Gray", "Grey"), C("Cosmic Black", "Black"), C("Cloud Blue", "Blue"), C("Cloud White", "White"), C("Aura Blue", "Blue"), C("Aura Red", "Red")];
+const S20U = [C("Cosmic Gray", "Grey"), C("Cosmic Black", "Black"), C("Cloud White", "White")];
+const NOTE20 = [C("Mystic Bronze", "Bronze"), C("Mystic Gray", "Grey"), C("Mystic Green", "Green")];
+const NOTE20U = [C("Mystic Bronze", "Bronze"), C("Mystic Black", "Black"), C("Mystic White", "White")];
+const S21 = [C("Phantom Gray", "Grey"), C("Phantom White", "White"), C("Phantom Violet", "Purple"), C("Phantom Pink", "Pink")];
+const S21P = [C("Phantom Black", "Black"), C("Phantom Silver", "Silver"), C("Phantom Violet", "Purple"), C("Phantom Gold", "Gold"), C("Phantom Red", "Red")];
+const S21U = [C("Phantom Black", "Black"), C("Phantom Silver", "Silver"), C("Phantom Titanium", "Grey"), C("Phantom Navy", "Blue"), C("Phantom Brown", "Brown")];
+const S22 = [C("Phantom Black", "Black"), C("Phantom White", "White"), C("Green", "Green"), C("Pink Gold", "Pink"), C("Graphite", "Grey"), C("Cream", "White"),
+  C("Sky Blue", "Blue"), C("Violet", "Purple"), C("Bora Purple", "Purple")];
+const S22U = [C("Phantom Black", "Black"), C("Phantom White", "White"), C("Burgundy", "Red"), C("Green", "Green"), C("Graphite", "Grey"), C("Sky Blue", "Blue"),
+  C("Red", "Red"), C("Bora Purple", "Purple")];
+const S23 = [C("Phantom Black", "Black"), C("Cream", "White"), C("Green", "Green"), C("Lavender", "Purple"), C("Graphite", "Grey"), C("Lime", "Yellow")];
+const S23U = [...S23, C("Sky Blue", "Blue"), C("Red", "Red")];
+const S23FE = [C("Mint", "Green"), C("Cream", "White"), C("Graphite", "Grey"), C("Purple", "Purple"), C("Indigo", "Blue"), C("Tangerine", "Orange")];
+const S24 = [C("Onyx Black", "Black"), C("Marble Gray", "Grey"), C("Cobalt Violet", "Purple"), C("Amber Yellow", "Yellow"), C("Jade Green", "Green"),
+  C("Sapphire Blue", "Blue"), C("Sandstone Orange", "Orange")];
+const S24U = [C("Titanium Black", "Black"), C("Titanium Gray", "Grey"), C("Titanium Violet", "Purple"), C("Titanium Yellow", "Yellow"),
+  C("Titanium Blue", "Blue"), C("Titanium Green", "Green"), C("Titanium Orange", "Orange")];
+const S25 = [C("Navy", "Blue"), C("Icyblue", "Blue"), C("Mint", "Green"), C("Silver Shadow", "Silver"), C("Blueblack", "Black"), C("Coralred", "Red"),
+  C("Pinkgold", "Pink")];
+const S25U = [C("Titanium Silverblue", "Silver"), C("Titanium Black", "Black"), C("Titanium Whitesilver", "White"), C("Titanium Gray", "Grey"),
+  C("Titanium Jetblack", "Black"), C("Titanium Jadegreen", "Green"), C("Titanium Pinkgold", "Pink")];
+
+const SAMSUNG: Record<string, ModelColor[]> = {
+  "note 10": NOTE10, "note 10 plus": NOTE10P, "s20": S20, "s20 plus": S20P, "s20 ultra": S20U, "note 20": NOTE20, "note 20 ultra": NOTE20U,
+  "s21": S21, "s21 plus": S21P, "s21 ultra": S21U, "s22": S22, "s22 plus": S22, "s22 ultra": S22U, "s23": S23, "s23 plus": S23, "s23 ultra": S23U,
+  "s23 fe": S23FE, "s24": S24, "s24 plus": S24, "s24 ultra": S24U, "s25": S25, "s25 plus": S25, "s25 ultra": S25U,
+};
+
+/** Official colours of a model ("iPhone 14 Pro Max" → Space Black, Silver, Gold, Deep Purple; "S24 Ultra" → Titanium Black…); [] when unknown. */
 export function colorsFor(model: string | null | undefined): ModelColor[] {
   const m = String(model ?? "").replace(/\s+/g, " ").trim();
+  if (brandOf(m) === "samsung") return SAMSUNG[samsungKey(m)] ?? [];
   return CATALOG.find(([re]) => re.test(m))?.[1] ?? [];
 }
 
 /** "Midnight (Black)"; the same word twice is shown once: "Black". */
 export const colorLabel = (c: ModelColor) => (c.name.toLowerCase() === c.plain.toLowerCase() ? c.name : `${c.name} (${c.plain})`);
+
+/** Samsung names without their family word: "Titanium Violet" → "violet", "Phantom Black" → "black". */
+export const shortColor = (name: string) => name.toLowerCase().replace(/^(titanium|phantom|cosmic|cloud|aura|mystic) /, "");
 
 /** A colour as the client writes it ("black", "midnight", "space black") → the model's official colour. */
 export function matchColor(model: string, word: string): ModelColor | null {
@@ -40,7 +80,7 @@ export function matchColor(model: string, word: string): ModelColor | null {
   if (!w) return null;
   const list = colorsFor(model);
   const norm = (s: string) => s.toLowerCase().replace(/[()]/g, "").replace("productred", "red").trim();
-  return list.find((c) => norm(c.name) === w || norm(c.name).replace(" titanium", "") === w)
+  return list.find((c) => norm(c.name) === w || norm(c.name).replace(" titanium", "") === w || shortColor(c.name) === w)
     ?? list.find((c) => c.plain.toLowerCase() === w)
     ?? (w === "red" ? list.find((c) => c.plain === "Red") ?? null : null)
     ?? (["grey", "gray", "graphite"].includes(w) ? list.find((c) => c.plain === "Grey" || c.name === "Graphite") ?? null : null);

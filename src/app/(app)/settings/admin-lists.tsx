@@ -48,10 +48,10 @@ export function SkuAddForm() {
   return (
     <form action={action} className="grid gap-2">
       <Label htmlFor="skus">Add SKUs — one per line: model, storage GB, colour (grade A+++ unless you add a 4th value)</Label>
-      <Textarea id="skus" name="skus" rows={4} placeholder={"iPhone 14 Pro, 256, Deep Purple\niPhone 15, 128, Black\niPhone 16 Pro Max, 256, Desert Titanium"} />
+      <Textarea id="skus" name="skus" rows={4} placeholder={"iPhone 14 Pro, 256, Deep Purple\niPhone 15, 128, Black\nS24 Ultra, 256, Titanium Black"} />
       <div className="flex items-center gap-2">
         <Button type="submit" size="sm" disabled={pending}>{pending ? "Adding…" : "Add SKUs"}</Button>
-        <span className="text-xs text-muted-foreground">iPhone 16 models are created without the separate battery line. Existing SKUs are skipped.</span>
+        <span className="text-xs text-muted-foreground">iPhone 16 and Samsung models are created without the separate battery line. Existing SKUs are skipped.</span>
         {state.error ? <span className="text-xs text-destructive">{state.error}</span> : null}
         {state.ok ? <Check className="size-4 text-emerald-600" aria-label="Saved" /> : null}
       </div>

@@ -55,7 +55,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
-| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list; adjustable prices per row with colours + margin/markup, client price rules in fixed US$ (Nov 3). Part B (weekly promotions, Haslet rotation) not started |
+| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list; adjustable prices per row with colours + margin/markup, client price rules in fixed US$ (Nov 3); Samsung lists next to iPhone (Nov 4). Part B (weekly promotions, Haslet rotation) not started |
 | 5 Dashboard, reports, queues | Built (Nov 3 2026): dashboard per role (§8 widgets + alerts), daily report (SOP P9, copy + 18:00 HK email), client updates (Thursday 3-line drafts EN/ES + RMA ask Tue/Wed), escalations "For the SD" (P8). Sales mix was pulled forward (Oct 27); promotion recommender waits for Phase 6B |
 | 7 | Not started (go-live pack pulled forward) |
 
@@ -140,6 +140,7 @@ supabase/
   seed.sql                 demo data (safe on hosted project, no passwords)
   seed_phase3_history.sql  ~36 closed demo orders over 11 months for the dashboards (safe on hosted)
   seed_phase6.sql          demo base list with INVENTED prices + AMS approved list + BER draft (local; not needed on hosted)
+  seed_phase6_samsung.sql  demo Samsung base (INVENTED prices) + AMS approved Samsung list (local; not needed on hosted)
   seed_phase4.sql          3 demo RMAs, 1 open Global Connect batch, 2 credit notes, demo payments for history orders (safe on hosted)
   seed_local_portal.sql    LOCAL ONLY: client logins daan@example.com (AMS-NL-901, EN) and carlos@example.com (MEX-MX-903, ES)
   templates/magic_link.html  portal sign-in email (token-hash link: works on any device) — paste it in the hosted project too
@@ -209,6 +210,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
 | `node tests/e2e/price-rules.cjs` | Client price rules (after db:reset): remember, account rules, new list = base + rule |
+| `node tests/e2e/samsung.cjs` | Samsung lists (after db:reset): Samsung base upload, client Samsung list, both lists on account/order/portal |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
@@ -539,6 +541,25 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   and applies again if the model returns). The list page shows "Client rules used in this list — check the amounts" (base admin
   only, rule, rule price, vs engine, vs before). pgTAP `14_price_rules`, e2e `tests/e2e/price-rules.cjs`.
 - Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
+
+## Samsung price lists (Gabriel, Nov 4 2026)
+
+- HKR also sells Samsung. `price_lists.brand` (enum `product_brand`: iphone | samsung, default iphone). ONE approved base per
+  brand and ONE approved client list per account AND brand (unique index); versions, drafts and superseding count per brand, so
+  a client that buys both has two separate lists that never replace each other. Files: `[code]_PL-SAMSUNG_yyyy-mm-dd`.
+- Same engine: the client's RMA_c / Extra_c are computed the same way for both lists; prices editable per row, client price
+  rules (keyed by model + GB, models never collide between brands) and adjustments work exactly as on iPhone lists.
+  `price_list_create_draft(..., p_brand)`; the client list's base must be the same brand (trigger).
+- Samsung names stay AS IN SAMSUNG'S FILE ("S24 Ultra", "NOTE 20 U 5G", "S25+"): `parseSamsungModel` only tidies spacing
+  ("S22Ultra" → "S22 Ultra", "S23FE" → "S23 FE") and moves the model code (S921U) to the note, printed "S24 S921U".
+- Brand of a model = its name (`src/lib/brands.ts` brandOf / SQL `brand_of()`): every iPhone model starts with "iPhone".
+  `samsungKey` makes "S24 Ultra" = "Galaxy S24 Ultra" = "s24u" (search, Magic invoice creator, colours). Unit-tested in
+  `src/lib/brands.test.ts` with every name of Gabriel's file (no prices: public repo).
+- Battery options and CE marks never apply to Samsung: hidden on the order line, refused by trigger `order_lines_options`
+  (23514); Samsung SKUs are battery_eligible = false. Official Samsung colours (incl. online-only) in `src/lib/orders/colors.ts`.
+- Screens: Price lists = two base cards (iPhone · Samsung, `/price-lists/base?brand=samsung`) + "Client lists" tabs by brand
+  (`?brand=`); account → Price lists = one section per brand (+ one Price rules card); order form searches both approved lists
+  ("iPhone v3 · Samsung v1"); portal price list shows both. pgTAP `15_samsung_lists`, e2e `tests/e2e/samsung.cjs`.
 
 ## Dashboard, reports and queues (Phase 5, plan approved by Gabriel Nov 3 2026)
 

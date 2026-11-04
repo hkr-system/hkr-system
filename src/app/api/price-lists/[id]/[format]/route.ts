@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/price-lists
   const db = await createClient();
   const doc = await loadListDoc(db, id);
   if (!doc) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const name = `${listFileBase(doc.code, doc.list.valid_from)}${doc.list.status === "draft" ? "_DRAFT" : ""}`;
+  const name = `${listFileBase(doc.code, doc.list.valid_from, doc.list.brand)}${doc.list.status === "draft" ? "_DRAFT" : ""}`;
   if (format === "xlsx") {
     const x = await toXlsx(doc.rows, doc.meta);
     return new NextResponse(new Uint8Array(x), {

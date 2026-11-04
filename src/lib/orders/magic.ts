@@ -1,7 +1,8 @@
 // "Magic invoice creator" (Gabriel, Nov 2 2026): paste the client's order as it comes (WhatsApp, email, EN/ES)
 // and get order lines to review: model, GB, quantity, colours (or Mixed), battery option, CE, IMEI matching colour.
 // Free, rule-based (no paid AI service); every line it cannot read is reported, nothing is saved without review.
-import { batteryAllowed, colorsFor, matchColor, type BatteryOption, type ColorSplit } from "./colors";
+import { brandOf } from "@/lib/brands";
+import { batteryAllowed, colorsFor, matchColor, shortColor, type BatteryOption, type ColorSplit } from "./colors";
 
 export type MagicLine = {
   model: string; storage_gb: number | null; qty: number | null;
@@ -19,7 +20,21 @@ const ES_COLORS: Record<string, string> = {
 };
 const MIXED = /\b(mixed|mix|mixto|mixtos|mixta|mixtas|surtido|surtidos|assorted|random|any colou?rs?|colores? variados?)\b/;
 
+// Samsung (Nov 4 2026): "s24 ultra", "galaxy s23+", "s22u", "note 20 ultra 5g", "s23 fe" → "S24 Ultra", "S23 Plus"…
+// The order form then matches it to the client's Samsung list by the model key (names as in Samsung's file).
+function findSamsung(s: string): { model: string; at: number; len: number } | null {
+  const re = /(?:\b(?:samsung\s+)?(?:galaxy\s+)?)\b(note\s?\d{1,2}|s\s?2\d)(?:\s*(ultra|plus|fe|u)\b|\s*(\+))?(?:\s*5g\b)?(?:\s*(ultra|plus|u)\b|\s*(\+))?/;
+  const m = re.exec(s);
+  if (!m) return null;
+  const base = m[1].replace(/\s+/g, "").replace(/^note/, "Note ").replace(/^s/, "S");
+  const t = (m[2] ?? m[3] ?? m[4] ?? m[5] ?? "").toLowerCase();
+  const tier = t === "u" || t === "ultra" ? " Ultra" : t === "plus" || t === "+" ? " Plus" : t === "fe" ? " FE" : "";
+  return { model: `${base}${tier}`, at: m.index, len: m[0].length };
+}
+
 function findModel(s: string): { model: string; at: number; len: number } | null {
+  const sam = findSamsung(s);
+  if (sam) return sam;
   const re = /\b(?:iphone|ip|i)\s*(1[2-7])(e)?(?:\s*(pro\s*max|promax|pm|pro|plus|mini|max))?\b/;
   let m = re.exec(s);
   if (!m) m = /\b(1[2-7])(e)?\s*(pro\s*max|promax|pm|pro|plus|mini)\b/.exec(s); // "15 pro max 256"
@@ -56,7 +71,7 @@ export function readLine(raw: string): MagicLine | null {
 
   // colours with quantities: "15 midnight", "midnight 15", "negros 20"
   const colors: ColorSplit = [];
-  const words = colorsFor(model).flatMap((c) => [c.name.toLowerCase().replace(/[()]/g, ""), c.plain.toLowerCase()])
+  const words = colorsFor(model).flatMap((c) => [c.name.toLowerCase().replace(/[()]/g, ""), shortColor(c.name), c.plain.toLowerCase()])
     .concat(["black", "white", "red", "grey", "gray", "silver", "gold", "blue", "green", "pink", "purple", "yellow"], Object.keys(ES_COLORS));
   const uniq = [...new Set(words)].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const colorRe = new RegExp(`(?:\\b(\\d{1,4})\\s*(?:x\\s*)?(?:pcs?\\s*)?(${uniq.join("|")})\\b|\\b(${uniq.join("|")})\\s*(?:x|:|-|=)?\\s*(\\d{1,4})\\b|\\b(${uniq.join("|")})\\b)`, "g");
@@ -83,12 +98,13 @@ export function readLine(raw: string): MagicLine | null {
   if (storage === null) problems.push("Storage (GB) not found.");
   if (!mixed && !colors.length) problems.push("No colours given: set to Mixed — check with the client.");
   if (!mixed && colors.length && qty !== null && split && split !== qty) problems.push(`Colours add up to ${split}, the line says ${qty}.`);
-  const bat = battery(s, model);
+  const samsung = brandOf(model) === "samsung";             // battery and CE never apply to Samsung
+  const bat = samsung ? null : battery(s, model);
   if (bat === "bh80" && !batteryAllowed("bh80", model)) problems.push("80%+ BH is only for iPhone 14 and newer.");
 
   return {
     model, storage_gb: storage, qty, mixed: mixed || !colors.length, colors: mixed ? [] : colors,
-    battery: bat, ce: /\bce\b|ce mark/.test(s), imeiMatching: /imei/.test(s) && /(colou?r|color)/.test(s),
+    battery: bat, ce: !samsung && /\bce\b|ce mark/.test(s), imeiMatching: /imei/.test(s) && /(colou?r|color)/.test(s),
     source, problems,
   };
 }
@@ -104,6 +120,7 @@ export function readOrder(text: string): { lines: MagicLine[]; skipped: string[]
     if (l) lines.push(l); else skipped.push(p);
   }
   for (const l of lines) {
+    if (brandOf(l.model) === "samsung") continue;
     if (!l.ce && /\bce\b|ce mark/.test(all)) l.ce = true;
     if (!l.battery) l.battery = battery(all, l.model);
     if (!l.imeiMatching && /imei/.test(all) && /colou?r/.test(all)) l.imeiMatching = true;

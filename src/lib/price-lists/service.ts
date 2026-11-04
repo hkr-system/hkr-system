@@ -26,32 +26,40 @@ export async function loadRows(db: DB, listId: string) {
   })).sort(compareRows);
 }
 
-/** Approved client prices per account → { "<model>|<gb>": row } (order form: model choices + prices). */
+/** Approved client prices per account, iPhone and Samsung lists together → { "<model>|<gb>": row } (order form: model choices + prices). */
 export async function loadApprovedPrices(db: DB) {
   const { data } = await db.from("price_list_rows")
-    .select("id, account_id, model, storage_gb, note, price_usd, floor_usd, price_lists!inner(status, version, valid_until)")
-    .eq("price_lists.status", "approved").not("account_id", "is", null).limit(5000);
+    .select("id, account_id, model, storage_gb, note, price_usd, floor_usd, price_lists!inner(status, version, valid_until, brand)")
+    .eq("price_lists.status", "approved").not("account_id", "is", null).limit(10000);
   type Row = { id: string; model: string; storage_gb: number; note: string | null; price: number; floor: number | null };
-  const out: Record<string, { version: number; validUntil: string | null; rows: Record<string, Row> }> = {};
+  const out: Record<string, { version: string; validUntil: string | null; rows: Record<string, Row> }> = {};
+  const versions: Record<string, Map<string, number>> = {};
   for (const r of [...(data ?? [])].sort(compareRows)) {
-    const l = r.price_lists as unknown as { version: number; valid_until: string | null };
-    const acc = (out[r.account_id!] ??= { version: l.version, validUntil: l.valid_until, rows: {} });
+    const l = r.price_lists as unknown as { version: number; valid_until: string | null; brand: string };
+    const acc = (out[r.account_id!] ??= { version: "", validUntil: l.valid_until, rows: {} });
+    (versions[r.account_id!] ??= new Map()).set(l.brand, l.version);
     acc.rows[modelKey(r.model, r.storage_gb)] = {
       id: r.id, model: r.model, storage_gb: r.storage_gb, note: r.note, price: Number(r.price_usd), floor: r.floor_usd === null ? null : Number(r.floor_usd),
     };
+  }
+  // "v3" for one list, "iPhone v3 · Samsung v1" for two
+  for (const [acc, m] of Object.entries(versions)) {
+    out[acc].version = m.size === 1 ? `v${[...m.values()][0]}`
+      : [...m].sort(([a], [b]) => a.localeCompare(b)).map(([b, v]) => `${b === "samsung" ? "Samsung" : "iPhone"} v${v}`).join(" · ");
   }
   return out;
 }
 
 /** What the outputs need (price only: never floors or percentages). RLS decides who can load which list. */
 export async function loadListDoc(db: DB, id: string) {
-  const { data: l } = await db.from("price_lists").select("id, account_id, version, status, valid_from, valid_until, accounts(code, name)").eq("id", id).maybeSingle();
+  const { data: l } = await db.from("price_lists").select("id, account_id, brand, version, status, valid_from, valid_until, accounts(code, name)").eq("id", id).maybeSingle();
   if (!l) return null;
   const acc = l.accounts as unknown as { code: string; name: string } | null;
   const rows = (await loadRows(db, id)).map((r) => ({ model: r.model, storage_gb: r.storage_gb, note: r.note, price_usd: r.price_usd }));
   const isBase = !l.account_id;
-  const title = isBase ? `Base price list v${l.version} (internal — admin only)`
-    : `HK Refurbished Stock · Price list ${acc?.name ?? ""}`.trim() + (l.status === "draft" ? " (DRAFT)" : "");
+  const brand = l.brand === "samsung" ? "Samsung " : "";
+  const title = isBase ? `${brand}Base price list v${l.version} (internal — admin only)`
+    : `HK Refurbished Stock · ${brand}Price list ${acc?.name ?? ""}`.trim() + (l.status === "draft" ? " (DRAFT)" : "");
   return { list: l, code: acc?.code ?? null, rows, meta: { title, validFrom: l.valid_from, validUntil: l.valid_until, isBase } };
 }
 

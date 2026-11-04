@@ -5,7 +5,7 @@ import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { BATTERY_OPTIONS, batteryAllowed, batteryLineEligible, colorLabel, colorsFor, splitProblem, type BatteryOption } from "@/lib/orders/colors";
 import { readOrder } from "@/lib/orders/magic";
 import { money } from "@/lib/orders/constants";
-import { modelKey } from "@/lib/price-lists/models";
+import { brandOf, optionsApply, sameModel } from "@/lib/brands";
 import { suggest } from "@/lib/orders/model-search";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
@@ -40,15 +40,18 @@ export function withChoice(l: Line, c: ModelChoice | undefined): Line {
   const typedByHand = l.unit_price !== "" && Number(l.unit_price) !== l.list_price;
   const keep = new Set(colorsFor(c.model).map((x) => x.name));
   const colors = Object.fromEntries(Object.entries(l.colors).filter(([k]) => keep.has(k)));
-  const battery = l.battery && !batteryAllowed(l.battery as BatteryOption, c.model) ? "boosted100" : l.battery;
+  const opts = optionsApply(c.model);   // Samsung: no battery option, no CE marks (Gabriel, Nov 4 2026)
+  const battery = !opts ? "" : l.battery && !batteryAllowed(l.battery as BatteryOption, c.model) ? "boosted100" : l.battery;
   return {
-    ...l, key: c.key, model: c.model, storage_gb: c.storage_gb, colors, battery,
+    ...l, key: c.key, model: c.model, storage_gb: c.storage_gb, colors, battery, ce: opts ? l.ce : false,
     list_row_id: c.rowId ?? "", list_price: c.price ?? null,
     unit_price: c.price !== undefined && !typedByHand ? String(c.price) : l.unit_price,
   };
 }
 
-const choiceLabel = (c: ModelChoice) => `${c.model} ${c.storage_gb}GB${c.note ? ` (${c.note})` : ""}`;
+// Samsung model codes print as in Samsung's file ("S24 Ultra 256GB S928U"), iPhone notes in brackets
+const choiceLabel = (c: ModelChoice) =>
+  `${c.model} ${c.storage_gb}GB${!c.note ? "" : brandOf(c.model) === "samsung" ? ` ${c.note}` : ` (${c.note})`}`;
 
 /** Type to search the client's models ("14 pro 256", "ip15pm"), Google-style; anything else stays as free text. */
 function ModelSearch({ line, choices, onPick, onText }: {
@@ -81,7 +84,7 @@ function ModelSearch({ line, choices, onPick, onText }: {
           else if (e.key === "Enter") { e.preventDefault(); if (hits[active]) pick(hits[active]); else leave(); (e.target as HTMLInputElement).blur(); }
           else if (e.key === "Escape") { setText(null); (e.target as HTMLInputElement).blur(); }
         }}
-        placeholder="Type a model: 14 pro 256, ip15pm…" aria-label="Model" role="combobox" aria-expanded={open && hits.length > 0}
+        placeholder="Type a model: 14 pro 256, ip15pm, s24u…" aria-label="Model" role="combobox" aria-expanded={open && hits.length > 0}
         aria-controls={listId} autoComplete="off" data-testid="line-model"
       />
       {open && hits.length ? (
@@ -128,6 +131,7 @@ export function LineEditor({ line, i, choices, isAdmin, separate, onChange, onRe
   const split = lineSplit(line).reduce((s, c) => s + c.qty, 0);
   const qty = Math.round(num(line.qty));
   const eligible = batteryLineEligible(line.model);
+  const opts = optionsApply(line.model);
   return (
     <div className="grid gap-3 rounded-lg border p-3" data-testid="order-line">
       <div className="grid gap-2 sm:grid-cols-[2fr_80px_130px_110px_32px] sm:items-start">
@@ -169,14 +173,16 @@ export function LineEditor({ line, i, choices, isAdmin, separate, onChange, onRe
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <label className="flex items-center gap-1.5"><input type="checkbox" checked={line.ce} onChange={(e) => onChange({ ce: e.target.checked })} className="size-4" /> CE Marks</label>
+        {opts ? <label className="flex items-center gap-1.5"><input type="checkbox" checked={line.ce} onChange={(e) => onChange({ ce: e.target.checked })} className="size-4" /> CE Marks</label> : null}
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={line.imei} onChange={(e) => onChange({ imei: e.target.checked })} className="size-4" /> IMEI matching color</label>
-        <label className="flex items-center gap-1.5">Battery
-          <NativeSelect value={line.battery} onChange={(e) => onChange({ battery: e.target.value as BatteryOption | "" })} className="w-auto" aria-label="Battery">
-            <option value="">—</option>
-            {BATTERY_OPTIONS.map((b) => <option key={b.value} value={b.value} disabled={!batteryAllowed(b.value, line.model || null) && Boolean(line.model)}>{b.label}</option>)}
-          </NativeSelect>
-        </label>
+        {opts ? (
+          <label className="flex items-center gap-1.5">Battery
+            <NativeSelect value={line.battery} onChange={(e) => onChange({ battery: e.target.value as BatteryOption | "" })} className="w-auto" aria-label="Battery">
+              <option value="">—</option>
+              {BATTERY_OPTIONS.map((b) => <option key={b.value} value={b.value} disabled={!batteryAllowed(b.value, line.model || null) && Boolean(line.model)}>{b.label}</option>)}
+            </NativeSelect>
+          </label>
+        ) : <span className="text-xs text-muted-foreground" data-testid="samsung-no-options">Samsung: no battery option or CE marks</span>}
         {line.battery === "new" && separate && eligible ? (
           <label className="flex items-center gap-1.5">New battery US$/unit
             <Input value={line.battery_unit} onChange={(e) => onChange({ battery_unit: e.target.value })} inputMode="decimal" className="h-8 w-20" aria-label="Battery US$ per unit" />
@@ -203,8 +209,8 @@ export function MagicReader({ choices, ceDefault, onLines, disabled }: {
     const r = readOrder(text);
     const problems: string[] = [];
     const lines = r.lines.map((m, n) => {
-      const key = m.storage_gb ? modelKey(m.model, m.storage_gb) : "";
-      const c = choices.find((x) => x.key === key);
+      // iPhone by name, Samsung by its model key ("S24 Ultra" = "Galaxy S24 Ultra" = "s24u")
+      const c = m.storage_gb ? choices.find((x) => x.storage_gb === m.storage_gb && sameModel(x.model, m.model)) : undefined;
       if (!c) problems.push(`Line ${n + 1} (${m.model} ${m.storage_gb ?? "?"}GB): not in this client's price list — check the model or type the price.`);
       for (const p of m.problems) problems.push(`Line ${n + 1} (${m.model}): ${p}`);
       const base: Line = {
@@ -221,7 +227,7 @@ export function MagicReader({ choices, ceDefault, onLines, disabled }: {
     <div className="grid gap-2 rounded-lg border border-dashed p-3" data-testid="magic-reader">
       <div className="flex items-center gap-2 text-sm font-medium"><Sparkles className="size-4 text-hkr-accent" aria-hidden /> Magic invoice creator</div>
       <p className="text-xs text-muted-foreground">Paste the client&apos;s order as it came (WhatsApp, email, English or Spanish). The lines below are filled in for you to check; nothing is saved until you press Create order.</p>
-      <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"50 pcs iPhone 14 128 mixed\n30 iPhone 13 Pro 256: 20 negros, 10 sierra blue\nAll with CE and new batteries"} aria-label="Client order text" />
+      <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"50 pcs iPhone 14 128 mixed\n30 iPhone 13 Pro 256: 20 negros, 10 sierra blue\n20 Galaxy S24 Ultra 256 mixed\nAll with CE and new batteries"} aria-label="Client order text" />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="outline" onClick={read} disabled={disabled || !text.trim()} data-testid="magic-read">{disabled ? "Choose the account first" : "Read the order"}</Button>
         {report ? <span className="text-sm text-emerald-700" data-testid="magic-count">{report.ok} line(s) read — check them below.</span> : null}
@@ -241,7 +247,7 @@ export function lineToPayload(l: Line) {
   return {
     sku_id: l.sku_id || null, model: l.model || null, storage_gb: l.storage_gb, description: l.description,
     qty: l.qty, unit_price: l.unit_price, colors_mixed: l.mixed, colors: lineSplit(l),
-    ce_marked: l.ce, imei_matching_color: l.imei, battery_option: l.battery || null,
+    ce_marked: optionsApply(l.model) && l.ce, imei_matching_color: l.imei, battery_option: optionsApply(l.model) ? l.battery || null : null,
     battery_unit: l.battery_unit, base_price: l.base_price, list_row_id: l.list_row_id,
   };
 }

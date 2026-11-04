@@ -39,7 +39,9 @@ const namesEs = new Intl.DisplayNames(["es"], { type: "region" });
 export function countryName(code: string | null | undefined, lang: "en" | "es" = "en") {
   if (!code) return "—";
   try {
-    return (lang === "es" ? namesEs : namesEn).of(code.toUpperCase()) ?? code;
+    // the extra name in brackets differs between the server's and the browser's data ("Falkland Islands (Islas Malvinas)")
+    // and broke the page hydration (Nov 4 2026): it is dropped
+    return ((lang === "es" ? namesEs : namesEn).of(code.toUpperCase()) ?? code).replace(/\s+\([^)]*\)$/, "");
   } catch {
     return code;
   }

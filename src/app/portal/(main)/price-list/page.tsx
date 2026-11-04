@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getPortalContext, portalDate, portalMoney } from "@/lib/portal/session";
+import { BRANDS, BRAND_LABEL } from "@/lib/brands";
 import { groupRows } from "@/lib/price-lists/outputs";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -8,16 +9,20 @@ export const metadata: Metadata = { title: { absolute: "Price list · Client por
 // The client's current APPROVED list (view portal_price_list: prices only, never the floor or percentages).
 export default async function PortalPriceList() {
   const { db, t, lang } = await getPortalContext();
-  const { data } = await db.from("portal_price_list").select("model, storage_gb, note, price_usd, valid_from, valid_until");
-  const rows = (data ?? []).map((r) => ({ model: r.model!, storage_gb: r.storage_gb!, note: r.note, price_usd: Number(r.price_usd) }));
-  const first = data?.[0];
+  const { data } = await db.from("portal_price_list").select("model, storage_gb, note, price_usd, valid_from, valid_until, brand");
+  // one block per brand: a client that buys iPhone and Samsung has two lists (Gabriel, Nov 4 2026)
+  const lists = BRANDS.map((brand) => {
+    const mine = (data ?? []).filter((r) => (r.brand ?? "iphone") === brand);
+    return { brand, first: mine[0], rows: mine.map((r) => ({ model: r.model!, storage_gb: r.storage_gb!, note: r.note, price_usd: Number(r.price_usd) })) };
+  }).filter((l) => l.rows.length);
   return (
     <div className="grid gap-4">
       <h1 className="text-xl font-semibold tracking-tight">{t.priceList}</h1>
-      {!rows.length ? (
+      {!lists.length ? (
         <Card><CardContent className="py-6 text-sm text-muted-foreground" data-testid="price-list-soon">{t.priceListSoon}</CardContent></Card>
-      ) : (
-        <>
+      ) : lists.map(({ brand, first, rows }) => (
+        <section key={brand} className="grid gap-3" data-testid={`portal-list-${brand}`}>
+          {lists.length > 1 ? <h2 className="text-lg font-semibold">{BRAND_LABEL[brand]}</h2> : null}
           <p className="text-sm text-muted-foreground" data-testid="price-list-valid">{t.priceListValid(portalDate(first?.valid_from, lang), portalDate(first?.valid_until, lang))}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {groupRows(rows).map((g) => (
@@ -33,8 +38,8 @@ export default async function PortalPriceList() {
               </Card>
             ))}
           </div>
-        </>
-      )}
+        </section>
+      ))}
     </div>
   );
 }

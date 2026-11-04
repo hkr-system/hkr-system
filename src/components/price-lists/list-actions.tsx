@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EditLock } from "@/components/edit-lock";
+import type { Brand } from "@/lib/brands";
 
 function useRun() {
   const [pending, start] = useTransition();
@@ -20,11 +21,14 @@ function Msg({ s }: { s: PlState }) {
   return null;
 }
 
-export function PrepareListButton({ accountId, label = "Prepare new list", primary = false }: { accountId: string; label?: string; primary?: boolean }) {
+export function PrepareListButton({ accountId, label = "Prepare new list", primary = false, brand = "iphone" }: {
+  accountId: string; label?: string; primary?: boolean; brand?: Brand;
+}) {
   const { pending, state, run } = useRun();
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant={primary ? "default" : "outline"} disabled={pending} onClick={() => run(() => prepareList(accountId))} data-testid="prepare-list">
+      <Button size="sm" variant={primary ? "default" : "outline"} disabled={pending} onClick={() => run(() => prepareList(accountId, brand))}
+        data-testid={brand === "iphone" ? "prepare-list" : `prepare-list-${brand}`}>
         {pending ? "Running the engine…" : label}
       </Button>
       <Msg s={state} />

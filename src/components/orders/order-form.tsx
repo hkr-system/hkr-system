@@ -30,7 +30,7 @@ export type SavedAddress = { id: string; account_id: string; label: string; kind
 const KIND_LABEL: Record<string, string> = { client: "Client (direct)", forwarder: "Forwarder", clearance: "Clearance company", other: "Other" };
 type Sku = { id: string; label: string; battery_eligible: boolean; model: string; storage_gb: number };
 /** Approved list per account: "<model>|<gb>" → row (loadApprovedPrices). */
-export type AccountPrices = Record<string, { version: number; validUntil: string | null; rows: Record<string, { id: string; model: string; storage_gb: number; note: string | null; price: number; floor: number | null }> }>;
+export type AccountPrices = Record<string, { version: string; validUntil: string | null; rows: Record<string, { id: string; model: string; storage_gb: number; note: string | null; price: number; floor: number | null }> }>;
 export type { Line } from "./order-lines";
 
 export type OrderValues = {
@@ -180,7 +180,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
         <CardHeader>
           <CardTitle className="text-base">Lines</CardTitle>
           <CardDescription>
-            {account ? list ? `Unit prices come from the client's approved price list v${list.version}; a different price is marked “manual” and logged.` : "This client has no approved price list yet: type the unit prices." : "Choose the account first."}
+            {account ? list ? `Unit prices come from the client's approved price list ${list.version}; a different price is marked “manual” and logged.` : "This client has no approved price list yet: type the unit prices." : "Choose the account first."}
             {account ? separate ? " This account shows a separate “New battery cell” line (iPhone 16 series never carries it)." : " This account has the battery absorbed in the unit price." : ""}
           </CardDescription>
         </CardHeader>

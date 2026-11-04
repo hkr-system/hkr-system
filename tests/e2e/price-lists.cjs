@@ -55,7 +55,7 @@ const goto = async (page, url, sel) => { await page.goto(BASE + url); await page
     await page.click('[data-testid=save-base]');
     await page.waitForURL(/\/price-lists\/[0-9a-f-]{36}$/, { timeout: 30000 });
     await page.waitForTimeout(800);
-    check((await page.locator('[data-testid=page-title]').innerText()).includes('Base list v2'), 'saved as base list v2');
+    check((await page.locator('[data-testid=page-title]').innerText()).includes('iPhone base list v2'), 'saved as iPhone base list v2');
 
     // 2. Admin prepares MEX-MX-903 (demo history: closed orders, no RMA cost → floor 0.50 %; 2+ orders → suggestion) and approves
     await goto(page, '/price-lists', '[data-testid="pl-MEX-MX-903"]');

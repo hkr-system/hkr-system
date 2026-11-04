@@ -64,5 +64,6 @@ export async function toXlsx(rows: OutRow[], m: OutMeta): Promise<Buffer> {
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-/** SOP P7 file name: [code]_PL_yyyy-mm-dd (base list: BASE_PL_…). */
-export const listFileBase = (code: string | null, validFrom: string) => `${code ?? "BASE"}_PL_${validFrom}`;
+/** SOP P7 file name: [code]_PL_yyyy-mm-dd (base list: BASE_PL_…); Samsung lists: [code]_PL-SAMSUNG_yyyy-mm-dd. */
+export const listFileBase = (code: string | null, validFrom: string, brand: string = "iphone") =>
+  `${code ?? "BASE"}_PL${brand === "samsung" ? "-SAMSUNG" : ""}_${validFrom}`;

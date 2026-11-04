@@ -1043,14 +1043,14 @@ isOneToOne: true
                   ]
                 },"price_list_rows": {
                   Row: {
-                    "account_id": string | null,"created_at": string,"created_by": string | null,"floor_usd": number | null,"id": string,"model": string,"note": string | null,"price_list_id": string,"price_usd": number,"sort_order": number,"storage_gb": number,"updated_at": string
+                    "account_id": string | null,"adjusted_at": string | null,"adjusted_by": string | null,"created_at": string,"created_by": string | null,"engine_price_usd": number | null,"floor_usd": number | null,"id": string,"model": string,"note": string | null,"price_list_id": string,"price_usd": number,"sort_order": number,"storage_gb": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"floor_usd"?: number | null,"id"?: string,"model": string,"note"?: string | null,"price_list_id": string,"price_usd": number,"sort_order"?: number,"storage_gb": number,"updated_at"?: string
+                    "account_id"?: string | null,"adjusted_at"?: string | null,"adjusted_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine_price_usd"?: number | null,"floor_usd"?: number | null,"id"?: string,"model": string,"note"?: string | null,"price_list_id": string,"price_usd": number,"sort_order"?: number,"storage_gb": number,"updated_at"?: string
                   }
                   Update: {
-                    "account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"floor_usd"?: number | null,"id"?: string,"model"?: string,"note"?: string | null,"price_list_id"?: string,"price_usd"?: number,"sort_order"?: number,"storage_gb"?: number,"updated_at"?: string
+                    "account_id"?: string | null,"adjusted_at"?: string | null,"adjusted_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"engine_price_usd"?: number | null,"floor_usd"?: number | null,"id"?: string,"model"?: string,"note"?: string | null,"price_list_id"?: string,"price_usd"?: number,"sort_order"?: number,"storage_gb"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {

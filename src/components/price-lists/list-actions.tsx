@@ -48,7 +48,7 @@ export function DraftActions({ listId, isAdmin }: { listId: string; isAdmin: boo
 export function RemoveRowButton({ rowId, listId }: { rowId: string; listId: string }) {
   const { pending, run } = useRun();
   return (
-    <Button size="icon" variant="ghost" disabled={pending} aria-label="Remove this model from the list" onClick={() => run(() => removeRow(rowId, listId))}>
+    <Button type="button" size="icon" variant="ghost" disabled={pending} aria-label="Remove this model from the list" onClick={() => run(() => removeRow(rowId, listId))}>
       <Trash2 className="size-4" />
     </Button>
   );

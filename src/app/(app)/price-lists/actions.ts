@@ -179,3 +179,24 @@ export async function approveList(listId: string): Promise<PlState> {
   refresh(l.account_id, listId);
   return { ok: true, message: `Approved. ${base}.xlsx and .pdf are in the account files; the client sees the prices in the portal.` };
 }
+
+// ---------------------------------------------------------------------------
+// Adjusted prices on a draft client list (Gabriel, Nov 3 2026). The database stamps who/when, keeps the engine price and
+// refuses a specialist's price below the floor (SOP 5.5: below the floor the SD decides).
+// ---------------------------------------------------------------------------
+export async function savePrices(listId: string, changes: { id: string; price: number }[]): Promise<PlState> {
+  await requireRole(PREPARERS);
+  const db = await createClient();
+  const { data: l } = await db.from("price_lists").select("account_id, status").eq("id", listId).maybeSingle();
+  if (!l || !l.account_id) return { error: "Price list not found." };
+  if (l.status !== "draft") return { error: "Only a draft can be changed: prepare a new list." };
+  let n = 0;
+  for (const c of changes) {
+    if (!(c.price >= 0)) return { error: "Every price must be a number." };
+    const { error } = await db.from("price_list_rows").update({ price_usd: Math.round(c.price * 100) / 100 }).eq("id", c.id).eq("price_list_id", listId);
+    if (error) return { error: friendly(error), message: n ? `${n} prices saved before the error.` : undefined };
+    n++;
+  }
+  refresh(l.account_id, listId);
+  return { ok: true, message: n ? `${n} price${n === 1 ? "" : "s"} saved.` : "Nothing changed." };
+}

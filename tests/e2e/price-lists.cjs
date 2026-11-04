@@ -122,7 +122,7 @@ const goto = async (page, url, sel) => { await page.goto(BASE + url); await page
     if (await ams.count()) {
       await ams.locator('a', { hasText: 'v1' }).click();
       await page.waitForSelector('[data-testid=pl-row]');
-      check((await page.locator('main').innerText()).includes('Floor US$'), 'bd sees the floor of her account');
+      check((await page.locator('main').innerText()).includes('Floor'), 'bd sees the floor of her account');
     } else check(true, 'AMS not assigned to this bd (nothing to show)');
     await ctx.close();
   }

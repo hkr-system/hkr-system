@@ -16,6 +16,7 @@ import { GetPriceList } from "@/components/price-lists/get-list";
 import { DraftActions, PercentForm, RemoveRowButton } from "@/components/price-lists/list-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PriceTable, type PriceRow } from "@/components/price-lists/price-table";
 
 export const metadata: Metadata = { title: "Price list" };
 
@@ -50,19 +51,31 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
   const isBase = !l.account_id;
   const prevQ = db.from("price_lists").select("id, version").lt("version", l.version).neq("status", "draft")
     .order("version", { ascending: false }).limit(1);
-  const [rows, { data: prev }, baseRows] = await Promise.all([
+  const [rows, { data: prev }, baseRows, { data: bm }] = await Promise.all([
     loadRows(db, id),
     (isBase ? prevQ.is("account_id", null) : prevQ.eq("account_id", l.account_id!)).maybeSingle(),
     isAdmin && l.base_list_id ? loadRows(db, l.base_list_id) : Promise.resolve([]),
+    isAdmin && !isBase ? db.from("settings").select("value").eq("key", "base_margin_pct").maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const [prevRows, { data: filed }] = await Promise.all([
     prev ? loadRows(db, prev.id) : Promise.resolve([]),
     db.from("files").select("id, file_name").eq("owner_table", "price_lists").eq("owner_id", id).order("file_name"),
   ]);
   const before = new Map(prevRows.map((r) => [modelKey(r.model, r.storage_gb), r.price_usd]));
+  const beforeRow = new Map(prevRows.map((r) => [modelKey(r.model, r.storage_gb), r]));
   const baseOf = new Map(baseRows.map((r) => [modelKey(r.model, r.storage_gb), r.price_usd]));
   const e = (l.engine ?? {}) as Engine;
   const draft = l.status === "draft";
+  const baseMarginPct = Number(bm?.value ?? 6) || 6;
+  const priceRows: PriceRow[] = rows.map((r) => {
+    const k = modelKey(r.model, r.storage_gb);
+    const b = beforeRow.get(k);
+    return {
+      id: r.id, label: rowLabel(r), gb: r.storage_gb, base: isAdmin ? baseOf.get(k) ?? null : null,
+      engine: r.engine_price_usd, price: r.price_usd, floor: r.floor_usd, adjusted: !!r.adjusted_at,
+      before: b ? { price: b.price_usd, adjusted: !!b.adjusted_at } : null,
+    };
+  });
 
   return (
     <>
@@ -119,42 +132,59 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
           </Card>
         ) : null}
 
+        {!isBase ? (
+          <Card data-testid="prices-card">
+            <CardHeader>
+              <CardTitle className="text-base">{rows.length} prices</CardTitle>
+              <CardDescription>
+                One price per model and GB, for every colour. Engine = Base × (1 + RMA_c + Extra_c); each client can get its own
+                price per row.{draft && canPrepare ? " ✏️ Edit to adjust prices or remove the models this client should not receive." : ""}
+                {prev ? ` "Before" = version ${prev.version}.` : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PriceTable listId={l.id} rows={priceRows} rmaPct={Number(l.rma_c)} baseMarginPct={baseMarginPct}
+                isAdmin={isAdmin} editable={draft && canPrepare} prevVersion={prev?.version ?? null} />
+            </CardContent>
+          </Card>
+        ) : (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{rows.length} prices</CardTitle>
-            <CardDescription>
-              One price per model and GB, for every colour.{prev ? ` Change vs version ${prev.version}.` : ""}
-              {draft && canPrepare && !isBase ? " Remove the models this client should not receive." : ""}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Model</TableHead><TableHead className="text-right">GB</TableHead>
-                  {isAdmin && !isBase ? <TableHead className="text-right">Base US$</TableHead> : null}
-                  <TableHead className="text-right">{isBase ? "Base US$" : "List US$"}</TableHead>
-                  {!isBase ? <TableHead className="text-right">Floor US$</TableHead> : null}
-                  <TableHead className="text-right">Change</TableHead>
-                  {draft && canPrepare && !isBase ? <TableHead /> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id} data-testid="pl-row">
-                    <TableCell>{rowLabel(r)}</TableCell>
-                    <TableCell className="text-right">{r.storage_gb}</TableCell>
-                    {isAdmin && !isBase ? <TableCell className="text-right text-muted-foreground">{baseOf.has(modelKey(r.model, r.storage_gb)) ? money2(baseOf.get(modelKey(r.model, r.storage_gb))!) : "—"}</TableCell> : null}
-                    <TableCell className="text-right font-medium">{money2(r.price_usd)}</TableCell>
-                    {!isBase ? <TableCell className="text-right">{r.floor_usd === null ? "—" : money2(r.floor_usd)}</TableCell> : null}
-                    <TableCell className="text-right text-sm">{prev ? <Change now={r.price_usd} before={before.get(modelKey(r.model, r.storage_gb))} /> : "—"}</TableCell>
-                    {draft && canPrepare && !isBase ? <TableCell className="w-10"><RemoveRowButton rowId={r.id} listId={l.id} /></TableCell> : null}
+            <CardHeader>
+              <CardTitle className="text-base">{rows.length} prices</CardTitle>
+              <CardDescription>
+                One price per model and GB, for every colour.{prev ? ` Change vs version ${prev.version}.` : ""}
+                {draft && canPrepare && !isBase ? " Remove the models this client should not receive." : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Model</TableHead><TableHead className="text-right">GB</TableHead>
+                    {isAdmin && !isBase ? <TableHead className="text-right">Base US$</TableHead> : null}
+                    <TableHead className="text-right">{isBase ? "Base US$" : "List US$"}</TableHead>
+                    {!isBase ? <TableHead className="text-right">Floor US$</TableHead> : null}
+                    <TableHead className="text-right">Change</TableHead>
+                    {draft && canPrepare && !isBase ? <TableHead /> : null}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={r.id} data-testid="pl-row">
+                      <TableCell>{rowLabel(r)}</TableCell>
+                      <TableCell className="text-right">{r.storage_gb}</TableCell>
+                      {isAdmin && !isBase ? <TableCell className="text-right text-muted-foreground">{baseOf.has(modelKey(r.model, r.storage_gb)) ? money2(baseOf.get(modelKey(r.model, r.storage_gb))!) : "—"}</TableCell> : null}
+                      <TableCell className="text-right font-medium">{money2(r.price_usd)}</TableCell>
+                      {!isBase ? <TableCell className="text-right">{r.floor_usd === null ? "—" : money2(r.floor_usd)}</TableCell> : null}
+                      <TableCell className="text-right text-sm">{prev ? <Change now={r.price_usd} before={before.get(modelKey(r.model, r.storage_gb))} /> : "—"}</TableCell>
+                      {draft && canPrepare && !isBase ? <TableCell className="w-10"><RemoveRowButton rowId={r.id} listId={l.id} /></TableCell> : null}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );

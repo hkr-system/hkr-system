@@ -55,7 +55,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
 | Sales KPIs + sales mix (Oct 27 2026) | Orders made/paid/pending, to collect, processing time, cash cycle, average order (also per account); /sales/mix |
-| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list. Part B (weekly promotions, Haslet rotation) not started |
+| 6 Price lists — Part A | Built (Nov 2 2026): base list (upload/edit, versions), engine per account (SOP ch. 5), draft → approve, 4 outputs, account tab, portal prices, order prices from the list; adjustable prices per row with colours + margin/markup (Nov 3). Part B (weekly promotions, Haslet rotation) not started |
 | 5 Dashboard, reports, queues | Built (Nov 3 2026): dashboard per role (§8 widgets + alerts), daily report (SOP P9, copy + 18:00 HK email), client updates (Thursday 3-line drafts EN/ES + RMA ask Tue/Wed), escalations "For the SD" (P8). Sales mix was pulled forward (Oct 27); promotion recommender waits for Phase 6B |
 | 7 | Not started (go-live pack pulled forward) |
 
@@ -207,6 +207,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/dashboards.cjs` | Sales / Accounts / Finance dashboards per role (after db:reset) |
 | `node tests/e2e/rmas.cjs` | Phase 4 + portal browser test (after db:reset): RMAs, credit note PDF, batch, portal login by link, RMA request on a phone |
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
+| `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
@@ -507,6 +508,13 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Orders: unit price filled from the account's approved list (by model + GB of the SKU); `order_lines.price_list_row_id`,
   `list_price_usd`, `price_source` list/manual set by trigger; a price below the floor shows a warning (SD decides, SOP 5.5),
   not a block; the base price lands in `order_lines_finance` (admin) unless typed.
+- Adjustable prices per client (Gabriel, Nov 3 2026): on a DRAFT client list, ✏️ "Adjust prices" lets admin + specialist type
+  a price per row (`price_list_rows.engine_price_usd` = engine, `price_usd` = final, `adjusted_by/at` stamped by trigger
+  `price_list_rows_adjust`; back to the engine price = not adjusted). Specialist never below the floor (42501, SOP 5.5); engine
+  price and floor are never typed. Repricing (admin % change) keeps adjusted prices. The next list is recalculated by the engine;
+  the page shows the previous version's price ("Before", "your price then" if it was adjusted). Colours (`src/lib/price-lists/
+  adjust.ts`, unit-tested): red < real cost (admin only), yellow < engine price, green > Base × (1 + RMA_c + 1 %). Admin also sees
+  Base, Real cost, Margin and Markup per row. e2e `tests/e2e/price-adjust.cjs`, pgTAP `13_price_adjustments`.
 - Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
 
 ## Dashboard, reports and queues (Phase 5, plan approved by Gabriel Nov 3 2026)

@@ -13,6 +13,8 @@ import { NoAccess } from "@/components/no-access";
 import { AccountStatusBadge } from "@/components/accounts/badges";
 import { AccountForm } from "@/components/accounts/account-form";
 import { ContactsPanel } from "@/components/accounts/contacts-panel";
+import { AddressBook } from "@/components/accounts/address-book";
+import { loadAddresses } from "@/lib/orders/service";
 import { PortalPanel } from "@/components/accounts/portal-panel";
 import { AccountPriceLists } from "@/components/price-lists/account-tab";
 import { CnStatusBadge, Flag, RmaStatusBadge } from "@/components/rmas/badges";
@@ -21,7 +23,7 @@ import { OrdersTable, type OrderRow } from "@/components/orders/orders-table";
 import { FileUpload } from "@/components/orders/file-upload";
 import { Button } from "@/components/ui/button";
 import { loadSales } from "@/lib/sales/load";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditLock } from "@/components/edit-lock";
 
@@ -85,7 +87,14 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
   // money and RMAs at a glance (Gabriel, Nov 3 2026)
   const life = (sales as Awaited<ReturnType<typeof loadSales>>).filter((x) => x.account_id === id);
   const lifeSales = life.reduce((t, x) => t + x.total_usd, 0);
-  const lifeMargin = life.some((x) => x.margin_usd !== null) ? life.reduce((t, x) => t + (x.margin_usd ?? 0), 0) : null;
+  // gross margin = invoice total − real cost (Gabriel, Nov 3 2026); admin, and a bd for her own accounts (Nov 4: shown even at 0)
+  const seesMargin = user.role === "admin" || user.role === "bd";
+  const lifeMargin = seesMargin ? life.reduce((t, x) => t + (x.margin_usd ?? 0), 0) : null;
+  const since30 = new Date(Date.parse(todayIn("Asia/Hong_Kong")) - 29 * 86400_000).toISOString().slice(0, 10);
+  const last30 = life.filter((x) => x.order_date >= since30);
+  const sales30 = last30.reduce((t, x) => t + x.total_usd, 0);
+  const margin30 = seesMargin ? last30.reduce((t, x) => t + (x.margin_usd ?? 0), 0) : null;
+  const pctOf = (m: number, t: number) => (t ? `${(m / t * 100).toFixed(2)} % of sales` : "—");
   const cnRows = (cns.data ?? []).filter((c) => c.currency === "USD");
   const cnDraft = cnRows.filter((c) => c.status === "draft").reduce((t, c) => t + Number(c.amount), 0);
   const cnGranted = cnRows.filter((c) => ["approved", "issued", "applied"].includes(c.status)).reduce((t, c) => t + Number(c.amount), 0);
@@ -138,7 +147,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             <CardHeader><CardTitle>Open orders</CardTitle></CardHeader>
             <CardContent className="px-0"><OrdersTable orders={open} showAccount={false} today={today} /></CardContent>
           </Card>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="account-money">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="account-money">
             {user.role !== "account_specialist" ? (
               <div className="rounded-xl border bg-card p-3">
                 <div className="text-xs text-muted-foreground">Lifetime sales</div>
@@ -148,9 +157,23 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             ) : null}
             {lifeMargin !== null ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
-                <div className="text-xs text-emerald-800">Lifetime margin</div>
+                <div className="text-xs text-emerald-800">Lifetime gross margin</div>
                 <div className="mt-1 text-lg font-semibold tabular-nums text-emerald-800" data-testid="life-margin">{money(lifeMargin)}</div>
-                <div className="text-xs text-emerald-800">{lifeSales ? `${(lifeMargin / lifeSales * 100).toFixed(2)} % of sales` : "—"} · on the real cost</div>
+                <div className="text-xs text-emerald-800">{pctOf(lifeMargin, lifeSales)} · on the real cost</div>
+              </div>
+            ) : null}
+            {user.role !== "account_specialist" ? (
+              <div className="rounded-xl border bg-card p-3">
+                <div className="text-xs text-muted-foreground">Sales · last 30 days</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums" data-testid="sales-30">{money(sales30)}</div>
+                <div className="text-xs text-muted-foreground">{last30.length} invoiced order{last30.length === 1 ? "" : "s"} since {formatDate(since30)}</div>
+              </div>
+            ) : null}
+            {margin30 !== null ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                <div className="text-xs text-emerald-800">Gross margin · last 30 days</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums text-emerald-800" data-testid="margin-30">{money(margin30)}</div>
+                <div className="text-xs text-emerald-800">{pctOf(margin30, sales30)} · on the real cost</div>
               </div>
             ) : null}
             <Link href={`/accounts/${id}?tab=rmas`} className={`rounded-xl border p-3 hover:bg-muted/40 ${toBatch + inOpenBatch.length ? "border-amber-300 bg-amber-50/60" : "bg-card"}`} data-testid="account-rma-batches">
@@ -207,7 +230,16 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
       ) : null}
 
       {tab === "contacts" ? (
-        <Card><CardContent className="px-0"><ContactsPanel accountId={id} country={a.country} contacts={contacts.data ?? []} /></CardContent></Card>
+        <div className="grid gap-4">
+          <Card><CardContent className="px-0"><ContactsPanel accountId={id} country={a.country} contacts={contacts.data ?? []} /></CardContent></Card>
+          <Card data-testid="address-book">
+            <CardHeader>
+              <CardTitle className="text-base">Shipping addresses</CardTitle>
+              <CardDescription>Saved places this client ships to: direct, its forwarders, a clearance company… Each order picks one.</CardDescription>
+            </CardHeader>
+            <CardContent><AddressBook accountId={id} addresses={await loadAddresses(db, id)} /></CardContent>
+          </Card>
+        </div>
       ) : null}
 
       {tab === "orders" ? (

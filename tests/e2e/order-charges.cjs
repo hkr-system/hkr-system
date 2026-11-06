@@ -42,6 +42,9 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
   check((await page.locator('[data-testid=units-summary]').innerText()).includes('Total: 47 units'), 'units under the lines: Total 47 units');
   check((await page.locator('[data-testid=units-summary]').innerText()).includes('iPhone 15 128GB: 40'), 'units per model');
 
+  // eSIM only (Nov 6 2026): only on the iPhone 14–16 line, same price
+  check((await page.locator('[data-testid=order-line] select[aria-label=SIM]').count()) === 1, 'SIM choice only on the iPhone 15 line (not on the S24)');
+  await page.locator('[data-testid=order-line] select[aria-label=SIM]').selectOption('esim');
   await page.check('[data-testid=freight-mode-unit]');
   await page.fill('[data-testid=freight-unit]', '3');
   await page.fill('[data-testid=customs-total]', '100');
@@ -57,6 +60,8 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
   await page.click('button:has-text("Create order")');
   await page.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });
   const orderId = page.url().split('/').pop();
+  const { data: simLines } = await admin.from('order_lines').select('model, sim_option').eq('order_id', orderId);
+  check((simLines || []).some((l) => l.model.startsWith('iPhone 15') && l.sim_option === 'esim'), 'saved: iPhone 15 line eSIM only');
   const { data: o1 } = await admin.from('orders').select('pieces, freight_usd, customs_usd, charges_usd, usdt_fee_usd, total_usd, subtotal_usd').eq('id', orderId).single();
   check(o1.pieces === 47 && Number(o1.freight_usd) === 141 && Number(o1.customs_usd) === 100 && Number(o1.charges_usd) === -70 && Number(o1.usdt_fee_usd) === 0,
     `saved: 47 units, shipping 141, customs 100, charges −70, no USDT fee (${JSON.stringify(o1)})`);

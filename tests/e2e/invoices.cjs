@@ -101,6 +101,7 @@ async function openOrder(page, code, number) {
     fs.writeFileSync(path.join(DIR, 'invoice-approved.xlsx'), await xlsx.body());
     check(xlsx.status() === 200 && xlsx.headers()['content-disposition'].includes('_INV-HK.xlsx'), 'xlsx named [code]_ORD-NN_INV-HK');
     await page.reload();
+    await page.waitForFunction(() => document.querySelector('main')?.textContent?.includes('_INV-HK.xlsx'), null, { timeout: 30000 }).catch(() => {});
     const docs = await page.textContent('main');
     check(docs.includes('MEX-MX-903_ORD-03_INV-HK.pdf') && docs.includes('MEX-MX-903_ORD-03_INV-HK.xlsx'), 'sent invoice stored in the order documents');
     check((await page.textContent('[data-testid=order-timeline]')).includes(`Invoice ${number} sent to the client`), 'timeline logs the sent invoice');

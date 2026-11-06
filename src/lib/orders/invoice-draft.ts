@@ -22,7 +22,7 @@ export type InvoiceDraftData = {
 export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<InvoiceDraftData | null> {
   const [{ data: o }, { data: lines }, { data: fee }, { data: credits }, { data: charges }] = await Promise.all([
     db.from("orders").select("*, accounts(id, name, legal_name, country, billing_address, company_ids, vat_eori, invoice_format, billing_entity)").eq("id", orderId).maybeSingle(),
-    db.from("order_lines").select("qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, skus(model, storage_gb, color, grade, battery_eligible)").eq("order_id", orderId).order("sort_order"),
+    db.from("order_lines").select("qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, sim_option, skus(model, storage_gb, color, grade, battery_eligible)").eq("order_id", orderId).order("sort_order"),
     db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
     db.from("credit_note_applications").select("amount_usd, created_at, credit_notes(number)").eq("order_id", orderId).order("created_at"),
     db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", orderId).order("sort_order"),
@@ -48,7 +48,7 @@ export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<In
         qty: l.qty, unitPrice: Number(l.unit_price_usd), batteryNew: l.battery_new, batteryUnit: Number(l.battery_unit_usd),
         batteryEligible: s?.battery_eligible ?? batteryLineEligible(model), model, storageGb: l.storage_gb ?? s?.storage_gb ?? null,
         color: split.length || l.colors_mixed ? null : s?.color ?? null, grade: s?.grade ?? null, description: l.description,
-        colorsMixed: l.colors_mixed, colorSplit: split, ce: l.ce_marked, imeiMatching: l.imei_matching_color, batteryOption: l.battery_option,
+        colorsMixed: l.colors_mixed, colorSplit: split, ce: l.ce_marked, imeiMatching: l.imei_matching_color, batteryOption: l.battery_option, sim: l.sim_option,
       };
     }),
     batteryLineSeparate: fmt.battery_line_separate ?? true,

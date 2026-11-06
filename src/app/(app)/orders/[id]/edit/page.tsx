@@ -19,7 +19,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   const isAdmin = access.user.role === "admin";
   const [{ data: o }, { data: lines }, accounts, skus, terms, prices, intermediaries, addresses, { data: charges }] = await Promise.all([
     db.from("orders").select("*, accounts(code)").eq("id", id).maybeSingle(),
-    db.from("order_lines").select("id, sku_id, skus(model, storage_gb, color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
+    db.from("order_lines").select("id, sku_id, skus(model, storage_gb, color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, sim_option, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
     loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db),
     db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", id).order("sort_order"),
   ]);
@@ -53,7 +53,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
             description: l.description ?? "", qty: String(l.qty), unit_price: String(l.unit_price_usd),
             mixed: l.colors_mixed || !split.length,
             colors: Object.fromEntries(split.map((c) => [c.color, String(c.qty)])),
-            ce: l.ce_marked, imei: l.imei_matching_color, battery: (l.battery_option ?? "") as Line["battery"],
+            ce: l.ce_marked, imei: l.imei_matching_color, battery: (l.battery_option ?? "") as Line["battery"], sim: l.sim_option === "esim" ? "esim" : "",
             battery_unit: String(l.battery_unit_usd ?? ""), base_price: base.get(l.id) != null ? String(base.get(l.id)) : "",
             list_row_id: l.price_list_row_id ?? "", list_price: l.list_price_usd === null ? null : Number(l.list_price_usd), sku_id: l.sku_id ?? undefined,
           });

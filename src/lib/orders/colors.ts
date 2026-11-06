@@ -122,3 +122,6 @@ export function splitProblem(qty: number, mixed: boolean, split: ColorSplit): st
   const sum = used.reduce((s, x) => s + x.qty, 0);
   return sum === qty ? null : `The colours add up to ${sum} but the line has ${qty} units.`;
 }
+
+/** "eSIM only" can be chosen on iPhone 14, 15 and 16 series lines (Gabriel, Nov 6 2026) — same rule as SQL order_lines_sim_check. */
+export const simChoice = (model: string | null | undefined) => /^\s*iphone\s*1[4-6]/i.test(String(model ?? ""));

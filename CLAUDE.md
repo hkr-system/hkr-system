@@ -430,6 +430,11 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   (rule-based, FREE, unit-tested; no AI API) reads model, GB, qty, colours (also "negros", "black" → Midnight…),
   Mixed, battery, CE, IMEI matching; reports what it could not read; nothing is saved until "Create order".
 
+- eSIM only (Gabriel, Nov 6 2026): iPhone 14 / 15 / 16 lines (16e included) have "SIM: Physical SIM + eSIM | eSIM only" —
+  SAME price (it is not a separate list row). `order_lines.sim_option` null | 'esim' (trigger `order_lines_sim_check` refuses
+  it on other models; `simChoice()` in colors.ts); the invoice prints "eSIM only" after the GB and groups it apart. The Magic
+  invoice creator reads "esim only" / "solo esim". pgTAP `17_order_line_sim`.
+
 ## Order page (Gabriel, Nov 3 2026)
 
 - Tabs like the account page, switched instantly in the browser (`components/orders/order-tabs.tsx`, ?tab= kept): Overview

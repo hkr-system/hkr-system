@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
-import { BATTERY_OPTIONS, batteryAllowed, batteryLineEligible, colorLabel, colorsFor, splitProblem, type BatteryOption } from "@/lib/orders/colors";
+import { BATTERY_OPTIONS, batteryAllowed, batteryLineEligible, colorLabel, colorsFor, splitProblem, type BatteryOption, simChoice } from "@/lib/orders/colors";
 import { readOrder } from "@/lib/orders/magic";
 import { money } from "@/lib/orders/constants";
 import { brandOf, optionsApply, sameModel } from "@/lib/brands";
@@ -19,7 +19,7 @@ export type Line = {
   key: string; model: string; storage_gb: number | null; description: string;
   qty: string; unit_price: string;
   mixed: boolean; colors: Record<string, string>;
-  ce: boolean; imei: boolean; battery: BatteryOption | "";
+  ce: boolean; imei: boolean; battery: BatteryOption | ""; sim?: "" | "esim";
   battery_unit: string; base_price: string;
   list_row_id: string; list_price: number | null;
   sku_id?: string;
@@ -175,6 +175,14 @@ export function LineEditor({ line, i, choices, isAdmin, separate, onChange, onRe
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         {opts ? <label className="flex items-center gap-1.5"><input type="checkbox" checked={line.ce} onChange={(e) => onChange({ ce: e.target.checked })} className="size-4" /> CE Marks</label> : null}
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={line.imei} onChange={(e) => onChange({ imei: e.target.checked })} className="size-4" /> IMEI matching color</label>
+        {simChoice(line.model) ? (
+          <label className="flex items-center gap-1.5">SIM
+            <NativeSelect value={line.sim ?? ""} onChange={(e) => onChange({ sim: e.target.value as "" | "esim" })} className="w-auto" aria-label="SIM">
+              <option value="">Physical SIM + eSIM</option>
+              <option value="esim">eSIM only</option>
+            </NativeSelect>
+          </label>
+        ) : null}
         {opts ? (
           <label className="flex items-center gap-1.5">Battery
             <NativeSelect value={line.battery} onChange={(e) => onChange({ battery: e.target.value as BatteryOption | "" })} className="w-auto" aria-label="Battery">
@@ -216,7 +224,7 @@ export function MagicReader({ choices, ceDefault, onLines, disabled }: {
       const base: Line = {
         ...emptyLine(ceDefault || m.ce), model: m.model, storage_gb: m.storage_gb, qty: m.qty ? String(m.qty) : "",
         mixed: m.mixed, colors: Object.fromEntries(m.colors.map((x) => [x.color, String(x.qty)])),
-        imei: m.imeiMatching, battery: m.battery ?? "new",
+        imei: m.imeiMatching, battery: m.battery ?? "new", sim: m.esimOnly && simChoice(m.model) ? "esim" : "",
       };
       return c ? withChoice(base, c) : base;
     });
@@ -248,6 +256,7 @@ export function lineToPayload(l: Line) {
     sku_id: l.sku_id || null, model: l.model || null, storage_gb: l.storage_gb, description: l.description,
     qty: l.qty, unit_price: l.unit_price, colors_mixed: l.mixed, colors: lineSplit(l),
     ce_marked: optionsApply(l.model) && l.ce, imei_matching_color: l.imei, battery_option: optionsApply(l.model) ? l.battery || null : null,
+    sim_option: simChoice(l.model) && l.sim === "esim" ? "esim" : null,
     battery_unit: l.battery_unit, base_price: l.base_price, list_row_id: l.list_row_id,
   };
 }

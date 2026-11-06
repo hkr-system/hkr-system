@@ -33,6 +33,7 @@ type LineInput = {
   sku_id: string | null; model: string | null; storage_gb: number | null; description: string | null; qty: number; unit_price: number;
   colors_mixed: boolean; colors: { color: string; qty: number }[]; ce_marked: boolean; imei_matching_color: boolean;
   battery_option: "new" | "boosted100" | "bh85_boosted" | "bh80" | null; battery_unit: number; base_price: number | null; list_row_id: string | null;
+  sim_option: "esim" | null;
 };
 const BATTERY = ["new", "boosted100", "bh85_boosted", "bh80"];
 
@@ -59,6 +60,7 @@ function parseLines(raw: string): { lines: LineInput[]; problem?: string } {
       description: String(l.description ?? "").trim() || null, qty, unit_price: price,
       colors_mixed: mixed, colors: mixed ? [] : colors, ce_marked: Boolean(l.ce_marked), imei_matching_color: Boolean(l.imei_matching_color),
       battery_option: BATTERY.includes(l.battery_option) ? l.battery_option : null,
+      sim_option: l.sim_option === "esim" ? "esim" : null,
       battery_unit: Number(String(l.battery_unit ?? "").replace(",", ".")) || 0,
       base_price: l.base_price === "" || l.base_price === null || l.base_price === undefined ? null : Number(l.base_price),
       list_row_id: typeof l.list_row_id === "string" && /^[0-9a-f-]{36}$/.test(l.list_row_id) ? l.list_row_id : null,
@@ -158,7 +160,7 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
       order_id: orderId!, account_id: accountId, sku_id: l.sku_id, model: l.model, storage_gb: l.storage_gb, description: l.description,
       qty: l.qty, unit_price_usd: l.unit_price, battery_option: l.battery_option, battery_new: l.battery_option === "new",
       battery_unit_usd: l.battery_option === "new" ? l.battery_unit : 0, colors_mixed: l.colors_mixed, colors: l.colors,
-      ce_marked: l.ce_marked, imei_matching_color: l.imei_matching_color, sort_order: i,
+      ce_marked: l.ce_marked, imei_matching_color: l.imei_matching_color, sim_option: l.sim_option, sort_order: i,
       price_list_row_id: l.list_row_id, // the database sets list price and source (list / manual)
     })))
     .select("id, sort_order");

@@ -67,3 +67,21 @@ describe("USDT part of a mixed payment (Gabriel's examples)", () => {
     expect(usdtPart(5020, 5000, 0.85)).toEqual({ expected: 5042.5, fee: 42.5, feeLost: 22.5, applied: 5000 });
   });
 });
+
+describe("eSIM only (Nov 6 2026)", () => {
+  it("prints 'eSIM only' on the line and keeps it apart from the dual-SIM units at the same price", async () => {
+    const { simChoice } = await import("./colors");
+    const { readOrder } = await import("./magic");
+    expect(simChoice("iPhone 14 Pro")).toBe(true);
+    expect(simChoice("iPhone 16e")).toBe(true);
+    expect(simChoice("iPhone 13")).toBe(false);
+    expect(simChoice("S24")).toBe(false);
+    const base = { qty: 10, unitPrice: 400, batteryNew: false, batteryUnit: 0, batteryEligible: true, model: "iPhone 15", storageGb: 128, colorsMixed: true, batteryOption: null };
+    const r = buildInvoiceLines({ lines: [{ ...base, sim: "esim" }, { ...base, sim: null }], batteryLineSeparate: true, ceText: null, freight: 0, customs: 0, rmaDiscount: 0, paymentMethod: "wire", usdtFeePct: 0.85, shipCountry: null });
+    expect(r.lines.map((l) => l.description)).toEqual(["iPhone 15 / 128 GB / eSIM only / A+++ / Colors: Mixed", "iPhone 15 / 128 GB / A+++ / Colors: Mixed"]);
+    expect(r.total).toBe(8000);
+    expect(readOrder("20 iPhone 15 128 mixed esim only").lines[0].esimOnly).toBe(true);
+    expect(readOrder("20 iPhone 15 128 mixed\nTodos solo eSIM").lines[0].esimOnly).toBe(true);
+    expect(readOrder("20 iPhone 15 128 mixed").lines[0].esimOnly).toBeFalsy();
+  });
+});

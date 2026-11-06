@@ -12,6 +12,7 @@ export type SourceLine = {
   // Nov 2 2026: colours and options per line (undefined on older lines → account-level CE text, SKU colour)
   colorsMixed?: boolean; colorSplit?: { color: string; qty: number }[];
   ce?: boolean; imeiMatching?: boolean; batteryOption?: string | null;
+  sim?: string | null;   // Nov 6 2026: 'esim' = "eSIM only" (iPhone 14–16, same price); null = as in the list
 };
 export type BuildInput = {
   lines: SourceLine[];
@@ -59,6 +60,7 @@ export function productDescription(l: SourceLine, ceText: string | null, colors:
   return [
     l.model,
     l.storageGb ? `${l.storageGb} GB` : null,
+    l.sim === "esim" ? "eSIM only" : null,
     option && (option !== "new" || eligible) ? BATTERY_TEXT[option] : null,
     ceText,
     l.imeiMatching ? "IMEI matching color" : null,
@@ -76,7 +78,7 @@ export function buildInvoiceLines(i: BuildInput, plainOf?: (model: string, color
   for (const l of i.lines) {
     const opt = l.batteryOption === undefined ? (l.batteryNew && l.batteryEligible !== false ? "new" : "") : l.batteryOption ?? "";
     const key = l.model
-      ? [l.model, l.storageGb, l.grade ?? "A+++", opt, ceOf(l) ?? "", l.imeiMatching ? 1 : 0, l.unitPrice].join("|")
+      ? [l.model, l.storageGb, l.grade ?? "A+++", opt, ceOf(l) ?? "", l.imeiMatching ? 1 : 0, l.sim ?? "", l.unitPrice].join("|")
       : `free|${l.description}|${l.unitPrice}|${groups.size}`;
     const g = groups.get(key) ?? { first: l, qty: 0, colors: new Map<string, number>(), mixed: false };
     g.qty += l.qty;

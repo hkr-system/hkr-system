@@ -8,6 +8,7 @@ export type MagicLine = {
   model: string; storage_gb: number | null; qty: number | null;
   mixed: boolean; colors: ColorSplit;
   battery: BatteryOption | null; ce: boolean; imeiMatching: boolean;
+  esimOnly?: boolean;   // "esim only", "solo esim" (iPhone 14–16, Nov 6 2026)
   source: string; problems: string[];
 };
 
@@ -43,6 +44,8 @@ function findModel(s: string): { model: string; at: number; len: number } | null
   const tier = TIER.find(([r]) => r.test(tierWord))?.[1];
   return { model: `iPhone ${m[1]}${m[2] ? "e" : ""}${tier ? ` ${tier}` : ""}`, at: m.index, len: m[0].length };
 }
+
+const ESIM_ONLY = /(e-?sim\s*only|only\s*e-?sim|solo\s*e-?sim|e-?sim\s*solamente|e-?sim\s*[úu]nicamente)/;
 
 function battery(s: string, model: string): BatteryOption | null {
   let b: BatteryOption | null = null;
@@ -104,7 +107,7 @@ export function readLine(raw: string): MagicLine | null {
 
   return {
     model, storage_gb: storage, qty, mixed: mixed || !colors.length, colors: mixed ? [] : colors,
-    battery: bat, ce: !samsung && /\bce\b|ce mark/.test(s), imeiMatching: /imei/.test(s) && /(colou?r|color)/.test(s),
+    battery: bat, ce: !samsung && /\bce\b|ce mark/.test(s), esimOnly: ESIM_ONLY.test(s), imeiMatching: /imei/.test(s) && /(colou?r|color)/.test(s),
     source, problems,
   };
 }
@@ -123,6 +126,7 @@ export function readOrder(text: string): { lines: MagicLine[]; skipped: string[]
     if (brandOf(l.model) === "samsung") continue;
     if (!l.ce && /\bce\b|ce mark/.test(all)) l.ce = true;
     if (!l.battery) l.battery = battery(all, l.model);
+    if (ESIM_ONLY.test(all)) l.esimOnly = true;
     if (!l.imeiMatching && /imei/.test(all) && /colou?r/.test(all)) l.imeiMatching = true;
   }
   return { lines, skipped };

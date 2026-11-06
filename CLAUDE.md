@@ -348,6 +348,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   Closed; one step at a time (admin can set any). Deposit/Balance paid come from an ADMIN-confirmed payment.
   "Ready to ship" = goods ready in HK with balance due (status); "Clear to ship" (computed in view `order_overview`)
   = balance confirmed + IMEI loaded + (client LABEL file | courier for our booking). Shipped needs Clear to ship + AWB.
+- Deposit paid automatically (Gabriel, Nov 6 2026): besides "deposit confirmed while Invoiced", an order that REACHES Invoiced
+  with a confirmed deposit (confirmed while still Quoted) moves on to Deposit paid by itself (trigger `orders_deposit_paid_auto`,
+  pgTAP `18_deposit_paid_auto`); the migration moved the orders already in that state.
 - Payments: anyone with the account records (status awaiting_confirmation, expected amount and difference computed);
   only admin confirms/edits/deletes (SOP P3). Bell: admins get "Payment to confirm"; owner + specialists get
   "Ready to ship, balance due".

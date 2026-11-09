@@ -27,34 +27,39 @@ const login = async (page, email) => {
   page.on('dialog', (d) => d.accept());
   await login(page, 'gabriel.demo@hk-refurbished-stock.com');
 
-  // Settings: add PGS Megastore, correct it, remove an unused typo
+  // Settings: add PGS Megastore with every field, refuse a duplicate name, remove an unused one
   await page.goto(BASE + '/settings#intermediaries');
-  await page.waitForSelector('[data-testid=intermediary-add]', { timeout: 60000 });
+  await page.waitForSelector('[data-testid=intermediaries]', { timeout: 60000 });
   await page.waitForTimeout(800);
-  const add = async (name, country) => {
-    await page.fill('[data-testid=intermediary-add] input[name=name]', name);
-    await page.fill('[data-testid=intermediary-add] input[name=country]', country);
-    await page.click('[data-testid=intermediary-add] button:has-text("Add")');
-    await page.waitForSelector(`[data-testid="intermediary-${name}"]`, { timeout: 30000 });
-  };
-  await add('PGS Megastore', 'Spain');
-  check(true, 'Settings: PGS Megastore added');
-  await page.fill('[data-testid=intermediary-add] input[name=name]', 'pgs megastore');
-  await page.click('[data-testid=intermediary-add] button:has-text("Add")');
+  const last = () => page.locator('[data-testid=intermediary-row]').last();
+  await page.click('[data-testid=add-intermediary]');
+  await last().locator('input[aria-label="Company name *"]').fill('PGS Megastore');
+  await last().locator('input[aria-label="VAT / EORI"]').fill('ESB12345678 · EORI ESB12345678');
+  await last().locator('input[aria-label="Contact name"]').fill('Ana Demo');
+  await last().locator('input[aria-label="Contact phone"]').fill('+34 600 000 000');
+  await last().locator('input[aria-label="Email"]').fill('orders@pgs.example');
+  await last().locator('textarea[aria-label=Address]').fill('Calle Demo 1, 28001 Madrid');
+  await last().locator('select[aria-label=Country]').selectOption('ES');
+  await page.click('[data-testid=save-intermediaries]');
+  await page.waitForSelector('text=Saved (1 new).', { timeout: 30000 });
+  await page.waitForTimeout(2500);   // the list reloads from the database after Save
+  const { data: pgs } = await admin.from('intermediaries').select('vat_eori, contact, contact_phone, contact_email, address, country').eq('name', 'PGS Megastore').single();
+  check(pgs && pgs.vat_eori.startsWith('ESB') && pgs.contact === 'Ana Demo' && pgs.contact_phone === '+34 600 000 000' && pgs.contact_email === 'orders@pgs.example' && pgs.address.includes('Madrid') && pgs.country === 'ES',
+    'Settings: PGS Megastore saved with VAT/EORI, contact name, phone, email, address, country');
+  await page.click('[data-testid=add-intermediary]');
+  await last().locator('input[aria-label="Company name *"]').fill('pgs megastore');
+  await page.click('[data-testid=save-intermediaries]');
   await page.waitForTimeout(1500);
-  check((await page.locator('[data-testid=intermediary-add]').innerText()).includes('already an intermediary'), 'same name again (other case) is refused');
-  const row = page.locator('[data-testid="intermediary-PGS Megastore"]');
-  await row.locator('input[name=contact]').fill('orders@pgs.example');
-  await row.locator('button:has-text("Save")').click();
-  await page.waitForTimeout(1500);
-  const { data: pgs } = await admin.from('intermediaries').select('contact').eq('name', 'PGS Megastore').single();
-  check(pgs.contact === 'orders@pgs.example', 'contact saved');
-  await add('Typo Co', 'X');
-  await page.locator('[data-testid="intermediary-Typo Co"] button:has-text("Remove")').click();
-  await page.waitForTimeout(1500);
+  check((await page.locator('[data-testid=intermediaries]').innerText()).includes('twice in the list') || (await page.locator('[data-testid=intermediaries]').innerText()).includes('already an intermediary'), 'same name again (other case) is refused');
+  await last().locator('input[aria-label="Company name *"]').fill('Typo Co');
+  await page.click('[data-testid=save-intermediaries]');
+  await page.waitForSelector('text=Saved (1 new).', { timeout: 30000 });
+  await page.waitForTimeout(800);
+  await page.locator('[data-testid=intermediary-row]', { has: page.locator('input[value="Typo Co"]') }).locator('button:has-text("Remove")').click();
+  await page.waitForTimeout(2000);
   const { data: typo } = await admin.from('intermediaries').select('id').eq('name', 'Typo Co');
   check(!typo.length, 'an unused intermediary can be removed');
-  check((await page.locator('[data-testid="intermediary-Global Connect"] button:has-text("Remove")').count()) === 0, 'Global Connect (used) has no Remove');
+  check((await page.locator('[data-testid=intermediary-row]', { has: page.locator('input[value="Global Connect"]') }).locator('button:has-text("Remove")').count()) === 0, 'Global Connect (used) has no Remove');
   await page.screenshot({ path: path.join(DIR, 'intermediaries-settings.png'), fullPage: true });
 
   // order form: "+ New intermediary…" → Galimix, created with the order

@@ -31,7 +31,7 @@ export default async function SettingsPage() {
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
     supabase.from("profiles").select("user_id, full_name, email, role, timezone, active").order("full_name"),
     supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
-    supabase.from("intermediaries").select("id, name, country, contact, address, default_cutoff_weekday").order("name"),
+    supabase.from("intermediaries").select("id, name, vat_eori, contact, contact_phone, contact_email, address, country, default_cutoff_weekday").order("name"),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
     supabase.from("portal_users").select("user_id"),
     // how many orders / clients / RMA batches use each intermediary (only unused ones can be removed)

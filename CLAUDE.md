@@ -456,11 +456,13 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 ## Intermediaries list (Gabriel, Nov 9 2026)
 
 - "Like Amazon addresses": Settings → Intermediaries (admin) = the list of companies that invoice the client for us (Global
-  Connect, ASR, Galimix, PGS Megastore…): add (name, country, contact, address, RMA batch cut-off day), correct with Save,
-  Remove only when no order, client or RMA batch uses it (`settings/intermediaries.tsx`, actions add/update/deleteIntermediary;
-  same name in another case is refused). Order form → Route has "+ New intermediary…" (admin; created on Save order, an existing
-  name is reused — `resolveIntermediary` in orders/actions.ts, also used by the order's Intermediary tab); specialists pick from
-  the list. No migration (table `intermediaries` already had contact/address). e2e `tests/e2e/intermediaries.cjs`.
+  Connect, ASR, Galimix, PGS Megastore…), one card per company with Gabriel's fields: company name, VAT / EORI, contact name,
+  contact phone, email, address (+ country, RMA batch cut-off day); "+ Add intermediary", one "Save intermediaries"
+  (`settings/intermediaries.tsx`, action saveIntermediaries; same name in another case refused); Remove only when no order,
+  client or RMA batch uses it (deleteIntermediary). Order form → Route has "+ New intermediary…" (admin; created on Save order,
+  an existing name is reused — `resolveIntermediary` in orders/actions.ts, also used by the order's Intermediary tab); specialists
+  pick from
+  the list. Migration 20261109010000 adds vat_eori, contact_phone, contact_email (`contact` = contact name). e2e `tests/e2e/intermediaries.cjs`.
 
 ## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
 

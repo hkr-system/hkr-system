@@ -218,42 +218,49 @@ export async function updateUserAccess(_prev: SettingState, formData: FormData):
 
 // --- Intermediaries (Gabriel, Nov 9 2026: "un lugar para agregar todos esos intermediarios… como las direcciones en amazon")
 // Companies that invoice the client for us (Global Connect, Galimix, ASR, PGS Megastore…). Admin only (RLS too).
-function intermediaryFields(formData: FormData) {
-  const t = (k: string) => String(formData.get(k) ?? "").trim().replace(/[ \t]+/g, " ");
-  const day = Number(formData.get("default_cutoff_weekday") ?? 0);
-  return {
-    name: t("name"), country: t("country") || null, contact: t("contact") || null, address: t("address") || null,
-    default_cutoff_weekday: Number.isInteger(day) && day >= 1 && day <= 7 ? day : null,
-  };
-}
-function intermediaryError(e: { code?: string; message: string }) {
-  return e.code === "23505" ? "There is already an intermediary with that name." : e.message;
-}
+// Fields (Gabriel): company name, VAT / EORI, contact name, contact phone, email, address (+ country, RMA batch day).
+export type IntermediaryInput = {
+  id?: string; name: string; vat_eori: string | null; contact: string | null; contact_phone: string | null;
+  contact_email: string | null; address: string | null; country: string | null; default_cutoff_weekday: number | null;
+};
 
-export async function addIntermediary(_prev: SettingState, formData: FormData): Promise<SettingState> {
+export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<SettingState & { message?: string }> {
   await requireRole(["admin"]);
-  const f = intermediaryFields(formData);
-  if (!f.name) return { error: "Write the company name." };
+  const t = (v: unknown, max: number) => String(v ?? "").trim().replace(/[ \t]+/g, " ").slice(0, max) || null;
+  const clean = rows.map((r, i) => {
+    const day = Number(r.default_cutoff_weekday);
+    return {
+      id: r.id && /^[0-9a-f-]{36}$/.test(r.id) ? r.id : undefined, n: i + 1,
+      fields: {
+        name: t(r.name, 80) ?? "", vat_eori: t(r.vat_eori, 120), contact: t(r.contact, 120), contact_phone: t(r.contact_phone, 40),
+        contact_email: t(r.contact_email, 160), address: t(r.address, 400), country: t(r.country, 2),
+        default_cutoff_weekday: Number.isInteger(day) && day >= 1 && day <= 7 ? day : null,
+      },
+    };
+  });
+  for (const r of clean) {
+    if (!r.fields.name) return { error: `Intermediary ${r.n}: write the company name.` };
+    if (r.fields.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.fields.contact_email)) return { error: `${r.fields.name}: the email does not look right.` };
+  }
+  const names = clean.map((r) => r.fields.name.toLowerCase());
+  const dup = clean.find((r, i) => names.indexOf(names[i]) !== i);
+  if (dup) return { error: `"${dup.fields.name}" is twice in the list.` };
   const supabase = await createClient();
-  const { data: same } = await supabase.from("intermediaries").select("id").ilike("name", f.name.replace(/[\\%_]/g, (c) => "\\" + c)).limit(1).maybeSingle();
-  if (same) return { error: "There is already an intermediary with that name." };
-  const { error } = await supabase.from("intermediaries").insert(f);
-  if (error) return { error: intermediaryError(error) };
+  const { data: existing } = await supabase.from("intermediaries").select("id, name");
+  for (const r of clean) {
+    const other = (existing ?? []).find((e) => e.name.toLowerCase() === r.fields.name.toLowerCase() && e.id !== r.id);
+    if (other) return { error: `There is already an intermediary called ${other.name}.` };
+  }
+  let added = 0;
+  for (const r of clean) {
+    const { error } = r.id
+      ? await supabase.from("intermediaries").update(r.fields).eq("id", r.id)
+      : await supabase.from("intermediaries").insert(r.fields);
+    if (error) return { error: error.code === "23505" ? `There is already an intermediary called ${r.fields.name}.` : error.message };
+    if (!r.id) added++;
+  }
   revalidatePath("/settings");
-  return { ok: true };
-}
-
-export async function updateIntermediary(_prev: SettingState, formData: FormData): Promise<SettingState> {
-  await requireRole(["admin"]);
-  const id = String(formData.get("id") ?? "");
-  const f = intermediaryFields(formData);
-  if (!/^[0-9a-f-]{36}$/.test(id)) return { error: "Unknown intermediary." };
-  if (!f.name) return { error: "The name cannot be empty." };
-  const supabase = await createClient();
-  const { error } = await supabase.from("intermediaries").update(f).eq("id", id);
-  if (error) return { error: intermediaryError(error) };
-  revalidatePath("/settings");
-  return { ok: true };
+  return { ok: true, message: added ? `Saved (${added} new).` : "Saved." };
 }
 
 // Only a company that no order, client or RMA batch uses can be removed (a typo, a test).

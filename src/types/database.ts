@@ -593,14 +593,14 @@ isOneToOne: false
                   ]
                 },"intermediaries": {
                   Row: {
-                    "address": string | null,"contact": string | null,"country": string | null,"created_at": string,"created_by": string | null,"default_cutoff_weekday": number | null,"id": string,"name": string,"updated_at": string
+                    "address": string | null,"contact": string | null,"contact_email": string | null,"contact_phone": string | null,"country": string | null,"created_at": string,"created_by": string | null,"default_cutoff_weekday": number | null,"id": string,"name": string,"updated_at": string,"vat_eori": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string | null,"contact"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"id"?: string,"name": string,"updated_at"?: string
+                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"id"?: string,"name": string,"updated_at"?: string,"vat_eori"?: string | null
                   }
                   Update: {
-                    "address"?: string | null,"contact"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"id"?: string,"name"?: string,"updated_at"?: string
+                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"id"?: string,"name"?: string,"updated_at"?: string,"vat_eori"?: string | null
                   }
                   Relationships: [
                     

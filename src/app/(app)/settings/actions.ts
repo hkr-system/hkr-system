@@ -215,3 +215,60 @@ export async function updateUserAccess(_prev: SettingState, formData: FormData):
   revalidatePath("/settings");
   return { ok: true };
 }
+
+// --- Intermediaries (Gabriel, Nov 9 2026: "un lugar para agregar todos esos intermediarios… como las direcciones en amazon")
+// Companies that invoice the client for us (Global Connect, Galimix, ASR, PGS Megastore…). Admin only (RLS too).
+function intermediaryFields(formData: FormData) {
+  const t = (k: string) => String(formData.get(k) ?? "").trim().replace(/[ \t]+/g, " ");
+  const day = Number(formData.get("default_cutoff_weekday") ?? 0);
+  return {
+    name: t("name"), country: t("country") || null, contact: t("contact") || null, address: t("address") || null,
+    default_cutoff_weekday: Number.isInteger(day) && day >= 1 && day <= 7 ? day : null,
+  };
+}
+function intermediaryError(e: { code?: string; message: string }) {
+  return e.code === "23505" ? "There is already an intermediary with that name." : e.message;
+}
+
+export async function addIntermediary(_prev: SettingState, formData: FormData): Promise<SettingState> {
+  await requireRole(["admin"]);
+  const f = intermediaryFields(formData);
+  if (!f.name) return { error: "Write the company name." };
+  const supabase = await createClient();
+  const { data: same } = await supabase.from("intermediaries").select("id").ilike("name", f.name.replace(/[\\%_]/g, (c) => "\\" + c)).limit(1).maybeSingle();
+  if (same) return { error: "There is already an intermediary with that name." };
+  const { error } = await supabase.from("intermediaries").insert(f);
+  if (error) return { error: intermediaryError(error) };
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function updateIntermediary(_prev: SettingState, formData: FormData): Promise<SettingState> {
+  await requireRole(["admin"]);
+  const id = String(formData.get("id") ?? "");
+  const f = intermediaryFields(formData);
+  if (!/^[0-9a-f-]{36}$/.test(id)) return { error: "Unknown intermediary." };
+  if (!f.name) return { error: "The name cannot be empty." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("intermediaries").update(f).eq("id", id);
+  if (error) return { error: intermediaryError(error) };
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+// Only a company that no order, client or RMA batch uses can be removed (a typo, a test).
+export async function deleteIntermediary(id: string): Promise<SettingState> {
+  await requireRole(["admin"]);
+  if (!/^[0-9a-f-]{36}$/.test(id)) return { error: "Unknown intermediary." };
+  const supabase = await createClient();
+  const [o, a, b] = await Promise.all([
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("intermediary_id", id),
+    supabase.from("accounts").select("id", { count: "exact", head: true }).eq("intermediary_id", id),
+    supabase.from("rma_batches").select("id", { count: "exact", head: true }).eq("intermediary_id", id),
+  ]);
+  if ((o.count ?? 0) + (a.count ?? 0) + (b.count ?? 0) > 0) return { error: "It is used by orders, clients or RMA batches: it stays." };
+  const { error } = await supabase.from("intermediaries").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { ok: true };
+}

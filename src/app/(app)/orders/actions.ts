@@ -90,6 +90,19 @@ function parseCharges(json: string): { charges: { description: string; qty: numb
   return { charges: out };
 }
 
+/** Route of an order: "" = direct, an id, or "new" = add a company (admin; RLS refuses others) with the typed name. */
+async function resolveIntermediary(db: Awaited<ReturnType<typeof createClient>>, fd: FormData): Promise<{ id: string | null; error?: string }> {
+  const pick = str(fd, "intermediary_id");
+  if (pick !== "new") return { id: pick || null };
+  const name = str(fd, "new_intermediary").trim().replace(/\s+/g, " ");
+  if (!name) return { id: null, error: "Write the name of the new intermediary." };
+  const { data: same } = await db.from("intermediaries").select("id").ilike("name", name.replace(/[\\%_]/g, (c) => "\\" + c)).limit(1).maybeSingle();
+  if (same) return { id: same.id };                  // "galimix" typed again = the Galimix already saved
+  const { data: im, error } = await db.from("intermediaries").insert({ name }).select("id").single();
+  if (error) return { id: null, error: error.code === "42501" ? "Only an admin adds a new intermediary (Settings → Intermediaries)." : friendly(error) };
+  return { id: im.id };
+}
+
 export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireRole(STAFF);
   const db = await createClient();
@@ -117,9 +130,12 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
       country: str(fd, "ship_country"), contact: str(fd, "ship_contact"), phone: str(fd, "ship_phone"), email: str(fd, "ship_email"),
     },
     // route + saved address per order (Gabriel, Nov 4 2026)
-    intermediary_id: opt(fd, "intermediary_id"),
+    intermediary_id: null as string | null,
     address_id: opt(fd, "address_id"),
   };
+  const route = await resolveIntermediary(db, fd);
+  if (route.error) return { error: route.error };
+  fields.intermediary_id = route.id;
 
   let orderId = id;
   let accountId = str(fd, "account_id");
@@ -199,14 +215,9 @@ export async function saveIntermediaryInvoice(_p: ActionState, fd: FormData): Pr
   const eur = str(fd, "partner_invoice_eur").replace(/,/g, "");
   if (eur && !(Number(eur) >= 0)) return { error: "Write the EUR amount as a number." };
   // intermediary of THIS order: any company (Global Connect, Galimix, DWT…); "" = direct, "new" = add a company (admin)
-  let intermediary = str(fd, "intermediary_id");
-  if (intermediary === "new") {
-    const name = str(fd, "new_intermediary").trim();
-    if (!name) return { error: "Write the name of the new intermediary." };
-    const { data: im, error: imErr } = await db.from("intermediaries").insert({ name }).select("id").single();
-    if (imErr) return { error: imErr.code === "23505" ? "That intermediary already exists: choose it in the list." : imErr.code === "42501" ? "Only an admin adds a new intermediary (Settings → Intermediaries)." : friendly(imErr) };
-    intermediary = im.id;
-  }
+  const route = await resolveIntermediary(db, fd);
+  if (route.error) return { error: route.error };
+  const intermediary = route.id;
   const direct = !intermediary;
   const { data, error } = await db.from("orders").update({
     intermediary_id: direct ? null : intermediary,

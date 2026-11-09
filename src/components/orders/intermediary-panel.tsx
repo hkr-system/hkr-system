@@ -32,7 +32,7 @@ export function IntermediaryPanel({ orderId, accountId, accountCode, orderNumber
             <NativeSelect id="pim" name="intermediary_id" value={pick} onChange={(e) => setPick(e.target.value)} disabled={!editable} data-testid="order-intermediary">
               <option value="">— Direct (no intermediary) —</option>
               {intermediaries.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-              {isAdmin ? <option value="new">+ Another company…</option> : null}
+              {isAdmin ? <option value="new">+ New intermediary…</option> : null}
             </NativeSelect>
           </div>
           {pick === "new" ? (

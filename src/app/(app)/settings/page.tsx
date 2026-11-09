@@ -14,10 +14,10 @@ import { META_MARKET_LABELS } from "@/lib/whatsapp/pricing";
 import { MessageRatesForm } from "./message-rates";
 import { InvoiceIssuerForm, type IssuerValue } from "./invoice-issuer";
 import { SkuAddForm, SkuBatteryToggle, UserAccessRow } from "./admin-lists";
+import { IntermediariesEditor } from "./intermediaries";
 
 export const metadata: Metadata = { title: "Settings" };
 
-const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Edited with their own controls further down the page.
 const SPECIAL_KEYS = ["lead_target_countries", "lead_owner_by_market", "wa_message_rates", "invoice_issuers"];
@@ -27,14 +27,22 @@ export default async function SettingsPage() {
   if (!access.allowed) return <NoAccess />;
 
   const supabase = await createClient();
-  const [settings, users, rules, intermediaries, skus, portalUsers] = await Promise.all([
+  const [settings, users, rules, intermediaries, skus, portalUsers, imOrders, imAccounts, imBatches] = await Promise.all([
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
     supabase.from("profiles").select("user_id, full_name, email, role, timezone, active").order("full_name"),
     supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
-    supabase.from("intermediaries").select("id, name, country, default_cutoff_weekday").order("name"),
+    supabase.from("intermediaries").select("id, name, country, contact, address, default_cutoff_weekday").order("name"),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
     supabase.from("portal_users").select("user_id"),
+    // how many orders / clients / RMA batches use each intermediary (only unused ones can be removed)
+    supabase.from("orders").select("intermediary_id").not("intermediary_id", "is", null),
+    supabase.from("accounts").select("intermediary_id").not("intermediary_id", "is", null),
+    supabase.from("rma_batches").select("intermediary_id"),
   ]);
+  const countBy = (rows: { intermediary_id: string | null }[] | null, id: string) => (rows ?? []).filter((r) => r.intermediary_id === id).length;
+  const intermediaryRows = (intermediaries.data ?? []).map((i) => ({
+    ...i, orders: countBy(imOrders.data, i.id), clients: countBy(imAccounts.data, i.id), batches: countBy(imBatches.data, i.id),
+  }));
   // client-portal logins are managed per account (Accounts → Client portal), not here
   const portalIds = new Set((portalUsers.data ?? []).map((p) => p.user_id));
   const staffUsers = (users.data ?? []).filter((u) => !portalIds.has(u.user_id));
@@ -163,19 +171,8 @@ export default async function SettingsPage() {
           {paramTable("promotions")}
         </SettingsSection>
 
-        <SettingsSection id="intermediaries" title="Intermediaries" count={`${(intermediaries.data ?? []).length}`} description="EU intermediaries and their batch cut-off day.">
-          <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Country</TableHead><TableHead>Batch cutoff</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {(intermediaries.data ?? []).map((i) => (
-                <TableRow key={i.id}>
-                  <TableCell className="font-medium">{i.name}</TableCell>
-                  <TableCell>{i.country ?? "—"}</TableCell>
-                  <TableCell>{i.default_cutoff_weekday ? WEEKDAYS[i.default_cutoff_weekday] : "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <SettingsSection id="intermediaries" title="Intermediaries" count={`${intermediaryRows.length}`} description="Companies that invoice the client for us (Global Connect, Galimix…). Each order picks its route from this list.">
+          <IntermediariesEditor rows={intermediaryRows} />
         </SettingsSection>
 
         <SettingsSection id="landing" title="Landing page (/apply)" description="Public WhatsApp number and other options of the qualification form.">

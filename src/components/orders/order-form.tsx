@@ -181,8 +181,16 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             <NativeSelect name="intermediary_id" value={route} onChange={(e) => setRoute(e.target.value)} data-testid="order-route">
               <option value="">Direct: the client pays HKR in USD</option>
               {intermediaries.map((i) => <option key={i.id} value={i.id}>Via {i.name} (invoices the client in EUR)</option>)}
+              {isAdmin ? <option value="new">+ New intermediary…</option> : null}
             </NativeSelect>
+            {!isAdmin ? <span className="text-xs text-muted-foreground">Not in the list? An admin adds it in Settings → Intermediaries.</span> : null}
           </F>
+          {route === "new" ? (
+            <F label="Name of the new intermediary">
+              <Input name="new_intermediary" placeholder="e.g. Galimix" required data-testid="new-intermediary" />
+              <span className="text-xs text-muted-foreground">Saved to the list of intermediaries (Settings → Intermediaries) when you save the order.</span>
+            </F>
+          ) : null}
           {route ? (
             <p className="text-sm text-muted-foreground sm:col-span-2 sm:self-end">Via an intermediary: add their invoice (number, EUR amount) on the order page when it arrives. They pay us in USD.</p>
           ) : null}

@@ -210,6 +210,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
 | `node tests/e2e/price-rules.cjs` | Client price rules (after db:reset): remember, account rules, new list = base + rule |
+| `node tests/e2e/intermediaries.cjs` | Intermediaries (after db:reset): Settings add/edit/remove, "+ New intermediary…" on the order form, specialist view |
 | `node tests/e2e/order-charges.cjs` | Units, shipping per unit/total, charges + discount, Mixed payment with a USDT fee loss (after db:reset) |
 | `node tests/e2e/samsung.cjs` | Samsung lists (after db:reset): Samsung base upload, client Samsung list, both lists on account/order/portal |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
@@ -451,6 +452,15 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   RMA batches still group by the ACCOUNT's intermediary.
 - Older browser tests keep every tab panel visible and click every ✏️ automatically (`tests/e2e/unlock.cjs`);
   `tests/e2e/edit-lock.cjs` checks the lock and the tabs themselves.
+
+## Intermediaries list (Gabriel, Nov 9 2026)
+
+- "Like Amazon addresses": Settings → Intermediaries (admin) = the list of companies that invoice the client for us (Global
+  Connect, ASR, Galimix, PGS Megastore…): add (name, country, contact, address, RMA batch cut-off day), correct with Save,
+  Remove only when no order, client or RMA batch uses it (`settings/intermediaries.tsx`, actions add/update/deleteIntermediary;
+  same name in another case is refused). Order form → Route has "+ New intermediary…" (admin; created on Save order, an existing
+  name is reused — `resolveIntermediary` in orders/actions.ts, also used by the order's Intermediary tab); specialists pick from
+  the list. No migration (table `intermediaries` already had contact/address). e2e `tests/e2e/intermediaries.cjs`.
 
 ## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
 

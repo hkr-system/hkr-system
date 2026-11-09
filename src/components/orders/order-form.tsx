@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { saveOrder, type ActionState } from "@/app/(app)/orders/actions";
 import { orderTotals, shippingTotal } from "@/lib/orders/calc";
 import { ChargesEditor, chargesTotal, type Charge } from "./order-charges";
@@ -71,6 +71,8 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const account = accounts.find((a) => a.id === accountId);
   const [method, setMethod] = useState<PaymentMethod>(values.payment_method ?? account?.payment_method ?? "wire");
   const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? account?.delivery_setup ?? "client_label");
+  // Magic invoice creator → Cancel puts the lines back as they were before "Read the order" (Gabriel, Nov 9 2026)
+  const beforeMagic = useRef<Line[] | null>(null);
   const [lines, setLines] = useState<Line[]>(values.lines?.length ? values.lines : [emptyLine(ceOf(values.account_id ?? ""))]);
   // shipping and customs: per unit (US$ × units) or one total for the shipment; other charges / discounts (Gabriel, Nov 4 2026)
   const [freightMode, setFreightMode] = useState<"unit" | "total">(values.freight_mode ?? "total");
@@ -208,7 +210,8 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
         <CardContent className="grid gap-2">
           {!values.id ? (
             <MagicReader choices={choices} ceDefault={ceOf(accountId)} disabled={!accountId}
-              onLines={(ls) => setLines((cur) => [...cur.filter((l) => l.model || l.description || l.qty), ...ls])} />
+              onLines={(ls) => setLines((cur) => { beforeMagic.current ??= cur; return [...cur.filter((l) => l.model || l.description || l.qty), ...ls]; })}
+              onCancel={() => { if (beforeMagic.current) setLines(beforeMagic.current); beforeMagic.current = null; }} />
           ) : null}
           {lines.map((l, i) => (
             <LineEditor key={i} line={l} i={i} choices={choices} isAdmin={isAdmin} separate={separate}

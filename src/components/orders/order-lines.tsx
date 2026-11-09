@@ -208,8 +208,8 @@ export function LineEditor({ line, i, choices, isAdmin, separate, onChange, onRe
 }
 
 /** "Magic invoice creator": paste the client's order as it comes → lines to review. */
-export function MagicReader({ choices, ceDefault, onLines, disabled }: {
-  choices: ModelChoice[]; ceDefault: boolean; onLines: (lines: Line[]) => void; disabled: boolean;
+export function MagicReader({ choices, ceDefault, onLines, onCancel, disabled }: {
+  choices: ModelChoice[]; ceDefault: boolean; onLines: (lines: Line[]) => void; onCancel: () => void; disabled: boolean;
 }) {
   const [text, setText] = useState("");
   const [report, setReport] = useState<{ ok: number; problems: string[]; skipped: string[] } | null>(null);
@@ -238,6 +238,10 @@ export function MagicReader({ choices, ceDefault, onLines, disabled }: {
       <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"50 pcs iPhone 14 128 mixed\n30 iPhone 13 Pro 256: 20 negros, 10 sierra blue\n20 Galaxy S24 Ultra 256 mixed\nAll with CE and new batteries"} aria-label="Client order text" />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="outline" onClick={read} disabled={disabled || !text.trim()} data-testid="magic-read">{disabled ? "Choose the account first" : "Read the order"}</Button>
+        {text || report ? (
+          <Button type="button" size="sm" variant="ghost" data-testid="magic-cancel"
+            onClick={() => { setText(""); setReport(null); onCancel(); }}>Cancel</Button>
+        ) : null}
         {report ? <span className="text-sm text-emerald-700" data-testid="magic-count">{report.ok} line(s) read — check them below.</span> : null}
       </div>
       {report && (report.problems.length || report.skipped.length) ? (

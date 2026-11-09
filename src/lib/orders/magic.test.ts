@@ -51,3 +51,17 @@ describe("magic order reader", () => {
     expect(r.skipped).toContain("Thanks");
   });
 });
+
+describe("model headings with GB lines below (client order sheet, Nov 9 2026)", () => {
+  it("applies the heading model to each GB line", () => {
+    const r = readOrder("Order\n\niPhone 15 Pro Max\n- 256GB x2: 1 Natural Titanium, 1 Black Titanium\n- 512GB x1: 1 White Titanium\n\niPhone 14\n- 128GB x5: 3 Midnight, 2 Starlight");
+    expect(r.lines.map((l) => [l.model, l.storage_gb, l.qty])).toEqual([["iPhone 15 Pro Max", 256, 2], ["iPhone 15 Pro Max", 512, 1], ["iPhone 14", 128, 5]]);
+    expect(r.lines[0].colors).toEqual([{ color: "Natural Titanium", qty: 1 }, { color: "Black Titanium", qty: 1 }]);
+    expect(r.lines.every((l) => !l.problems.length)).toBe(true);
+    expect(r.skipped).toEqual(["Order"]);
+  });
+  it("keeps a heading with nothing below as its own line", () => {
+    const r = readOrder("iPhone 14 mixed\nthanks");
+    expect(r.lines.map((l) => l.model)).toEqual(["iPhone 14"]);
+  });
+});

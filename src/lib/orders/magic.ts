@@ -112,16 +112,27 @@ export function readLine(raw: string): MagicLine | null {
   };
 }
 
-/** The whole message: one line per model; lines without a model are skipped (greetings, signatures…). */
+/** The whole message: one line per model; lines without a model are skipped (greetings, signatures…).
+ *  A model written alone as a heading ("iPhone 15 Pro Max") applies to the lines below it that only give the GB
+ *  ("- 256GB x2: 1 Natural Titanium, 1 Black Titanium") — the layout of client order sheets (Gabriel, Nov 9 2026). */
 export function readOrder(text: string): { lines: MagicLine[]; skipped: string[] } {
   const parts = text.split(/\r?\n|(?<=\d)\s*[;|]\s*/).map((l) => l.trim()).filter(Boolean);
   const lines: MagicLine[] = []; const skipped: string[] = [];
   // global options written once for the whole order ("all with CE", "todas con batería nueva")
   const all = text.toLowerCase();
+  let heading: MagicLine | null = null; let headingUsed = false;
+  const flush = () => { if (heading && !headingUsed) lines.push(heading); heading = null; };
   for (const p of parts) {
     const l = readLine(p);
-    if (l) lines.push(l); else skipped.push(p);
+    if (l && l.qty === null && l.storage_gb === null && !l.colors.length) { flush(); heading = l; headingUsed = false; continue; }
+    if (l) { flush(); lines.push(l); continue; }
+    if (heading && /\b(64|128|256|512)\s*(gb|g)?\b|\b1\s*tb\b/i.test(p)) {
+      const sub = readLine(`${heading.model} ${p.replace(/^[-•·*\s]+/, "")}`);
+      if (sub) { sub.source = `${heading.source} · ${p}`; lines.push(sub); headingUsed = true; continue; }
+    }
+    skipped.push(p);
   }
+  flush();
   for (const l of lines) {
     if (brandOf(l.model) === "samsung") continue;
     if (!l.ce && /\bce\b|ce mark/.test(all)) l.ce = true;

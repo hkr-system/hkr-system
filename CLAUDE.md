@@ -210,6 +210,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/orders.cjs` | Phase 3 browser test (after db:reset; uploads files to local storage) |
 | `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
 | `node tests/e2e/price-rules.cjs` | Client price rules (after db:reset): remember, account rules, new list = base + rule |
+| `node tests/e2e/magic-cancel.cjs` | Magic invoice creator: order sheet with model headings, Cancel restores the lines (read-only) |
 | `node tests/e2e/intermediaries.cjs` | Intermediaries (after db:reset): Settings add/edit/remove, "+ New intermediary…" on the order form, specialist view |
 | `node tests/e2e/order-charges.cjs` | Units, shipping per unit/total, charges + discount, Mixed payment with a USDT fee loss (after db:reset) |
 | `node tests/e2e/samsung.cjs` | Samsung lists (after db:reset): Samsung base upload, client Samsung list, both lists on account/order/portal |
@@ -433,6 +434,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Magic invoice creator (New order page): paste the client's order as it comes (EN/ES) → `src/lib/orders/magic.ts`
   (rule-based, FREE, unit-tested; no AI API) reads model, GB, qty, colours (also "negros", "black" → Midnight…),
   Mixed, battery, CE, IMEI matching; reports what it could not read; nothing is saved until "Create order".
+  Nov 9 2026: a model written alone as a heading applies to the GB lines below it ("iPhone 15 Pro Max" / "- 256GB x2: 1 Natural
+  Titanium, 1 Black Titanium" — client order sheets); "Cancel" empties the box and the report and puts the lines back as they were
+  before "Read the order". e2e `tests/e2e/magic-cancel.cjs` (read-only).
 
 - eSIM only (Gabriel, Nov 6 2026): iPhone 14 / 15 / 16 lines (16e included) have "SIM: Physical SIM + eSIM | eSIM only" —
   SAME price (it is not a separate list row). `order_lines.sim_option` null | 'esim' (trigger `order_lines_sim_check` refuses

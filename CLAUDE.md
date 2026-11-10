@@ -468,6 +468,23 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   pick from
   the list. Migration 20261109010000 adds vat_eori, contact_phone, contact_email (`contact` = contact name). e2e `tests/e2e/intermediaries.cjs`.
 
+## Invoiced company vs ship-to vs contact (Gabriel, Nov 9 2026, from the Telcos invoice)
+
+- Ultimate consignee = the company HKR INVOICES. Via an intermediary (Galimix, Global Connect…) or a clearance company (Barry
+  Trading…) → that company (the end client's name does not appear); direct → the client. Both kinds pay HKR in USD (Gabriel),
+  so they share ONE list: `intermediaries.kind` intermediary | clearance; identifiers `rsin`, `eori`, `kvk`, `vat` (separate;
+  usually only VAT; `vat_eori` is the old single field, copied to `vat`, unused). Settings → "Intermediaries & clearance".
+- Shared list, per-client SUGGESTIONS (Gabriel): `account_intermediaries` (account, company; RLS has_account_access). The order
+  form / Intermediary tab list the client's saved ones first with ★ and offer "Save for this client" (ticked by default) for any
+  other; migration 20261110010000 started them from the companies each client already used.
+- Ship to = the client's saved addresses (logistics that receive the cargo), unchanged. Notify party = contact name, email, phone
+  (`invoices.notify` {contact, email, phone}; older invoices may still carry `address`): the company's contact when it has one,
+  else the order's reception contact / the account's first contact.
+- Invoice header grows and shrinks (`invoice-layout.ts`): the address block has as many rows as the longest of consignee /
+  ship to (at least the original 4); empty lines are never printed; Contact / Email / Phone fill the original's three notify rows
+  in order. Company block = `companyLines()` in `src/lib/documents/invoice-parties.ts` (name, address lines, country unless the
+  address ends with it, then RSIN, EORI, KVK/CoC, VAT only when given). Unit-tested; e2e `tests/e2e/intermediaries.cjs`.
+
 ## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
 
 - Every dropdown is searchable "Google style": `components/native-select.tsx` keeps a hidden real <select> (forms, onChange and

@@ -70,7 +70,7 @@ function tmpFile(name, content) {
     await line.locator('input[aria-label="Quantity Starlight"]').fill('50');
     check((await page.locator('[data-testid=lines-problem]').count()) === 0, 'colours 100 + 50 = 150 → OK');
     // route + saved address per order (Nov 4 2026)
-    await page.selectOption('[data-testid=order-route]', { label: 'Via Global Connect (invoices the client in EUR)' });
+    await page.selectOption('[data-testid=order-route]', await page.$eval('[data-testid=order-route]', (s) => [...s.options].find((o) => o.text.includes('Via Global Connect')).value));
     await page.selectOption('[data-testid=order-address]', 'new');
     await page.fill('input[name=new_address_label]', 'NL forwarder (Demo Cargo)');
     await page.fill('input[name=ship_name]', 'Demo Cargo BV');

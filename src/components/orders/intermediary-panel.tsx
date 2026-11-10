@@ -15,11 +15,13 @@ import { EditLock } from "@/components/edit-lock";
 // The intermediary belongs to the ORDER (Nov 3 2026): any company, changeable here; the account only gives the default.
 export function IntermediaryPanel({ orderId, accountId, accountCode, orderNumber, intermediaryId, intermediaries, isAdmin, no, eur, depositWithIntermediary, editable }: {
   orderId: string; accountId: string; accountCode: string; orderNumber: string; intermediaryId: string | null;
-  intermediaries: { id: string; name: string }[]; isAdmin: boolean;
+  intermediaries: { id: string; name: string; kind?: string; saved?: boolean }[]; isAdmin: boolean;
   no: string | null; eur: number | null; depositWithIntermediary: boolean; editable: boolean;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveIntermediaryInvoice, {});
   const [pick, setPick] = useState(intermediaryId ?? "");
+  const [saveRoute, setSaveRoute] = useState(true);
+  const sorted = [...intermediaries].sort((a, b) => Number(!!b.saved) - Number(!!a.saved) || a.name.localeCompare(b.name));
   const name = intermediaries.find((i) => i.id === pick)?.name ?? "Intermediary";
   const via = pick !== "";
   return (
@@ -30,15 +32,21 @@ export function IntermediaryPanel({ orderId, accountId, accountCode, orderNumber
           <div className="grid gap-1">
             <Label htmlFor="pim">Intermediary of this order</Label>
             <NativeSelect id="pim" name="intermediary_id" value={pick} onChange={(e) => setPick(e.target.value)} disabled={!editable} data-testid="order-intermediary">
-              <option value="">— Direct (no intermediary) —</option>
-              {intermediaries.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-              {isAdmin ? <option value="new">+ New intermediary…</option> : null}
+              <option value="">— Direct: invoice the client —</option>
+              {sorted.map((i) => <option key={i.id} value={i.id}>{i.saved ? "★ " : ""}{i.name} ({i.kind === "clearance" ? "clearance company" : "intermediary"})</option>)}
+              {isAdmin ? <option value="new">+ New intermediary / clearance company…</option> : null}
             </NativeSelect>
           </div>
           {pick === "new" ? (
-            <div className="grid gap-1"><Label htmlFor="pnew">Name of the new intermediary</Label><Input id="pnew" name="new_intermediary" placeholder="e.g. Galimix" /></div>
+            <div className="grid gap-1"><Label htmlFor="pnew">Name of the new company</Label><Input id="pnew" name="new_intermediary" placeholder="e.g. Galimix Europe SL" /></div>
           ) : <div />}
         </div>
+        {via && editable && !intermediaries.find((i) => i.id === pick)?.saved ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="save_route" checked={saveRoute} onChange={(e) => setSaveRoute(e.target.checked)} className="size-4" />
+            Save for this client (suggested first on its next orders)
+          </label>
+        ) : null}
         {via ? <>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1"><Label htmlFor="pin">{pick === "new" ? "Their" : name} invoice no. (INV-EU)</Label><Input id="pin" name="partner_invoice_no" defaultValue={no ?? ""} disabled={!editable} placeholder="When the intermediary sends it" /></div>

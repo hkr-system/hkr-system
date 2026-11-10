@@ -219,8 +219,12 @@ export async function updateUserAccess(_prev: SettingState, formData: FormData):
 // --- Intermediaries (Gabriel, Nov 9 2026: "un lugar para agregar todos esos intermediarios… como las direcciones en amazon")
 // Companies that invoice the client for us (Global Connect, Galimix, ASR, PGS Megastore…). Admin only (RLS too).
 // Fields (Gabriel): company name, VAT / EORI, contact name, contact phone, email, address (+ country, RMA batch day).
+// Nov 9 2026: clearance companies (Barry Trading…) live in the same list (kind) — both are invoiced by HKR and pay HKR —
+// and the identifiers are separate: RSIN, EORI, KVK/CoC, VAT (empty ones are not printed on the invoice).
+export type IntermediaryKind = "intermediary" | "clearance";
 export type IntermediaryInput = {
-  id?: string; name: string; vat_eori: string | null; contact: string | null; contact_phone: string | null;
+  id?: string; name: string; kind: IntermediaryKind; rsin: string | null; eori: string | null; kvk: string | null; vat: string | null;
+  contact: string | null; contact_phone: string | null;
   contact_email: string | null; address: string | null; country: string | null; default_cutoff_weekday: number | null;
 };
 
@@ -232,14 +236,15 @@ export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<Set
     return {
       id: r.id && /^[0-9a-f-]{36}$/.test(r.id) ? r.id : undefined, n: i + 1,
       fields: {
-        name: t(r.name, 80) ?? "", vat_eori: t(r.vat_eori, 120), contact: t(r.contact, 120), contact_phone: t(r.contact_phone, 40),
+        name: t(r.name, 80) ?? "", kind: (r.kind === "clearance" ? "clearance" : "intermediary") as IntermediaryKind,
+        rsin: t(r.rsin, 40), eori: t(r.eori, 40), kvk: t(r.kvk, 40), vat: t(r.vat, 40), contact: t(r.contact, 120), contact_phone: t(r.contact_phone, 40),
         contact_email: t(r.contact_email, 160), address: t(r.address, 400), country: t(r.country, 2),
         default_cutoff_weekday: Number.isInteger(day) && day >= 1 && day <= 7 ? day : null,
       },
     };
   });
   for (const r of clean) {
-    if (!r.fields.name) return { error: `Intermediary ${r.n}: write the company name.` };
+    if (!r.fields.name) return { error: `Company ${r.n}: write the company name.` };
     if (r.fields.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.fields.contact_email)) return { error: `${r.fields.name}: the email does not look right.` };
   }
   const names = clean.map((r) => r.fields.name.toLowerCase());
@@ -249,14 +254,14 @@ export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<Set
   const { data: existing } = await supabase.from("intermediaries").select("id, name");
   for (const r of clean) {
     const other = (existing ?? []).find((e) => e.name.toLowerCase() === r.fields.name.toLowerCase() && e.id !== r.id);
-    if (other) return { error: `There is already an intermediary called ${other.name}.` };
+    if (other) return { error: `There is already a company called ${other.name}.` };
   }
   let added = 0;
   for (const r of clean) {
     const { error } = r.id
       ? await supabase.from("intermediaries").update(r.fields).eq("id", r.id)
       : await supabase.from("intermediaries").insert(r.fields);
-    if (error) return { error: error.code === "23505" ? `There is already an intermediary called ${r.fields.name}.` : error.message };
+    if (error) return { error: error.code === "23505" ? `There is already a company called ${r.fields.name}.` : error.message };
     if (!r.id) added++;
   }
   revalidatePath("/settings");

@@ -18,7 +18,7 @@ export type InvoiceTexts = {
   freight?: string; payment_terms?: string; via?: string; from?: string; made_in?: string;
   packages?: string; net_kg?: string; gross_kg?: string; export_reference?: string; notes?: string[]; footer?: string;
 };
-export type Notify = { contact?: string; address?: string; phone?: string };
+export type Notify = { contact?: string; email?: string; address?: string; phone?: string };
 export type Shipment = { country?: string; reference?: string; awb?: string; airport?: string };
 
 export type InvoiceDoc = {

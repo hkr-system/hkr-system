@@ -56,7 +56,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
     db.from("credit_note_applications").select("id, credit_note_id, amount_usd, credit_notes(number)").eq("order_id", id).order("created_at"),
     db.from("credit_notes").select("id, number, amount, currency, status, reason, rmas(number), credit_note_applications(amount_usd)")
       .eq("account_id", acc.id).in("status", ["approved", "issued", "applied"]).order("number"),
-    db.from("intermediaries").select("id, name").order("name"),
+    db.from("intermediaries").select("id, name, kind, account_intermediaries(account_id)").order("name"),
     db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", id).order("sort_order"),
     db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
   ]);
@@ -254,7 +254,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             </CardHeader>
             <CardContent>
               <IntermediaryPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number}
-                intermediaryId={o.intermediary_id} intermediaries={intermediaries ?? []} isAdmin={isAdmin}
+                intermediaryId={o.intermediary_id} intermediaries={(intermediaries ?? []).map((i) => ({ id: i.id, name: i.name, kind: i.kind, saved: (i.account_intermediaries ?? []).some((x) => x.account_id === acc.id) }))} isAdmin={isAdmin}
                 no={o.partner_invoice_no} eur={o.partner_invoice_eur === null ? null : Number(o.partner_invoice_eur)}
                 depositWithIntermediary={Boolean(o.deposit_with_intermediary)} editable={editable} />
             </CardContent>

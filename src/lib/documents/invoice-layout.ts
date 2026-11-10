@@ -23,7 +23,7 @@ export type LayoutInput = {
   exporter: string[];              // company first, then address lines (phone included)
   consignee: string[]; shipTo: string[];
   date: string;                    // invoice date yyyy-mm-dd (T12)
-  notify: { contact?: string; address?: string; phone?: string };
+  notify: { contact?: string; email?: string; address?: string; phone?: string };
   shipment: { reference?: string; awb?: string; country?: string; airport?: string };
   freight: string; paymentTerms: string; via: string; from: string; packages: string; netKg: string; grossKg: string;
   madeIn: string; lines: LayoutLine[]; payment: string[]; total: number;
@@ -61,40 +61,58 @@ const fmtLongDate = (d: string) => new Intl.DateTimeFormat("en-US", { month: "lo
 /** yyyy-mm-dd → mm-dd-yyyy (the US order HKR's invoices use). */
 export const usDate = (d: string) => { const [y, m, dd] = d.slice(0, 10).split("-"); return `${m}-${dd}-${y}`; };
 
+/** The notify party rows: only what is there (Gabriel, Nov 9 2026: "Contact" = name, email and phone; empty lines are not printed). */
+export function notifyItems(n: LayoutInput["notify"]): [string, string][] {
+  const items: [string, string | undefined][] = [["Contact:", n.contact], ["Email:", n.email], ["Address:", n.address], ["Phone:", n.phone]];
+  return items.filter((x): x is [string, string] => Boolean(x[1]?.trim())).slice(0, 3);
+}
+
 export function buildInvoiceSheet(i: LayoutInput): Sheet {
   const cells = new Map<string, Cell>();
   const merges: string[] = [];
   const rows: number[] = [];
+  // address block (rows 8–11 of the original): as many rows as the longest of consignee / ship to, at least the original 4
+  // (Nov 9 2026: every line its own row — name, address, country, RSIN, EORI, KVK/CoC, VAT — and nothing empty)
+  const consignee = i.consignee.filter((x) => x.trim()), shipTo = i.shipTo.filter((x) => x.trim());
+  const extra = Math.max(4, consignee.length, shipTo.length) - 4;
   // line area: one row per line, a blank row, the payment lines; at least the original 9 rows
   const area = i.lines.length + (i.payment.length ? 1 + i.payment.length : 0);
   const lineRows = Math.max(LINE_ROWS, area);
   const delta = lineRows - LINE_ROWS;
+  // original row → row of this sheet
+  const at = (row: number) => (row <= 10 ? row : row < FOOTER_FIRST ? row + extra : row + extra + delta);
 
-  // 1. header (rows 1–23) and footer (rows 33–43, moved down by delta) straight from the original
+  // 1. header (rows 1–23) and footer (rows 33–43) straight from the original; rows 11+ move down by the extra address rows
   for (const [addr, s] of Object.entries(T.cells)) {
     const { col, row } = split(addr);
-    if (row <= HEADER_END) cells.set(addr, toCell(s));
-    else if (row >= FOOTER_FIRST) cells.set(`${col}${row + delta}`, toCell(s));
+    if (row <= HEADER_END || row >= FOOTER_FIRST) cells.set(`${col}${at(row)}`, toCell(s));
   }
   for (const m of T.merges) {
     const top = split(m.split(":")[0]).row;
-    if (top <= HEADER_END) merges.push(m);
-    else if (top >= FOOTER_FIRST) merges.push(shift(m, delta));
+    if (top <= HEADER_END || top >= FOOTER_FIRST) merges.push(shift(m, at(top) - top));
   }
-  for (let r = 1; r <= HEADER_END; r++) rows[r - 1] = T.rows[String(r)] ?? 15;
-  for (let r = FOOTER_FIRST; r <= LAST; r++) rows[r - 1 + delta] = T.rows[String(r)] ?? 15;
+  for (let r = 1; r <= HEADER_END; r++) rows[at(r) - 1] = T.rows[String(r)] ?? 15;
+  for (let r = FOOTER_FIRST; r <= LAST; r++) rows[at(r) - 1] = T.rows[String(r)] ?? 15;
+  // the extra address rows look like the original's row 10 (a middle address row)
+  for (let k = 0; k < extra; k++) {
+    const r = 11 + k;
+    for (const col of COLS) { const s = T.cells[`${col}10`]; if (s) cells.set(`${col}${r}`, toCell(s)); }
+    merges.push(`B${r}:K${r}`, `L${r}:S${r}`, `T${r}:AA${r}`);
+    rows[r - 1] = T.rows["10"] ?? 15;
+  }
 
   // 2. line rows in the style of the original's line rows (24 = filled line, 30 = empty line, 31 = payment line)
+  const first = LINE_FIRST + extra;
   const style = (from: number, col: string) => toCell(T.cells[`${col}${from}`]);
   for (let k = 0; k < lineRows; k++) {
-    const r = LINE_FIRST + k;
+    const r = first + k;
     for (const col of COLS.slice(1)) cells.set(`${col}${r}`, { ...style(30, col), v: null });
     merges.push(`B${r}:C${r}`, `D${r}:P${r}`, `Q${r}:R${r}`, `S${r}:U${r}`, `V${r}:X${r}`, `Y${r}:AA${r}`);
     rows[r - 1] = 15;
   }
   let n = 0;
   i.lines.forEach((l, k) => {
-    const r = LINE_FIRST + k;
+    const r = first + k;
     const isProduct = l.kind === "product";
     const put = (col: string, v: Cell["v"]) => cells.set(`${col}${r}`, { ...style(24, col), v });
     put("B", isProduct ? ++n : null);
@@ -106,24 +124,24 @@ export function buildInvoiceSheet(i: LayoutInput): Sheet {
     rows[r - 1] = lineHeight(l.description);
   });
   i.payment.forEach((p, k) => {
-    const r = LINE_FIRST + i.lines.length + 1 + k;
+    const r = first + i.lines.length + 1 + k;
     cells.set(`D${r}`, { ...style(31, "D"), v: p });
   });
 
-  // 3. the data of the header and footer cells
-  const set = (addr: string, v: Cell["v"]) => { const a = /^([A-Z]+)(\d+)$/.exec(addr)!; const row = Number(a[2]); const key = row >= FOOTER_FIRST ? `${a[1]}${row + delta}` : addr; cells.set(key, { ...(cells.get(key) ?? {}), v }); };
+  // 3. the data of the header and footer cells (addresses of the ORIGINAL grid; at() moves them)
+  const set = (addr: string, v: Cell["v"]) => { const a = /^([A-Z]+)(\d+)$/.exec(addr)!; const key = `${a[1]}${at(Number(a[2]))}`; cells.set(key, { ...(cells.get(key) ?? {}), v }); };
+  const put = (key: string, v: Cell["v"]) => cells.set(key, { ...(cells.get(key) ?? {}), v });
   set("B1", i.title);
   if (i.exportReference) set("B5", i.exportReference);
   set("V5", `Invoice No: ${i.number}`);
   const exp = [...i.exporter];
-  ["B8", "B9", "B10", "B11"].forEach((a, k) => set(a, k < 3 ? exp[k] ?? "" : exp.slice(3).join(" ")));
-  const four = (xs: string[]) => [xs[0], xs[1], xs[2], xs.slice(3).join(", ")];
-  four(i.consignee).forEach((v, k) => set(`L${8 + k}`, v ?? ""));
-  four(i.shipTo).forEach((v, k) => set(`T${8 + k}`, v ?? ""));
+  [exp[0], exp[1], exp[2], exp.slice(3).join(" ")].forEach((v, k) => put(`B${8 + k}`, v ?? ""));
+  consignee.forEach((v, k) => put(`L${8 + k}`, v));
+  shipTo.forEach((v, k) => put(`T${8 + k}`, v));
   set("T12", `Invoice Date: ${usDate(i.date)}`);   // Gabriel, Nov 4 2026: "Invoice Date: 11-04-2026"
-  set("N13", i.notify.contact ?? "");
-  set("N14", i.notify.address ?? "");
-  set("N16", i.notify.phone ?? "");
+  // notify party: Contact / Email / Phone in the original's three label rows (13, 14, 16), only the ones given
+  const notify = notifyItems(i.notify);
+  [13, 14, 16].forEach((row, k) => { set(`L${row}`, notify[k]?.[0] ?? ""); set(`N${row}`, notify[k]?.[1] ?? ""); });
   set("T13", `Shippment Reference: ${i.shipment.reference || "N/A"}`);
   set("T14", `Air Way Bill Number: ${i.shipment.awb || "N/A"}`);
   set("T15", `Country of consignation: ${i.shipment.country ?? ""}`);
@@ -145,7 +163,7 @@ export function buildInvoiceSheet(i: LayoutInput): Sheet {
   return {
     cols: COLS.map((c) => T.cols[c] ?? 9.14),
     rows, cells, merges,
-    stamp: i.stamp && st ? { fromCol: st.from[0], fromRow: st.from[1] + delta, toCol: st.to[0], toRow: st.to[1] + delta } : null,
+    stamp: i.stamp && st ? { fromCol: st.from[0], fromRow: st.from[1] + extra + delta, toCol: st.to[0], toRow: st.to[1] + extra + delta } : null,
   };
 }
 

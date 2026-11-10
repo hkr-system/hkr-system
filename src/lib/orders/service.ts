@@ -17,9 +17,11 @@ export async function loadTerms(db: DB) {
   };
 }
 
-export async function loadIntermediaries(db: DB) {
-  const { data } = await db.from("intermediaries").select("id, name").order("name");
-  return data ?? [];
+// Intermediaries & clearance companies (one shared list) + the clients that keep each one as a suggestion (Nov 9 2026)
+export type RouteCompany = { id: string; name: string; kind: string; suggestedFor: string[] };
+export async function loadIntermediaries(db: DB): Promise<RouteCompany[]> {
+  const { data } = await db.from("intermediaries").select("id, name, kind, account_intermediaries(account_id)").order("name");
+  return (data ?? []).map((i) => ({ id: i.id, name: i.name, kind: i.kind, suggestedFor: (i.account_intermediaries ?? []).map((x) => x.account_id) }));
 }
 
 export async function loadSkus(db: DB) {

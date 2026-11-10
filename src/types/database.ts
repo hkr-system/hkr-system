@@ -81,6 +81,38 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"account_intermediaries": {
+                  Row: {
+                    "account_id": string,"created_at": string,"created_by": string | null,"id": string,"intermediary_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"intermediary_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"intermediary_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "account_intermediaries_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "account_intermediaries_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "account_intermediaries_intermediary_id_fkey"
+      columns: ["intermediary_id"]
+isOneToOne: false
+      referencedRelation: "intermediaries"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"account_price_rules": {
                   Row: {
                     "account_id": string,"created_at": string,"created_by": string | null,"id": string,"increment_usd": number,"last_used_at": string | null,"model": string,"note": string | null,"storage_gb": number,"updated_at": string
@@ -593,14 +625,14 @@ isOneToOne: false
                   ]
                 },"intermediaries": {
                   Row: {
-                    "address": string | null,"contact": string | null,"contact_email": string | null,"contact_phone": string | null,"country": string | null,"created_at": string,"created_by": string | null,"default_cutoff_weekday": number | null,"id": string,"name": string,"updated_at": string,"vat_eori": string | null
+                    "address": string | null,"contact": string | null,"contact_email": string | null,"contact_phone": string | null,"country": string | null,"created_at": string,"created_by": string | null,"default_cutoff_weekday": number | null,"eori": string | null,"id": string,"kind": string,"kvk": string | null,"name": string,"rsin": string | null,"updated_at": string,"vat": string | null,"vat_eori": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"id"?: string,"name": string,"updated_at"?: string,"vat_eori"?: string | null
+                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"eori"?: string | null,"id"?: string,"kind"?: string,"kvk"?: string | null,"name": string,"rsin"?: string | null,"updated_at"?: string,"vat"?: string | null,"vat_eori"?: string | null
                   }
                   Update: {
-                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"id"?: string,"name"?: string,"updated_at"?: string,"vat_eori"?: string | null
+                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"eori"?: string | null,"id"?: string,"kind"?: string,"kvk"?: string | null,"name"?: string,"rsin"?: string | null,"updated_at"?: string,"vat"?: string | null,"vat_eori"?: string | null
                   }
                   Relationships: [
                     

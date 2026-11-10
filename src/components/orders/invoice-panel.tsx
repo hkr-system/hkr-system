@@ -18,7 +18,7 @@ import { EditLock } from "@/components/edit-lock";
 
 export type InvoiceRow = {
   id: string; number: string; status: "draft" | "approved" | "sent" | "void"; version: number; invoice_date: string;
-  consignee: string; ship_to: string; notify: { contact?: string; address?: string; phone?: string };
+  consignee: string; ship_to: string; notify: { contact?: string; email?: string; address?: string; phone?: string };
   shipment: { country?: string; reference?: string; awb?: string; airport?: string };
   lines: InvoiceLine[]; total_usd: number; file_pdf_id: string | null; file_xlsx_id: string | null;
 };
@@ -83,10 +83,12 @@ export function InvoicePanel({ orderId, invoice, orderTotal, role, issuerReady }
             <div className="grid gap-1.5"><Label>Ship to (one line each)</Label><Textarea name="ship_to" rows={5} defaultValue={invoice.ship_to} /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="grid gap-1.5"><Label>Notify: contact</Label><Input name="notify_contact" defaultValue={invoice.notify.contact ?? ""} /></div>
-            <div className="grid gap-1.5"><Label>Notify: address</Label><Input name="notify_address" defaultValue={invoice.notify.address ?? ""} /></div>
-            <div className="grid gap-1.5"><Label>Notify: phone / email</Label><Input name="notify_phone" defaultValue={invoice.notify.phone ?? ""} /></div>
+            <div className="grid gap-1.5"><Label>Notify: contact name</Label><Input name="notify_contact" defaultValue={invoice.notify.contact ?? ""} data-testid="inv-notify-contact" /></div>
+            <div className="grid gap-1.5"><Label>Notify: email</Label><Input name="notify_email" defaultValue={invoice.notify.email ?? ""} data-testid="inv-notify-email" /></div>
+            <div className="grid gap-1.5"><Label>Notify: phone</Label><Input name="notify_phone" defaultValue={invoice.notify.phone ?? ""} /></div>
+            {invoice.notify.address ? <div className="grid gap-1.5 sm:col-span-3"><Label>Notify: address (older invoice)</Label><Input name="notify_address" defaultValue={invoice.notify.address} /></div> : null}
           </div>
+          <p className="text-xs text-muted-foreground">Empty lines are not printed: the invoice header gets shorter. “…and addresses” (below) takes them again from the order: the invoiced company, the ship-to address and the contact.</p>
           <input type="hidden" name="ship_reference" value={invoice.shipment.reference ?? "N/A"} />
           <input type="hidden" name="ship_airport" value={invoice.shipment.airport ?? ""} />
           <div className="grid gap-2">

@@ -34,23 +34,25 @@ const login = async (page, email) => {
   const last = () => page.locator('[data-testid=intermediary-row]').last();
   await page.click('[data-testid=add-intermediary]');
   await last().locator('input[aria-label="Company name *"]').fill('PGS Megastore');
-  await last().locator('input[aria-label="VAT / EORI"]').fill('ESB12345678 · EORI ESB12345678');
+  await last().locator('select[aria-label=Type]').selectOption('clearance');
+  await last().locator('input[aria-label="VAT"]').fill('ESB12345678');
+  await last().locator('input[aria-label="EORI"]').fill('ESB12345678000');
   await last().locator('input[aria-label="Contact name"]').fill('Ana Demo');
   await last().locator('input[aria-label="Contact phone"]').fill('+34 600 000 000');
-  await last().locator('input[aria-label="Email"]').fill('orders@pgs.example');
+  await last().locator('input[aria-label="Contact email"]').fill('orders@pgs.example');
   await last().locator('textarea[aria-label=Address]').fill('Calle Demo 1, 28001 Madrid');
   await last().locator('select[aria-label=Country]').selectOption('ES');
   await page.click('[data-testid=save-intermediaries]');
   await page.waitForSelector('text=Saved (1 new).', { timeout: 30000 });
   await page.waitForTimeout(2500);   // the list reloads from the database after Save
-  const { data: pgs } = await admin.from('intermediaries').select('vat_eori, contact, contact_phone, contact_email, address, country').eq('name', 'PGS Megastore').single();
-  check(pgs && pgs.vat_eori.startsWith('ESB') && pgs.contact === 'Ana Demo' && pgs.contact_phone === '+34 600 000 000' && pgs.contact_email === 'orders@pgs.example' && pgs.address.includes('Madrid') && pgs.country === 'ES',
-    'Settings: PGS Megastore saved with VAT/EORI, contact name, phone, email, address, country');
+  const { data: pgs } = await admin.from('intermediaries').select('kind, vat, eori, kvk, rsin, contact, contact_phone, contact_email, address, country').eq('name', 'PGS Megastore').single();
+  check(pgs && pgs.kind === 'clearance' && pgs.vat === 'ESB12345678' && pgs.eori === 'ESB12345678000' && pgs.kvk === null && pgs.contact === 'Ana Demo' && pgs.contact_phone === '+34 600 000 000' && pgs.contact_email === 'orders@pgs.example' && pgs.address.includes('Madrid') && pgs.country === 'ES',
+    'Settings: PGS Megastore saved as clearance company with VAT, EORI (KVK empty), contact, phone, email, address, country');
   await page.click('[data-testid=add-intermediary]');
   await last().locator('input[aria-label="Company name *"]').fill('pgs megastore');
   await page.click('[data-testid=save-intermediaries]');
   await page.waitForTimeout(1500);
-  check((await page.locator('[data-testid=intermediaries]').innerText()).includes('twice in the list') || (await page.locator('[data-testid=intermediaries]').innerText()).includes('already an intermediary'), 'same name again (other case) is refused');
+  check((await page.locator('[data-testid=intermediaries]').innerText()).includes('twice in the list') || (await page.locator('[data-testid=intermediaries]').innerText()).includes('already a company'), 'same name again (other case) is refused');
   await last().locator('input[aria-label="Company name *"]').fill('Typo Co');
   await page.click('[data-testid=save-intermediaries]');
   await page.waitForSelector('text=Saved (1 new).', { timeout: 30000 });
@@ -87,6 +89,34 @@ const login = async (page, email) => {
   await page.selectOption('[data-testid=order-account]', acc.id);
   await page.waitForTimeout(300);
   check((await page.locator('[data-testid=order-route]').inputValue()) === o.intermediary_id, "next order of the client starts via Galimix");
+  const opts = await page.$$eval('[data-testid=order-route] option', (els) => els.map((e) => e.textContent));
+  check(opts[1]?.startsWith('★ Via Galimix'), `Galimix saved for this client: ★ first in the list (${opts.slice(0, 3).join(' | ')})`);
+  check((await page.locator('[data-testid=save-route]').count()) === 0, 'no "Save for this client" box for a saved company');
+  await page.selectOption('[data-testid=order-route]', { label: 'Via PGS Megastore (clearance company)' });
+  check(await page.locator('[data-testid=save-route]').isChecked(), 'another company: "Save for this client" ticked by default');
+  const { data: other } = await admin.from('accounts').select('id').eq('code', 'MEX-MX-903').single();
+  await page.goto(BASE + '/orders/new');
+  await page.waitForSelector('[data-testid=order-account]', { timeout: 60000 });
+  await page.waitForTimeout(800);
+  await page.selectOption('[data-testid=order-account]', other.id);
+  const opts2 = await page.$$eval('[data-testid=order-route] option', (els) => els.map((e) => e.textContent));
+  check(!opts2.some((t) => t.startsWith('★ Via Galimix')), 'another client: Galimix is not starred (suggestions are per client)');
+
+  // invoice: Galimix (now with address, VAT, contact) is the Ultimate consignee; empty identifiers are not printed
+  await admin.from('intermediaries').update({ address: 'Calle Demo 48 - Piso 5\n33401 Aviles', country: 'ES', vat: 'ESB00000000', kvk: null, rsin: null, eori: null,
+    contact: 'Laura Demo', contact_email: 'ops@galimix.example', contact_phone: '+34 600 111 222' }).eq('id', o.intermediary_id);
+  await page.goto(BASE + `/orders/${orderId}?tab=invoice`);
+  await page.waitForSelector('button:has-text("Create invoice draft")', { timeout: 60000 });
+  await page.click('button:has-text("Create invoice draft")');
+  await page.waitForSelector('[data-testid=inv-consignee]', { timeout: 30000 });
+  const consignee = await page.locator('[data-testid=inv-consignee]').inputValue();
+  check(consignee === 'Galimix\nCalle Demo 48 - Piso 5\n33401 Aviles\nSpain\nVAT: ESB00000000', `Ultimate consignee = Galimix with only its VAT (${JSON.stringify(consignee)})`);
+  check((await page.locator('[data-testid=inv-notify-contact]').inputValue()) === 'Laura Demo' && (await page.locator('[data-testid=inv-notify-email]').inputValue()) === 'ops@galimix.example',
+    'notify party = Galimix contact name + email');
+  const href = await page.getAttribute('a:has-text("PDF")', 'href');
+  const pdf = await page.request.get(BASE + href);
+  check(pdf.status() === 200, 'invoice PDF downloads');
+  fs.writeFileSync(path.join(DIR, 'invoice-galimix.pdf'), await pdf.body());
 
   // specialist: picks from the list, cannot add
   const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });

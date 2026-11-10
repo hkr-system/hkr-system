@@ -58,7 +58,7 @@ function F({ label, children, className }: { label: string; children: React.Reac
 
 export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [] }: {
   accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
-  intermediaries?: { id: string; name: string }[]; addresses?: SavedAddress[];
+  intermediaries?: { id: string; name: string; kind?: string; suggestedFor?: string[] }[]; addresses?: SavedAddress[];
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
@@ -69,6 +69,11 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const ceOf = (id: string) => (id === (values.account_id ?? "") && values.invoice_format ? Boolean(fmt.show_ce_text) : fmtOf(id).show_ce_text);
   const [accountId, setAccountId] = useState(values.account_id ?? (accounts.length === 1 ? accounts[0].id : ""));
   const account = accounts.find((a) => a.id === accountId);
+  // the client's saved companies first (★), then the rest of the shared list (Gabriel, Nov 9 2026)
+  const routeOptions = useMemo(() => intermediaries
+    .map((i) => ({ ...i, saved: Boolean(accountId && i.suggestedFor?.includes(accountId)) }))
+    .sort((a, b) => Number(b.saved) - Number(a.saved) || a.name.localeCompare(b.name)), [intermediaries, accountId]);
+  const [saveRoute, setSaveRoute] = useState(true);
   const [method, setMethod] = useState<PaymentMethod>(values.payment_method ?? account?.payment_method ?? "wire");
   const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? account?.delivery_setup ?? "client_label");
   // Magic invoice creator → Cancel puts the lines back as they were before "Read the order" (Gabriel, Nov 9 2026)
@@ -179,22 +184,31 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             </NativeSelect>
           </F>
           <F label="Our invoice no. (INV-HK)"><Input value={values.hk_invoice_no ?? ""} placeholder="Given automatically by the invoice (CODE-INV-NN)" disabled readOnly /></F>
-          <F label="Route (who invoices the client)">
-            <NativeSelect name="intermediary_id" value={route} onChange={(e) => setRoute(e.target.value)} data-testid="order-route">
-              <option value="">Direct: the client pays HKR in USD</option>
-              {intermediaries.map((i) => <option key={i.id} value={i.id}>Via {i.name} (invoices the client in EUR)</option>)}
-              {isAdmin ? <option value="new">+ New intermediary…</option> : null}
+          <F label="Route: who HKR invoices (Ultimate consignee)">
+            <NativeSelect name="intermediary_id" value={route} onChange={(e) => { setRoute(e.target.value); setSaveRoute(true); }} data-testid="order-route">
+              <option value="">Direct: invoice the client (pays HKR in USD)</option>
+              {routeOptions.map((i) => (
+                <option key={i.id} value={i.id}>{i.saved ? "★ " : ""}Via {i.name} ({i.kind === "clearance" ? "clearance company" : "intermediary"})</option>
+              ))}
+              {isAdmin ? <option value="new">+ New intermediary / clearance company…</option> : null}
             </NativeSelect>
-            {!isAdmin ? <span className="text-xs text-muted-foreground">Not in the list? An admin adds it in Settings → Intermediaries.</span> : null}
+            {!isAdmin ? <span className="text-xs text-muted-foreground">Not in the list? An admin adds it in Settings → Intermediaries &amp; clearance.</span> : null}
+            {accountId && routeOptions.some((i) => i.saved) ? <span className="text-xs text-muted-foreground">★ = saved for this client</span> : null}
           </F>
           {route === "new" ? (
-            <F label="Name of the new intermediary">
-              <Input name="new_intermediary" placeholder="e.g. Galimix" required data-testid="new-intermediary" />
-              <span className="text-xs text-muted-foreground">Saved to the list of intermediaries (Settings → Intermediaries) when you save the order.</span>
+            <F label="Name of the new company">
+              <Input name="new_intermediary" placeholder="e.g. Galimix Europe SL" required data-testid="new-intermediary" />
+              <span className="text-xs text-muted-foreground">Added to Settings → Intermediaries &amp; clearance when you save the order; fill in its VAT, address and contact there.</span>
             </F>
           ) : null}
+          {route && accountId && !routeOptions.find((i) => i.id === route)?.saved ? (
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" name="save_route" checked={saveRoute} onChange={(e) => setSaveRoute(e.target.checked)} className="size-4" data-testid="save-route" />
+              Save for this client (suggested first on its next orders)
+            </label>
+          ) : null}
           {route ? (
-            <p className="text-sm text-muted-foreground sm:col-span-2 sm:self-end">Via an intermediary: add their invoice (number, EUR amount) on the order page when it arrives. They pay us in USD.</p>
+            <p className="text-sm text-muted-foreground sm:col-span-2 sm:self-end">Our invoice goes to this company (it is the Ultimate consignee) and it pays us in USD. Their invoice to the client, if any, is added on the order page.</p>
           ) : null}
         </CardContent>
       </Card>

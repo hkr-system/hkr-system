@@ -3,7 +3,7 @@ import { buildInvoiceSheet, descriptionRows, type LayoutInput } from "./invoice-
 
 const input = (lines: number): LayoutInput => ({
   title: "COMMERCIAL INVOICE", number: "AMS-NL-901-INV-01", exporter: ["Exporter Ltd", "Street 1", "City", "Kowloon"],
-  consignee: ["Client BV", "Street 2", "1000 AA Amsterdam", "Netherlands", "VAT NL123"], shipTo: ["Client BV"], date: "2026-11-03",
+  consignee: ["Client BV", "Street 2", "1000 AA Amsterdam", "Netherlands"], shipTo: ["Client BV"], date: "2026-11-03",
   notify: { contact: "Ops" }, shipment: { country: "Netherlands" }, freight: "FOB HK", paymentTerms: "Pre-payment", via: "FEDEX/DHL Express",
   from: "Hong Kong", packages: "1", netKg: "N/A", grossKg: "N/A", madeIn: "China",
   lines: Array.from({ length: lines }, (_, k) => ({ kind: k === lines - 1 ? "shipping" : "product", description: `Line ${k + 1}`, qty: 10, unit_price: 5, total: 50 })),
@@ -19,7 +19,8 @@ describe("invoice in the original grid", () => {
     expect(v("B7")).toBe("Exporter Name and Address:");
     expect(v("V5")).toBe("Invoice No: AMS-NL-901-INV-01");
     expect([v("B8"), v("B9"), v("B11")]).toEqual(["Exporter Ltd", "Street 1", "Kowloon"]);
-    expect(v("L11")).toBe("Netherlands, VAT NL123"); // a 5th consignee line joins the 4th row
+    expect(v("L11")).toBe("Netherlands");
+    expect([v("L13"), v("N13"), v("L14"), v("N14"), v("L16")]).toEqual(["Contact:", "Ops", "", "", ""]); // only what is given
     expect(v("T12")).toBe("Invoice Date: 11-03-2026");
     expect([v("B24"), v("D24"), v("Q24"), v("Y26"), v("B26")]).toEqual([1, "Line 1", "China", 50, null]); // only products get a number
     expect(v("D28")).toBe("Payment: USDT TRC-20");
@@ -36,6 +37,28 @@ describe("invoice in the original grid", () => {
     expect(s.merges).toContain("B39:X40");
     expect(s.rows.length).toBe(49);
     expect(s.stamp).toEqual({ fromCol: 10, fromRow: 42, toCol: 13, toRow: 47 });
+  });
+  it("a longer consignee (Telcos-style: name, address, country, RSIN, EORI, KVK, VAT) adds rows; everything below moves down", () => {
+    const consignee = ["Clearance BV", "Street 144", "Dordrecht, Zuid-Holland", "Netherlands", "RSIN: 1", "EORI: NL1", "KVK/CoC: 2", "VAT: NL1B01"];
+    const s = buildInvoiceSheet({ ...input(3), consignee, shipTo: ["Logistics / CO Clearance BV", "Road 4C", "3045 AK ROTTERDAM", "The Netherlands"],
+      notify: { contact: "Ops Person", email: "ops@example.com", phone: "+31 6" } });
+    const v = (a: string) => s.cells.get(a)?.v;
+    expect([8, 9, 10, 11, 12, 13, 14, 15].map((r) => v(`L${r}`))).toEqual(consignee);
+    expect([v("T8"), v("T11"), v("T12") ?? null]).toEqual(["Logistics / CO Clearance BV", "The Netherlands", null]);
+    expect(s.cells.get("L15")?.border).toBe("lrb");        // the block still closes with the original bottom border
+    expect(s.merges).toContain("L13:S13");                  // extra rows merged like the original address rows
+    expect(v("L16")).toBe("Notify Party Name and Address:");
+    expect(v("T16")).toBe("Invoice Date: 11-03-2026");
+    expect([v("L17"), v("N17"), v("L18"), v("N18"), v("L20"), v("N20")]).toEqual(["Contact:", "Ops Person", "Email:", "ops@example.com", "Phone:", "+31 6"]);
+    expect(v("Y37")).toBe(500);
+    expect(s.rows.length).toBe(47);
+  });
+  it("no empty lines: blank consignee lines are dropped, short blocks keep the original 4 rows", () => {
+    const s = buildInvoiceSheet({ ...input(3), consignee: ["A Co", "", "City", " "], shipTo: ["B"], notify: { phone: "+1 2" } });
+    const v = (a: string) => s.cells.get(a)?.v;
+    expect([v("L8"), v("L9")]).toEqual(["A Co", "City"]);
+    expect([v("L13"), v("N13")]).toEqual(["Phone:", "+1 2"]);
+    expect(s.rows.length).toBe(43);
   });
   it("wrapped descriptions get taller rows", () => {
     expect(descriptionRows("iPhone 15 Pro Max 256GB / New Battery cell 0 Cycle / A+++ / Colors: White(10), Natural(10)")).toBe(2);

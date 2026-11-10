@@ -91,6 +91,12 @@ function parseCharges(json: string): { charges: { description: string; qty: numb
 }
 
 /** Route of an order: "" = direct, an id, or "new" = add a company (admin; RLS refuses others) with the typed name. */
+// "Save for this client": the company becomes one of the client's suggestions (★ first on its orders), Nov 9 2026
+async function rememberRoute(db: Awaited<ReturnType<typeof createClient>>, fd: FormData, accountId: string, intermediaryId: string | null) {
+  if (!intermediaryId || !accountId || fd.get("save_route") !== "on") return;
+  await db.from("account_intermediaries").upsert({ account_id: accountId, intermediary_id: intermediaryId }, { onConflict: "account_id,intermediary_id", ignoreDuplicates: true });
+}
+
 async function resolveIntermediary(db: Awaited<ReturnType<typeof createClient>>, fd: FormData): Promise<{ id: string | null; error?: string }> {
   const pick = str(fd, "intermediary_id");
   if (pick !== "new") return { id: pick || null };
@@ -193,6 +199,7 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     })));
     if (chErr) return { error: friendly(chErr) };
   }
+  await rememberRoute(db, fd, accountId, fields.intermediary_id);
   const { data: tot } = await db.from("orders").select("total_usd").eq("id", orderId!).maybeSingle();
   if (tot && Number(tot.total_usd) < 0) return { error: "The discounts are larger than the order: the total is below zero. Correct them and save again." };
 
@@ -227,6 +234,7 @@ export async function saveIntermediaryInvoice(_p: ActionState, fd: FormData): Pr
   }).eq("id", orderId).select("account_id").maybeSingle();
   if (error) return { error: friendly(error) };
   if (!data) return { error: "You do not have access to this order." };
+  await rememberRoute(db, fd, data.account_id, direct ? null : intermediary);
   refresh(orderId, data.account_id);
   return { ok: true };
 }

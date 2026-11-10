@@ -4,6 +4,7 @@ import type { Database } from "@/types/database";
 import { countryName } from "@/lib/leads/countries";
 import { buildInvoiceLines, type InvoiceLine } from "@/lib/documents/invoice-lines";
 import { splitLines } from "@/lib/documents/invoice";
+import { companyLines } from "@/lib/documents/invoice-parties";
 import { batteryLineEligible, colorsFor } from "@/lib/orders/colors";
 
 type DB = SupabaseClient<Database>;
@@ -13,15 +14,18 @@ export type InvoiceDraftData = {
   billing_entity: Database["public"]["Enums"]["billing_entity"];
   payment_method: Database["public"]["Enums"]["payment_method"];
   consignee: string; ship_to: string;
-  notify: { contact: string; address: string; phone: string };
+  notify: { contact: string; email: string; phone: string };
   shipment: { country: string; reference: string; awb: string; airport: string };
   lines: InvoiceLine[]; total_usd: number; orderTotal: number;
 };
 
+type Company = { name: string; address: string | null; country: string | null; rsin: string | null; eori: string | null; kvk: string | null; vat: string | null;
+  contact: string | null; contact_email: string | null; contact_phone: string | null };
+
 // Everything the invoice needs, read from the order, its account and its first contact (SOP P1 data).
 export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<InvoiceDraftData | null> {
   const [{ data: o }, { data: lines }, { data: fee }, { data: credits }, { data: charges }] = await Promise.all([
-    db.from("orders").select("*, accounts(id, name, legal_name, country, billing_address, company_ids, vat_eori, invoice_format, billing_entity)").eq("id", orderId).maybeSingle(),
+    db.from("orders").select("*, accounts(id, name, legal_name, country, billing_address, company_ids, vat_eori, invoice_format, billing_entity), intermediaries(name, address, country, rsin, eori, kvk, vat, contact, contact_email, contact_phone)").eq("id", orderId).maybeSingle(),
     db.from("order_lines").select("qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, sim_option, skus(model, storage_gb, color, grade, battery_eligible)").eq("order_id", orderId).order("sort_order"),
     db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
     db.from("credit_note_applications").select("amount_usd, created_at, credit_notes(number)").eq("order_id", orderId).order("created_at"),
@@ -65,18 +69,25 @@ export async function invoiceDraftFromOrder(db: DB, orderId: string): Promise<In
   }, (model, color) => colorsFor(model).find((c) => c.name === color)?.plain ?? null);
   const address = splitLines(acc.billing_address);
   const c = contacts?.[0];
+  // Ultimate consignee = the company HKR invoices (Gabriel, Nov 9 2026): via an intermediary / clearance company → that
+  // company with its identifiers (empty ones left out); direct → the client. Notify party = a contact: name, email, phone.
+  const im = (o as unknown as { intermediaries: Company | null }).intermediaries;
+  const directNotify = {
+    // the contact's NAME (Gabriel, Nov 4 2026): a phone typed in the contact field is not a name → the account's first contact
+    contact: (/[a-z]/i.test(ship.contact ?? "") ? ship.contact : "") || c?.name || acc.legal_name || acc.name,
+    email: ship.email || c?.email || "",
+    phone: ship.phone || c?.phone_e164 || "",
+  };
   return {
     account_id: acc.id,
     billing_entity: acc.billing_entity,
     payment_method: o.payment_method,
-    consignee: [acc.legal_name || acc.name, ...address, acc.vat_eori ? `VAT / EORI: ${acc.vat_eori}` : "", ...splitLines(acc.company_ids)].filter(Boolean).join("\n"),
+    consignee: (im ? companyLines(im)
+      : [acc.legal_name || acc.name, ...address, acc.vat_eori ? `VAT / EORI: ${acc.vat_eori}` : "", ...splitLines(acc.company_ids)].filter(Boolean)).join("\n"),
     ship_to: [ship.name || acc.legal_name || acc.name, ship.address, ship.city, shipCountry, ship.phone].filter(Boolean).join("\n"),
-    notify: {
-      // the contact's NAME (Gabriel, Nov 4 2026): a phone typed in the contact field is not a name → the account's first contact
-      contact: (/[a-z]/i.test(ship.contact ?? "") ? ship.contact : "") || c?.name || acc.legal_name || acc.name,
-      address: address[0] ?? "",
-      phone: [ship.phone || c?.phone_e164, c?.email].filter(Boolean).join(" / "),
-    },
+    notify: im && (im.contact || im.contact_email || im.contact_phone)
+      ? { contact: im.contact ?? "", email: im.contact_email ?? "", phone: im.contact_phone ?? "" }
+      : directNotify,
     shipment: { country: shipCountry ?? "", reference: "N/A", awb: o.tracking || "N/A", airport: "" },
     lines: built.lines, total_usd: built.total, orderTotal: Number(o.total_usd),
   };

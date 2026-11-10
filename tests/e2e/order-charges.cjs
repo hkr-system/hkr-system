@@ -77,7 +77,7 @@ const check = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) 
   check(await page.isChecked('[data-testid=freight-mode-unit]'), 'edit form keeps shipping per unit');
   await page.check('[data-testid=freight-mode-total]');
   await page.fill('[data-testid=freight-total]', '200');
-  await page.selectOption('[data-testid=order-route]', { label: 'Via Global Connect (invoices the client in EUR)' });
+  await page.selectOption('[data-testid=order-route]', await page.$eval('[data-testid=order-route]', (s) => [...s.options].find((o) => o.text.includes('Via Global Connect')).value));
   await page.click('button:has-text("Save order")');
   await page.waitForURL(new RegExp(`/orders/${orderId}$`), { timeout: 30000 });
   const { data: o2 } = await admin.from('orders').select('freight_mode, freight_usd, intermediary_id').eq('id', orderId).single();

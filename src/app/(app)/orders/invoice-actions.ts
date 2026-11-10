@@ -73,7 +73,7 @@ export async function saveInvoiceDraft(_p: InvoiceState, fd: FormData): Promise<
   const { error } = await db.from("invoices").update({
     invoice_date: date,
     consignee: str(fd, "consignee"), ship_to: str(fd, "ship_to"),
-    notify: { contact: str(fd, "notify_contact"), address: str(fd, "notify_address"), phone: str(fd, "notify_phone") },
+    notify: { contact: str(fd, "notify_contact"), email: str(fd, "notify_email"), phone: str(fd, "notify_phone"), ...(str(fd, "notify_address") ? { address: str(fd, "notify_address") } : {}) },
     shipment: { country: str(fd, "ship_country"), reference: str(fd, "ship_reference") || "N/A", awb: str(fd, "ship_awb") || "N/A", airport: str(fd, "ship_airport") },
     lines: lines as never,
   }).eq("id", id);

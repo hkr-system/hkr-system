@@ -31,7 +31,7 @@ export default async function SettingsPage() {
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
     supabase.from("profiles").select("user_id, full_name, email, role, timezone, active").order("full_name"),
     supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
-    supabase.from("intermediaries").select("id, name, vat_eori, contact, contact_phone, contact_email, address, country, default_cutoff_weekday").order("name"),
+    supabase.from("intermediaries").select("id, name, kind, rsin, eori, kvk, vat, contact, contact_phone, contact_email, address, country, default_cutoff_weekday").order("name"),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
     supabase.from("portal_users").select("user_id"),
     // how many orders / clients / RMA batches use each intermediary (only unused ones can be removed)
@@ -41,7 +41,7 @@ export default async function SettingsPage() {
   ]);
   const countBy = (rows: { intermediary_id: string | null }[] | null, id: string) => (rows ?? []).filter((r) => r.intermediary_id === id).length;
   const intermediaryRows = (intermediaries.data ?? []).map((i) => ({
-    ...i, orders: countBy(imOrders.data, i.id), clients: countBy(imAccounts.data, i.id), batches: countBy(imBatches.data, i.id),
+    ...i, kind: (i.kind === "clearance" ? "clearance" : "intermediary") as "clearance" | "intermediary", orders: countBy(imOrders.data, i.id), clients: countBy(imAccounts.data, i.id), batches: countBy(imBatches.data, i.id),
   }));
   // client-portal logins are managed per account (Accounts → Client portal), not here
   const portalIds = new Set((portalUsers.data ?? []).map((p) => p.user_id));
@@ -66,7 +66,7 @@ export default async function SettingsPage() {
   const INDEX: [string, string][] = [
     ["users", "Users"], ["invoices", "Invoices"], ["skus", "SKUs"], ["whatsapp", "WhatsApp prices"], ["leads", "Leads"],
     ["operations", "Operations calendar"], ["engine", "Price-list engine"], ["promotions", "Weekly promotions"],
-    ["intermediaries", "Intermediaries"], ["landing", "Landing page"],
+    ["intermediaries", "Intermediaries & clearance"], ["landing", "Landing page"],
   ];
 
   return (
@@ -171,7 +171,7 @@ export default async function SettingsPage() {
           {paramTable("promotions")}
         </SettingsSection>
 
-        <SettingsSection id="intermediaries" title="Intermediaries" count={`${intermediaryRows.length}`} description="Companies that invoice the client for us (Global Connect, Galimix…). Each order picks its route from this list.">
+        <SettingsSection id="intermediaries" title="Intermediaries & clearance companies" count={`${intermediaryRows.length}`} description="Companies HKR invoices instead of the client (Galimix, Global Connect, Barry Trading…); they pay us in USD and appear as the Ultimate consignee. Each order picks its route from this list; each client keeps its own suggestions.">
           <IntermediariesEditor rows={intermediaryRows} />
         </SettingsSection>
 

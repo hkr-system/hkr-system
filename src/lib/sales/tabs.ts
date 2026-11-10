@@ -5,6 +5,7 @@ export const SALES_TABS = [
   { href: "/sales/mix", label: "Sales mix" },
   { href: "/orders", label: "All orders" },
   { href: "/orders/new", label: "New order", exact: true },
+  { href: "/orders/import", label: "Import invoice" },
 ];
 
 export function accountTabs(canCreate: boolean) {

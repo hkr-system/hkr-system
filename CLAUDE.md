@@ -211,6 +211,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/price-adjust.cjs` | Adjustable client prices (after db:reset): colours, specialist floor rule, admin margin/markup |
 | `node tests/e2e/price-rules.cjs` | Client price rules (after db:reset): remember, account rules, new list = base + rule |
 | `node tests/e2e/magic-cancel.cjs` | Magic invoice creator: order sheet with model headings, Cancel restores the lines (read-only) |
+| `node tests/e2e/invoice-import.cjs` | Import an Excel invoice (after db:reset): specialist as Invoiced, admin as Closed — already paid, wrong total blocked |
 | `node tests/e2e/intermediaries.cjs` | Intermediaries (after db:reset): Settings add/edit/remove, "+ New intermediary…" on the order form, specialist view |
 | `node tests/e2e/order-charges.cjs` | Units, shipping per unit/total, charges + discount, Mixed payment with a USDT fee loss (after db:reset) |
 | `node tests/e2e/samsung.cjs` | Samsung lists (after db:reset): Samsung base upload, client Samsung list, both lists on account/order/portal |
@@ -484,6 +485,30 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   ship to (at least the original 4); empty lines are never printed; Contact / Email / Phone fill the original's three notify rows
   in order. Company block = `companyLines()` in `src/lib/documents/invoice-parties.ts` (name, address lines, country unless the
   address ends with it, then RSIN, EORI, KVK/CoC, VAT only when given). Unit-tested; e2e `tests/e2e/intermediaries.cjs`.
+
+## Import an invoice made in Excel (Gabriel, Nov 9 2026; plan approved the same day)
+
+- Sales → "Import invoice" (/orders/import, admin + account_specialist): choose the client (the end client is often not on the
+  invoice) + upload the .xlsx → server action `readInvoiceExcel` (orders/import-actions.ts) → the normal order form, filled in,
+  with an "Imported invoice" card. Nothing is saved until Create order.
+- Reading (`src/lib/orders/invoice-import.ts`, pure, unit-tested with an INVENTED grid; `invoice-import-xlsx.ts` = exceljs → grid,
+  formula results used, missing ones computed): everything is found by LABEL ("Invoice No:", "Ultimate Consignee", "Ship To",
+  "Notify Party", "Line #", "Total C.F.R.", "Date of Order:"), never by fixed cells — HKR's invoices move rows. Product line =
+  model (magic.ts findModel) + GB + qty + price; description → eSIM only, CE/UKCA, battery (New / 80%+ BH / boosted; other % →
+  none + note), colours "Black(10), Blue(10)" (not adding up → Mixed + note). "New battery cell" → the order's battery line when it
+  bills exactly the system's eligible units (never iPhone 16), else a charge line; Shipping / Customs → per unit when qty = units,
+  else total; "USDT Fee" → method USDT when it equals today's fee, else a charge line + method Mixed; credit-note and any other
+  lines → order charges (negative = discount); bank/wallet text ignored.
+- `planImport()` checks with the same calculator as the order (calc.ts) that the order total = the Excel total to the cent; the form
+  shows green/red and Create order stays off while they differ. Tested against Gabriel's 6 real invoices (all match; NOT in repo).
+- Route: the Ultimate consignee = the client (direct) or a company of Settings → Intermediaries & clearance (names compared without
+  punctuation / legal forms); otherwise Direct + a note. Ship to: a saved address of the client by company/label, else "+ New
+  address…" pre-filled from the Excel block (country, phone, email, contact from Notify).
+- On Create order (`finishImport` in orders/actions.ts): `hk_invoice_no` = the Excel number, the original .xlsx saved in the order
+  folder as INV-HK (`[code]_ORD-NN_INV-HK.xlsx`, goes with the form through a hidden file input), status chosen in the card:
+  Quoted · Invoiced (specialist and admin) · "Closed — already paid" (admin only: status Closed + ONE confirmed balance payment for
+  the total, note "Paid before the system — imported invoice N", method wire or usdt) — for the historical sales. No system
+  invoice is made (the Excel IS the invoice). e2e `tests/e2e/invoice-import.cjs`.
 
 ## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
 

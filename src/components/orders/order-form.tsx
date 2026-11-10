@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { saveOrder, type ActionState } from "@/app/(app)/orders/actions";
 import { orderTotals, shippingTotal } from "@/lib/orders/calc";
 import { ChargesEditor, chargesTotal, type Charge } from "./order-charges";
@@ -42,7 +42,11 @@ export type OrderValues = {
   charges?: Charge[]; eta_date?: string | null; notes?: string | null;
   ship_to?: Record<string, string>; lines?: Line[]; intermediary_id?: string | null; address_id?: string | null;
   invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean; show_note?: boolean } | null;
+  new_address_label?: string;     // "+ New address…" pre-filled (invoice import)
 };
+
+/** An order made from an Excel invoice (Gabriel, Nov 9 2026): the file travels with the form; the total must match. */
+export type ImportInfo = { file: File; number: string | null; excelTotal: number; canClosePaid: boolean; notes: string[] };
 
 const FORMAT_OPTIONS = [
   ["battery_line_separate", "Separate “New battery cell” line (otherwise absorbed in the price)"],
@@ -56,10 +60,11 @@ function F({ label, children, className }: { label: string; children: React.Reac
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [] }: {
+export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo }: {
   accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
   intermediaries?: { id: string; name: string; kind?: string; suggestedFor?: string[] }[]; addresses?: SavedAddress[];
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
+  importInfo?: ImportInfo;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
   const fmtOf = (id: string): Fmt => ({ battery_line_separate: true, show_ce_text: false, plain_lines: false, show_note: false, ...(accounts.find((a) => a.id === id)?.invoice_format ?? {}) });
@@ -78,7 +83,15 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? account?.delivery_setup ?? "client_label");
   // Magic invoice creator → Cancel puts the lines back as they were before "Read the order" (Gabriel, Nov 9 2026)
   const beforeMagic = useRef<Line[] | null>(null);
-  const [lines, setLines] = useState<Line[]>(values.lines?.length ? values.lines : [emptyLine(ceOf(values.account_id ?? ""))]);
+  const [lines, setLines] = useState<Line[]>(() => {
+    if (!values.lines?.length) return [emptyLine(ceOf(values.account_id ?? ""))];
+    // lines from an imported invoice: matched to the client's list by model + GB, keeping the invoice's price
+    const ch = choicesOf(prices, skus, values.account_id ?? "");
+    return values.lines.map((l) => {
+      const c = !l.key && l.model ? ch.find((x) => x.key === modelKey(l.model, l.storage_gb ?? 0)) : undefined;
+      return c ? withChoice(l, c) : l;
+    });
+  });
   // shipping and customs: per unit (US$ × units) or one total for the shipment; other charges / discounts (Gabriel, Nov 4 2026)
   const [freightMode, setFreightMode] = useState<"unit" | "total">(values.freight_mode ?? "total");
   const [freightUnit, setFreightUnit] = useState(values.freight_unit_usd != null ? String(values.freight_unit_usd) : "");
@@ -89,16 +102,20 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [charges, setCharges] = useState<Charge[]>(values.charges ?? []);
   const rma = String(values.rma_discount_usd ?? 0); // credit notes applied on the order page (Nov 3 2026), never typed
   const shipFor = (id: string) => accounts.find((a) => a.id === id)?.ship_default ?? {};
-  const [ship, setShip] = useState<Record<string, string>>(
-    values.ship_to && Object.values(values.ship_to).some(Boolean) ? values.ship_to : shipFor(values.account_id ?? (accounts.length === 1 ? accounts[0].id : "")));
+  const [ship, setShip] = useState<Record<string, string>>(() => {
+    if (values.ship_to && Object.values(values.ship_to).some(Boolean)) return values.ship_to;
+    const x = !values.id && values.address_id ? addresses.find((a) => a.id === values.address_id) : undefined;   // imported invoice
+    if (x) return { name: x.company ?? "", contact: x.contact_name ?? "", phone: x.phone ?? "", email: x.email ?? "", address: x.address ?? "", city: x.city ?? "", country: x.country ?? "" };
+    return shipFor(values.account_id ?? (accounts.length === 1 ? accounts[0].id : ""));
+  });
   const setS = (k: string) => (e: { target: { value: string } }) => setShip((s) => ({ ...s, [k]: e.target.value }));
   // route (who invoices the client) and the saved address are chosen per order (Gabriel, Nov 4 2026)
   const initialAccount = values.account_id ?? (accounts.length === 1 ? accounts[0].id : "");
-  const [route, setRoute] = useState<string>(values.id ? values.intermediary_id ?? "" : accounts.find((a) => a.id === initialAccount)?.intermediary_id ?? "");
+  const [route, setRoute] = useState<string>(values.id || values.intermediary_id !== undefined ? values.intermediary_id ?? "" : accounts.find((a) => a.id === initialAccount)?.intermediary_id ?? "");
   const addrOf = (id: string) => addresses.filter((x) => x.account_id === id && !x.archived);
   const lastAddr = (id: string) => { const a = accounts.find((x) => x.id === id)?.last_address_id; return a && addrOf(id).some((x) => x.id === a) ? a : ""; };
-  const [addrId, setAddrId] = useState<string>(values.id ? values.address_id ?? "" : lastAddr(initialAccount));
-  const [newAddr, setNewAddr] = useState({ label: "", kind: "forwarder", email: "", save: true });
+  const [addrId, setAddrId] = useState<string>(values.id || values.address_id !== undefined ? values.address_id ?? "" : lastAddr(initialAccount));
+  const [newAddr, setNewAddr] = useState({ label: values.new_address_label ?? "", kind: "forwarder", email: "", save: true });
   const fillFrom = (x: SavedAddress) => setShip({ name: x.company ?? "", contact: x.contact_name ?? "", phone: x.phone ?? "", email: x.email ?? "",
     address: x.address ?? "", city: x.city ?? "", country: x.country ?? "" });
   const pickAddress = (id: string) => {
@@ -109,15 +126,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   };
   const separate = fmt.battery_line_separate;
   // model choices: the client's approved price list; without one, the models of the SKUs
-  const choicesFor = (acc: string): ModelChoice[] => {
-    const rows = prices[acc]?.rows;
-    if (rows && Object.keys(rows).length) {
-      return Object.entries(rows).map(([key, r]) => ({ key, model: r.model, storage_gb: r.storage_gb, note: r.note, rowId: r.id, price: r.price, floor: r.floor }));
-    }
-    const seen = new Map<string, ModelChoice>();
-    for (const k of skus) { const key = modelKey(k.model, k.storage_gb); if (!seen.has(key)) seen.set(key, { key, model: k.model, storage_gb: k.storage_gb, note: null }); }
-    return [...seen.values()];
-  };
+  const choicesFor = (acc: string): ModelChoice[] => choicesOf(prices, skus, acc);
   const choices = useMemo(() => choicesFor(accountId), [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
   const problems = lines.map(lineProblem).filter(Boolean) as string[];
 
@@ -161,6 +170,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       <input type="hidden" name="lines" value={JSON.stringify(lines.map(lineToPayload))} />
       <input type="hidden" name="invoice_format" value={JSON.stringify(fmt)} />
       <input type="hidden" name="address_id" value={addrId === "new" ? "" : addrId} />
+      {importInfo ? <ImportCard info={importInfo} total={t.total} isAdmin={isAdmin} /> : null}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Order</CardTitle><CardDescription>SOP P2. The order number (ORD-NN) is given automatically per account.</CardDescription></CardHeader>
@@ -222,7 +232,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
-          {!values.id ? (
+          {!values.id && !importInfo ? (
             <MagicReader choices={choices} ceDefault={ceOf(accountId)} disabled={!accountId}
               onLines={(ls) => setLines((cur) => { beforeMagic.current ??= cur; return [...cur.filter((l) => l.model || l.description || l.qty), ...ls]; })}
               onCancel={() => { if (beforeMagic.current) setLines(beforeMagic.current); beforeMagic.current = null; }} />
@@ -341,7 +351,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending || problems.length > 0 || t.total < 0}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
+        <Button type="submit" disabled={pending || problems.length > 0 || t.total < 0 || (importInfo ? Math.abs(t.total - importInfo.excelTotal) > 0.01 : false)}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
         {/* leave without saving (Gabriel, Nov 3 2026) */}
         <Button asChild type="button" variant="outline" data-testid="order-cancel">
           <Link href={values.id ? `/orders/${values.id}` : "/orders"}>Cancel</Link>
@@ -351,6 +361,57 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
         {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
       </div>
     </form>
+  );
+}
+
+// model choices: the client's approved price list; without one, the models of the SKUs
+function choicesOf(prices: AccountPrices, skus: Sku[], acc: string): ModelChoice[] {
+  const rows = prices[acc]?.rows;
+  if (rows && Object.keys(rows).length) {
+    return Object.entries(rows).map(([key, r]) => ({ key, model: r.model, storage_gb: r.storage_gb, note: r.note, rowId: r.id, price: r.price, floor: r.floor }));
+  }
+  const seen = new Map<string, ModelChoice>();
+  for (const k of skus) { const key = modelKey(k.model, k.storage_gb); if (!seen.has(key)) seen.set(key, { key, model: k.model, storage_gb: k.storage_gb, note: null }); }
+  return [...seen.values()];
+}
+
+/** The imported invoice: file, number, status to give the order, and the total check (must equal the Excel to the cent). */
+function ImportCard({ info, total, isAdmin }: { info: ImportInfo; total: number; isAdmin: boolean }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    // the original Excel goes with the form: saved in the order's documents as the invoice (INV-HK)
+    if (!fileRef.current) return;
+    const dt = new DataTransfer(); dt.items.add(info.file); fileRef.current.files = dt.files;
+  }, [info.file]);
+  const diff = Math.round((total - info.excelTotal) * 100) / 100;
+  return (
+    <Card data-testid="import-card">
+      <CardHeader>
+        <CardTitle className="text-base">Imported invoice {info.number ?? ""}</CardTitle>
+        <CardDescription>From {info.file.name}. Check the lines below, then Create order. The Excel is saved in the order&apos;s documents as the invoice (INV-HK) and its number as “Our invoice no.”.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2">
+        <input ref={fileRef} type="file" name="import_file" className="hidden" tabIndex={-1} aria-hidden />
+        <input type="hidden" name="import_number" value={info.number ?? ""} />
+        <F label="Status of the order">
+          <NativeSelect name="import_status" defaultValue="invoiced" data-testid="import-status">
+            <option value="quoted">Quoted</option>
+            <option value="invoiced">Invoiced (the client has the invoice)</option>
+            {isAdmin && info.canClosePaid ? <option value="closed_paid">Closed — already paid (historical sale)</option> : null}
+          </NativeSelect>
+          <span className="text-xs text-muted-foreground">“Closed — already paid” also records one confirmed payment for the total (“paid before the system”).</span>
+        </F>
+        <div className={`rounded-md p-3 text-sm ${Math.abs(diff) <= 0.01 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`} data-testid="import-total-check" role="status">
+          Excel total {money(info.excelTotal)} · this order {money(total)}{" "}
+          {Math.abs(diff) <= 0.01 ? "✓ same total" : `✗ difference ${money(diff)} — fix the lines or charges (Create order stays off until they match)`}
+        </div>
+        {info.notes.length ? (
+          <ul className="list-disc pl-5 text-xs text-amber-800 sm:col-span-2" data-testid="import-notes">
+            {info.notes.map((n) => <li key={n}>{n}</li>)}
+          </ul>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

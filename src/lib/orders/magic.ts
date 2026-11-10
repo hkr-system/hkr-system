@@ -33,7 +33,7 @@ function findSamsung(s: string): { model: string; at: number; len: number } | nu
   return { model: `${base}${tier}`, at: m.index, len: m[0].length };
 }
 
-function findModel(s: string): { model: string; at: number; len: number } | null {
+export function findModel(s: string): { model: string; at: number; len: number } | null {
   const sam = findSamsung(s);
   if (sam) return sam;
   const re = /\b(?:iphone|ip|i)\s*(1[2-7])(e)?(?:\s*(pro\s*max|promax|pm|pro|plus|mini|max))?\b/;

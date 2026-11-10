@@ -11,7 +11,9 @@ export function SectionTabs({ tabs }: { tabs: { href: string; label: string; exa
   return (
     <div className="mb-6 flex gap-1 overflow-x-auto border-b" data-testid="section-tabs">
       {tabs.map((t) => {
-        const active = t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(`${t.href}/`);
+        // a more specific tab wins ("/orders/import" is Import invoice, not All orders)
+        const longer = tabs.some((o) => o.href.length > t.href.length && (pathname === o.href || pathname.startsWith(`${o.href}/`)));
+        const active = t.exact ? pathname === t.href : !longer && (pathname === t.href || pathname.startsWith(`${t.href}/`));
         return (
           <Link key={t.href} href={t.href}
             className={cn("-mb-px border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground",

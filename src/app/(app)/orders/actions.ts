@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseImeis } from "@/lib/orders/imei";
 import { ORDER_STATUSES, type DeliverySetup, type OrderStatus, type PaymentMethod, type PaymentType } from "@/lib/orders/constants";
 import { onOrderStatusChange } from "@/lib/whatsapp/automations";
+import { FILES_BUCKET, sopFileName, storagePath } from "@/lib/files";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string };
 
@@ -209,8 +210,51 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
       .filter((r) => r.base_price_usd !== null);
     if (fin.length) await db.from("order_lines_finance").upsert(fin); // a typed base price wins over the one from the list
   }
+  // imported from an Excel invoice (Gabriel, Nov 9 2026): its number, the original file as the INV-HK document and the status
+  if (!id && fd.get("import_number") !== null) {
+    const imp = await finishImport(db, fd, orderId!, accountId, user.role);
+    if (imp.error) return { error: `The order was created, but: ${imp.error}` };
+  }
   refresh(orderId!, accountId);
   redirect(`/orders/${orderId}`);
+}
+
+// After "Create order" of an imported invoice: hk_invoice_no, the original Excel in the order folder (kind INV-HK) and the
+// status chosen — the specialist up to Invoiced; an admin also "Closed — already paid" (one confirmed payment for the total).
+async function finishImport(db: Awaited<ReturnType<typeof createClient>>, fd: FormData, orderId: string, accountId: string, role: string): Promise<{ error?: string }> {
+  const status = str(fd, "import_status");
+  if (!["quoted", "invoiced", "closed_paid"].includes(status)) return { error: "unknown status for the import." };
+  if (status === "closed_paid" && role !== "admin") return { error: "only an admin imports an order as already paid." };
+  const { data: o } = await db.from("orders").select("number, total_usd, payment_method, order_date, accounts(code)").eq("id", orderId).single();
+  if (!o) return { error: "order not found." };
+  const number = str(fd, "import_number").slice(0, 60);
+  if (number) await db.from("orders").update({ hk_invoice_no: number }).eq("id", orderId);
+  const file = fd.get("import_file");
+  if (file instanceof File && file.size) {
+    const code = (o.accounts as unknown as { code: string }).code;
+    const name = sopFileName(code, o.number, "INV-HK", file.name);
+    const path = storagePath(accountId, o.number, name);
+    const body = Buffer.from(await file.arrayBuffer());
+    const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    const { error: up } = await db.storage.from(FILES_BUCKET).upload(path, body, { contentType: mime, upsert: true });
+    if (up) return { error: `the Excel could not be saved (${up.message}).` };
+    await db.from("files").insert({ account_id: accountId, owner_table: "orders", owner_id: orderId, kind: "INV-HK", storage_path: path, file_name: name, mime_type: mime, size_bytes: body.length });
+  }
+  if (status === "invoiced" || status === "closed_paid") {
+    const { error } = await db.from("orders").update({ status: status === "invoiced" ? "invoiced" : "closed" }).eq("id", orderId);
+    if (error) return { error: friendly(error) };
+  }
+  if (status === "closed_paid") {
+    const { data: pay, error } = await db.from("payments").insert({
+      order_id: orderId, account_id: accountId, type: "balance", amount: Number(o.total_usd),
+      method: o.payment_method === "usdt" ? "usdt" : "wire", received_at: o.order_date,
+      notes: `Paid before the system — imported invoice ${number || ""}`.trim(),
+    }).select("id").single();
+    if (error) return { error: `payment not recorded (${friendly(error)}).` };
+    const { error: ce } = await db.from("payments").update({ status: "confirmed" }).eq("id", pay.id);
+    if (ce) return { error: `payment not confirmed (${friendly(ce)}).` };
+  }
+  return {};
 }
 
 // The intermediary's invoice arrives after ours (Gabriel, Nov 2 2026): number + EUR amount for reference, and whether

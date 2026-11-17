@@ -85,12 +85,15 @@ async function importAs(page, file, status) {
   await page.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });
   const id1 = page.url().split('/').pop();
   const { data: o1 } = await admin.from('orders').select('status, total_usd, hk_invoice_no, order_date, payment_method, intermediaries(name)').eq('id', id1).single();
-  check(o1.status === 'invoiced' && Number(o1.total_usd) === 12790 && o1.hk_invoice_no === '11022026' && o1.intermediaries?.name === 'Global Connect' && o1.order_date === '2026-10-30',
+  check(o1.status === 'invoiced' && Number(o1.total_usd) === 12790 && !o1.hk_invoice_no && o1.intermediaries?.name === 'Global Connect' && o1.order_date === '2026-10-30',
     `order (credit note still waiting for the SD): ${JSON.stringify(o1)}`);
   const { data: cn1 } = await admin.from('credit_notes').select('id, status, amount, pending_order_id').eq('pending_order_id', id1);
   check(cn1.length === 1 && cn1[0].status === 'draft' && Number(cn1[0].amount) === 50, `credit note draft linked to the order: ${JSON.stringify(cn1)}`);
   const { data: f1 } = await admin.from('files').select('kind, file_name').eq('owner_id', id1);
-  check(f1.some((f) => f.kind === 'INV-HK' && f.file_name.endsWith('_INV-HK.xlsx')), `the Excel saved as INV-HK (${f1.map((f) => f.file_name).join(', ')})`);
+  check(f1.length === 1 && f1[0].kind === 'OTHER' && f1[0].file_name.endsWith('_EXCEL-11022026.xlsx'), `the Excel kept for reference only, not as the invoice (${f1.map((f) => f.kind + ' ' + f.file_name).join(', ')})`);
+  const { data: inv1 } = await admin.from('invoices').select('number, status, invoice_date').eq('order_id', id1);
+  check(inv1.length === 1 && /^AMS-NL-901-INV-\d{2}$/.test(inv1[0].number) && inv1[0].status === 'draft' && inv1[0].invoice_date === '2026-11-02',
+    `system invoice draft with the client's number, not the Excel's old one (${JSON.stringify(inv1)})`);
   await ctx.close();
 
   // admin: "Closed — already paid" + a confirmed payment; a wrong total keeps Create order off
@@ -120,7 +123,10 @@ async function importAs(page, file, status) {
   await p2.click('button:has-text("Create order")');
   await p2.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });
   const id2 = p2.url().split('/').pop();
-  const { data: o2 } = await admin.from('orders').select('status, total_usd').eq('id', id2).single();
+  const { data: o2 } = await admin.from('orders').select('status, total_usd, hk_invoice_no').eq('id', id2).single();
+  const { data: inv2 } = await admin.from('invoices').select('id').eq('order_id', id2);
+  const { data: f2 } = await admin.from('files').select('kind').eq('owner_id', id2);
+  check(o2.hk_invoice_no === '11022026' && inv2.length === 0 && f2.some((f) => f.kind === 'INV-HK'), `historical: keeps the Excel's number and the Excel as INV-HK (${o2.hk_invoice_no})`);
   const { data: pays } = await admin.from('payments').select('amount, status').eq('order_id', id2);
   const { data: cn2 } = await admin.from('credit_note_applications').select('amount_usd, credit_notes(status)').eq('order_id', id2);
   check(cn2.length === 1 && Number(cn2[0].amount_usd) === 50 && cn2[0].credit_notes.status === 'applied', `admin import: credit note approved + applied (${JSON.stringify(cn2)})`);

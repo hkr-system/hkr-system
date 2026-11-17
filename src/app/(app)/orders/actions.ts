@@ -9,6 +9,7 @@ import { ORDER_STATUSES, type DeliverySetup, type OrderStatus, type PaymentMetho
 import { onOrderStatusChange } from "@/lib/whatsapp/automations";
 import { FILES_BUCKET, sopFileName, storagePath } from "@/lib/files";
 import { addCreditNotesToOrder, readCreditNoteFields } from "@/lib/orders/credit-notes";
+import { invoiceDraftFromOrder } from "@/lib/orders/invoice-draft";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string };
 
@@ -230,32 +231,48 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
   redirect(`/orders/${orderId}`);
 }
 
-// After "Create order" of an imported invoice: hk_invoice_no, the original Excel in the order folder (kind INV-HK) and the
-// status chosen — the specialist up to Invoiced; an admin also "Closed — already paid" (one confirmed payment for the total).
+// After "Create order" of an imported invoice (Gabriel, Nov 9 + Nov 17 2026). The Excel's number is an OLD one:
+// * Quoted / Invoiced → the system invoice is created as a draft with the client's next number (<code>-INV-NN) in HKR's
+//   official format; the Excel is kept in the order folder for reference only (kind OTHER, not shown in the portal).
+// * "Closed — already paid" (historical sale, admin only) → keeps the Excel's number (what the client has): hk_invoice_no,
+//   the Excel as the invoice (INV-HK), status Closed and one confirmed payment for the total.
 async function finishImport(db: Awaited<ReturnType<typeof createClient>>, fd: FormData, orderId: string, accountId: string, role: string): Promise<{ error?: string }> {
   const status = str(fd, "import_status");
   if (!["quoted", "invoiced", "closed_paid"].includes(status)) return { error: "unknown status for the import." };
   if (status === "closed_paid" && role !== "admin") return { error: "only an admin imports an order as already paid." };
+  const historical = status === "closed_paid";
   const { data: o } = await db.from("orders").select("number, total_usd, payment_method, order_date, accounts(code)").eq("id", orderId).single();
   if (!o) return { error: "order not found." };
   const number = str(fd, "import_number").slice(0, 60);
-  if (number) await db.from("orders").update({ hk_invoice_no: number }).eq("id", orderId);
+  if (historical && number) await db.from("orders").update({ hk_invoice_no: number }).eq("id", orderId);
   const file = fd.get("import_file");
   if (file instanceof File && file.size) {
     const code = (o.accounts as unknown as { code: string }).code;
-    const name = sopFileName(code, o.number, "INV-HK", file.name);
+    const old = number.replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "excel";
+    const name = historical ? sopFileName(code, o.number, "INV-HK", file.name) : `${code}_${o.number}_EXCEL-${old}.xlsx`;
     const path = storagePath(accountId, o.number, name);
     const body = Buffer.from(await file.arrayBuffer());
     const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     const { error: up } = await db.storage.from(FILES_BUCKET).upload(path, body, { contentType: mime, upsert: true });
     if (up) return { error: `the Excel could not be saved (${up.message}).` };
-    await db.from("files").insert({ account_id: accountId, owner_table: "orders", owner_id: orderId, kind: "INV-HK", storage_path: path, file_name: name, mime_type: mime, size_bytes: body.length });
+    await db.from("files").insert({ account_id: accountId, owner_table: "orders", owner_id: orderId, kind: historical ? "INV-HK" : "OTHER",
+      storage_path: path, file_name: name, mime_type: mime, size_bytes: body.length });
   }
-  if (status === "invoiced" || status === "closed_paid") {
+  if (!historical) {
+    const d = await invoiceDraftFromOrder(db, orderId);
+    if (!d) return { error: "the system invoice could not be prepared (order not found)." };
+    const { orderTotal: _t, ...row } = d;
+    void _t;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(str(fd, "import_invoice_date")) ? str(fd, "import_invoice_date") : undefined;
+    const { error: ie } = await db.from("invoices").insert({ ...row, ...(date ? { invoice_date: date } : {}), order_id: orderId,
+      lines: row.lines as never, notify: row.notify as never, shipment: row.shipment as never });
+    if (ie) return { error: `the system invoice was not created (${friendly(ie)}): create it in the Invoice tab.` };
+  }
+  if (status === "invoiced" || historical) {
     const { error } = await db.from("orders").update({ status: status === "invoiced" ? "invoiced" : "closed" }).eq("id", orderId);
     if (error) return { error: friendly(error) };
   }
-  if (status === "closed_paid") {
+  if (historical) {
     const { data: pay, error } = await db.from("payments").insert({
       order_id: orderId, account_id: accountId, type: "balance", amount: Number(o.total_usd),
       method: o.payment_method === "usdt" ? "usdt" : "wire", received_at: o.order_date,

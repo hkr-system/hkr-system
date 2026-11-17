@@ -514,6 +514,11 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 
 ## Credit notes right on the order (Gabriel, Nov 17 2026)
 
+- Invoice number of an imported Excel (Gabriel, Nov 17 2026): the Excel's number is an OLD one. Quoted / Invoiced → the SYSTEM
+  invoice is created as a draft (client's next `<code>-INV-NN`, HKR's official format, dated as the Excel); the Excel is kept as
+  kind OTHER `[code]_ORD-NN_EXCEL-<old no>.xlsx` (reference only, not in the portal); hk_invoice_no is filled when the admin
+  approves. "Closed — already paid" (historical) keeps the Excel's number (hk_invoice_no) and the Excel as INV-HK, no system invoice.
+
 - Delivery set-up: a NEW order starts with "Our courier booking" (Gabriel); an imported invoice too (its Shipping line = HKR's
   FedEx courier; without one a note asks to check it). Existing orders keep theirs.
 

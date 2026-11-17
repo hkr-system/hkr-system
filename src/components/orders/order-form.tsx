@@ -49,7 +49,7 @@ export type OrderValues = {
 };
 
 /** An order made from an Excel invoice (Gabriel, Nov 9 2026): the file travels with the form; the total must match. */
-export type ImportInfo = { file: File; number: string | null; excelTotal: number; canClosePaid: boolean; notes: string[] };
+export type ImportInfo = { file: File; number: string | null; invoiceDate: string | null; excelTotal: number; canClosePaid: boolean; notes: string[] };
 
 const FORMAT_OPTIONS = [
   ["battery_line_separate", "Separate “New battery cell” line (otherwise absorbed in the price)"],
@@ -420,17 +420,19 @@ function ImportCard({ info, total, pending, isAdmin }: { info: ImportInfo; total
     const dt = new DataTransfer(); dt.items.add(info.file); fileRef.current.files = dt.files;
   }, [info.file]);
   const diff = Math.round((total - info.excelTotal) * 100) / 100;
+  const [status, setStatus] = useState("invoiced");
   return (
     <Card data-testid="import-card">
       <CardHeader>
         <CardTitle className="text-base">Imported invoice {info.number ?? ""}</CardTitle>
-        <CardDescription>From {info.file.name}. Check the lines below, then Create order. The Excel is saved in the order&apos;s documents as the invoice (INV-HK) and its number as “Our invoice no.”.</CardDescription>
+        <CardDescription>From {info.file.name}. Check the lines below, then Create order.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
         <input ref={fileRef} type="file" name="import_file" className="hidden" tabIndex={-1} aria-hidden />
         <input type="hidden" name="import_number" value={info.number ?? ""} />
+        <input type="hidden" name="import_invoice_date" value={info.invoiceDate ?? ""} />
         <F label="Status of the order">
-          <NativeSelect name="import_status" defaultValue="invoiced" data-testid="import-status">
+          <NativeSelect name="import_status" value={status} onChange={(e) => setStatus(e.target.value)} data-testid="import-status">
             <option value="quoted">Quoted</option>
             <option value="invoiced">Invoiced (the client has the invoice)</option>
             {isAdmin && info.canClosePaid ? <option value="closed_paid">Closed — already paid (historical sale)</option> : null}
@@ -442,6 +444,11 @@ function ImportCard({ info, total, pending, isAdmin }: { info: ImportInfo; total
           {Math.abs(diff) <= 0.01 ? "✓ same total" : `✗ difference ${money(diff)} — fix the lines, charges or credit notes (Create order stays off until they match)`}
           {Math.abs(diff) > 0.01 ? <a href="#credit-notes" className="mt-1 block underline">Go to Credit notes ↓</a> : null}
         </div>
+        <p className="rounded-md bg-muted p-3 text-sm sm:col-span-2" data-testid="import-number">
+          {status === "closed_paid"
+            ? <>Historical sale: it keeps the Excel&apos;s number <b>{info.number ?? "—"}</b> (the one the client has), and the Excel is saved as the invoice (INV-HK).</>
+            : <>The Excel&apos;s number <b>{info.number ?? "—"}</b> is the old one: the order gets the <b>system invoice</b> with the client&apos;s next number (CODE-INV-NN), as a draft in HKR&apos;s official format{info.invoiceDate ? ` dated ${info.invoiceDate}` : ""}. Check it in the order&apos;s Invoice tab, then approve and send it. The Excel stays in the documents for reference (the client does not see it).</>}
+        </p>
         {info.notes.length ? (
           <ul className="list-disc pl-5 text-xs text-amber-800 sm:col-span-2" data-testid="import-notes">
             {info.notes.map((n) => <li key={n}>{n}</li>)}

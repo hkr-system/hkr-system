@@ -46,10 +46,10 @@ export function InvoiceImport(props: FormProps) {
       invoice_format: { battery_line_separate: plan.batteryLineSeparate, show_ce_text: plan.ce, plain_lines: false, show_note: false },
       intermediary_id: res.intermediaryId, address_id: res.addressId ?? (res.shipTo ? "new" : undefined),
       ship_to: res.shipTo, new_address_label: res.shipTo?.name, lines,
-      hk_invoice_no: inv.number, credit_notes: plan.credits,
+      credit_notes: plan.credits,   // the number comes from the system invoice (Nov 17 2026); the Excel's is the old one
       // a Shipping line on the invoice = HKR's own FedEx courier (Gabriel, Nov 17 2026)
       delivery_setup: "our_booking",
-      notes: `Imported from the Excel invoice ${inv.number ?? res.file.name}.`,
+      notes: `Imported from the Excel invoice ${inv.number ?? res.file.name} (old number).`,
     };
     const notes = [
       ...(res.notes ?? []),
@@ -58,7 +58,7 @@ export function InvoiceImport(props: FormProps) {
       ...plan.credits.map((c) => `“${c.description}” −US$${c.amount.toFixed(2)} → a credit note: see the “Credit notes (RMA discount)” card below (use one the client has, or the new one prepared there).`),
       ...(inv.freight ? [] : ["No shipping line on the invoice: check the delivery set-up (Our courier booking is chosen)."]),
     ];
-    const info: ImportInfo = { file: res.file, number: inv.number, excelTotal: inv.total, canClosePaid: props.isAdmin, notes };
+    const info: ImportInfo = { file: res.file, number: inv.number, invoiceDate: inv.invoiceDate, excelTotal: inv.total, canClosePaid: props.isAdmin, notes };
     return (
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

@@ -50,7 +50,7 @@ plain words, one step at a time, and say exactly what to click or paste.
 | 1 Leads | Built (Oct 2026): leads, My day, list, detail + timeline, Kanban, /apply form, importer, scoring settings, Brevo sync (inactive until BREVO_API_KEY) |
 | 2 WhatsApp | Built (Oct 2026): webhook Edge Function, inbox (realtime, 24h window, templates, files, assignment), templates sync, numbers admin, broadcasts (bd drafts / admin approves, throttled worker), notifications, leads overview dashboard, collapsible menu, resizable columns |
 | Brand + /apply landing | Built (Oct 27 2026): HKR brand tokens and fonts on every screen, logo, /settings/brand check page, /apply rebuilt as a conversion landing (3-step form, thank-you page), Leads → "Share form" |
-| 3 Accounts, orders, payments | Built (Oct 27 2026): accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoices (PDF + xlsx, Draft → Approved → Sent) built Oct 30 2026 |
+| 3 Accounts, orders, payments | Built (Oct 27 2026): accounts + wizard, contacts, orders, payments, shipping checklist + IMEI master, files. Invoices (PDF + xlsx, Draft → Approved → Sent) built Oct 30 2026; Excel invoice import Nov 9; credit notes on the order Nov 17 |
 | Go-live pack (Oct 30 2026, part of Phase 7) | Settings → Users (roles), SKUs (add), Invoices (issuer), Go-live checklist (/settings/go-live); weekly backup cron; supabase/manual/delete_demo_data.sql |
 | Dashboards (pulled forward, Oct 27 2026) | Sales dashboard (/sales), Accounts overview with health (/accounts), Finance (/finance: goals, history, projection), red counters in the menu |
 | 4 RMAs + client portal | Built (Oct 27 2026), live Oct 28 (migration + demo seeds on hosted): RMAs (IMEI check, evidence, approval, 1 % cap), xlsx form import, EU Friday batches (Excel + email), credit notes (PDF/xlsx), defect analytics, client portal /portal (EN/ES) |
@@ -428,7 +428,7 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   line quantity: blocked in the form, the action and the DB trigger `order_lines_options` (50 ≠ 25 + 26).
 - Options per line: CE Marks (ticked by default when the account's invoice format has show_ce_text), IMEI matching color,
   ONE battery option: New batteries (only one billed: separate "New battery cell" line, US$/unit typed per line), Boosted
-  to 100%, 85%+ BH + Boosted, 80%+ BH (iPhone 14 and newer only — form + trigger). `battery_new` = option 'new'
+  to 100%, 85%+ BH + Boosted, 80%+ BH (not boosted; EVERY iPhone since Nov 17 2026 — was iPhone 14+ only). `battery_new` = option 'new'
   (kept in step by the trigger); null option = lines before Nov 2. iPhone 16 series never gets the battery line.
 - Invoice description prints battery text, CE (UKCA for GB), "IMEI matching color", grade, "Colors: Midnight/Black(25), …" or
   "Colors: Mixed" — unless the account's invoice_format.plain_lines is on → "Used iPhone 12 128GB" only.
@@ -497,8 +497,10 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   model (magic.ts findModel) + GB + qty + price; description → eSIM only, CE/UKCA, battery (New / 80%+ BH / boosted; other % →
   none + note), colours "Black(10), Blue(10)" (not adding up → Mixed + note). "New battery cell" → the order's battery line when it
   bills exactly the system's eligible units (never iPhone 16), else a charge line; Shipping / Customs → per unit when qty = units,
-  else total; "USDT Fee" → method USDT when it equals today's fee, else a charge line + method Mixed; credit-note and any other
-  lines → order charges (negative = discount); bank/wallet text ignored.
+  else total; "USDT Fee" → method USDT when it equals today's fee, else a charge line + method Mixed; negative "RMA's Discount" /
+  "Credit note" lines → credit notes on the order (Nov 17: the client's approved one of exactly that amount, else a new one);
+  any other line → order charges (negative = discount); bank/wallet text ignored. "Not boosted" / "no boost" / "sin boost" is
+  never read as Boosted (`saysBoosted`, colors.ts; also the Magic invoice creator).
 - `planImport()` checks with the same calculator as the order (calc.ts) that the order total = the Excel total to the cent; the form
   shows green/red and Create order stays off while they differ. Tested against Gabriel's 6 real invoices (all match; NOT in repo).
 - Route: the Ultimate consignee = the client (direct) or a company of Settings → Intermediaries & clearance (names compared without
@@ -509,6 +511,18 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   Quoted · Invoiced (specialist and admin) · "Closed — already paid" (admin only: status Closed + ONE confirmed balance payment for
   the total, note "Paid before the system — imported invoice N", method wire or usdt) — for the historical sales. No system
   invoice is made (the Excel IS the invoice). e2e `tests/e2e/invoice-import.cjs`.
+
+## Credit notes right on the order (Gabriel, Nov 17 2026)
+
+- "The RMA's discount must be backed by a credit note, created on the same page": the new-order form and the import have a card
+  "Credit notes (RMA discount)" (`components/orders/order-credit-notes.tsx`): use an approved credit note of the client (amount
+  ≤ what is left) or "+ New credit note" (reason + amount). The order page → Credit notes tab creates one too (no trip to RMAs).
+- Admin: created, approved and applied when the order is saved. Anyone else (Gabriel chose "pending for the SD", SOP P10): a DRAFT
+  linked to the order (`credit_notes.pending_order_id`, `pending_amount_usd`), admins get a bell (+ email with Brevo), NOT in the
+  order total meanwhile (form shows "waiting for the SD"; the import total check counts it); when the admin approves it (order page
+  "Approve and apply" or the credit note page) trigger `credit_notes_apply_pending` applies it to that order. If the invoice was
+  approved meanwhile it stays pending (admin reopens the invoice). Server: `src/lib/orders/credit-notes.ts` (addCreditNotesToOrder,
+  loadAvailableCreditNotes). pgTAP `19_bh80_pending_credit_notes`, e2e `tests/e2e/invoice-import.cjs`.
 
 ## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
 

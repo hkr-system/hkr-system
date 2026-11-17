@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
-import { BATTERY_OPTIONS, batteryAllowed, batteryLineEligible, colorLabel, colorsFor, splitProblem, type BatteryOption, simChoice } from "@/lib/orders/colors";
+import { BATTERY_OPTIONS, batteryLineEligible, colorLabel, colorsFor, splitProblem, type BatteryOption, simChoice } from "@/lib/orders/colors";
 import { readOrder } from "@/lib/orders/magic";
 import { money } from "@/lib/orders/constants";
 import { brandOf, optionsApply, sameModel } from "@/lib/brands";
@@ -41,7 +41,7 @@ export function withChoice(l: Line, c: ModelChoice | undefined): Line {
   const keep = new Set(colorsFor(c.model).map((x) => x.name));
   const colors = Object.fromEntries(Object.entries(l.colors).filter(([k]) => keep.has(k)));
   const opts = optionsApply(c.model);   // Samsung: no battery option, no CE marks (Gabriel, Nov 4 2026)
-  const battery = !opts ? "" : l.battery && !batteryAllowed(l.battery as BatteryOption, c.model) ? "boosted100" : l.battery;
+  const battery = !opts ? "" : l.battery;
   return {
     ...l, key: c.key, model: c.model, storage_gb: c.storage_gb, colors, battery, ce: opts ? l.ce : false,
     list_row_id: c.rowId ?? "", list_price: c.price ?? null,
@@ -187,7 +187,7 @@ export function LineEditor({ line, i, choices, isAdmin, separate, onChange, onRe
           <label className="flex items-center gap-1.5">Battery
             <NativeSelect value={line.battery} onChange={(e) => onChange({ battery: e.target.value as BatteryOption | "" })} className="w-auto" aria-label="Battery">
               <option value="">—</option>
-              {BATTERY_OPTIONS.map((b) => <option key={b.value} value={b.value} disabled={!batteryAllowed(b.value, line.model || null) && Boolean(line.model)}>{b.label}</option>)}
+              {BATTERY_OPTIONS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
             </NativeSelect>
           </label>
         ) : <span className="text-xs text-muted-foreground" data-testid="samsung-no-options">Samsung: no battery option or CE marks</span>}

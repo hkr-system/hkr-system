@@ -2,7 +2,7 @@
 // and get order lines to review: model, GB, quantity, colours (or Mixed), battery option, CE, IMEI matching colour.
 // Free, rule-based (no paid AI service); every line it cannot read is reported, nothing is saved without review.
 import { brandOf } from "@/lib/brands";
-import { batteryAllowed, colorsFor, matchColor, shortColor, type BatteryOption, type ColorSplit } from "./colors";
+import { colorsFor, saysBoosted, matchColor, shortColor, type BatteryOption, type ColorSplit } from "./colors";
 
 export type MagicLine = {
   model: string; storage_gb: number | null; qty: number | null;
@@ -47,13 +47,13 @@ export function findModel(s: string): { model: string; at: number; len: number }
 
 const ESIM_ONLY = /(e-?sim\s*only|only\s*e-?sim|solo\s*e-?sim|e-?sim\s*solamente|e-?sim\s*[úu]nicamente)/;
 
-function battery(s: string, model: string): BatteryOption | null {
+function battery(s: string): BatteryOption | null {
   let b: BatteryOption | null = null;
   if (/(new batt|bater[ií]as? nuevas?|new battery|0 cycle|0 ciclos?)/.test(s)) b = "new";
-  else if (/boost/.test(s) && /85/.test(s)) b = "bh85_boosted";
-  else if (/boost/.test(s)) b = "boosted100";
+  else if (saysBoosted(s) && /85/.test(s)) b = "bh85_boosted";
+  else if (saysBoosted(s)) b = "boosted100";
   else if (/\b80\s*%?\s*\+?\s*(bh|battery|bater|health|salud)/.test(s) || /(bh|battery health)\s*80/.test(s)) b = "bh80";
-  return b && batteryAllowed(b, model) ? b : b;
+  return b;
 }
 
 /** One order line from one line of text. */
@@ -102,8 +102,7 @@ export function readLine(raw: string): MagicLine | null {
   if (!mixed && !colors.length) problems.push("No colours given: set to Mixed — check with the client.");
   if (!mixed && colors.length && qty !== null && split && split !== qty) problems.push(`Colours add up to ${split}, the line says ${qty}.`);
   const samsung = brandOf(model) === "samsung";             // battery and CE never apply to Samsung
-  const bat = samsung ? null : battery(s, model);
-  if (bat === "bh80" && !batteryAllowed("bh80", model)) problems.push("80%+ BH is only for iPhone 14 and newer.");
+  const bat = samsung ? null : battery(s);
 
   return {
     model, storage_gb: storage, qty, mixed: mixed || !colors.length, colors: mixed ? [] : colors,
@@ -136,7 +135,7 @@ export function readOrder(text: string): { lines: MagicLine[]; skipped: string[]
   for (const l of lines) {
     if (brandOf(l.model) === "samsung") continue;
     if (!l.ce && /\bce\b|ce mark/.test(all)) l.ce = true;
-    if (!l.battery) l.battery = battery(all, l.model);
+    if (!l.battery) l.battery = battery(all);
     if (ESIM_ONLY.test(all)) l.esimOnly = true;
     if (!l.imeiMatching && /imei/.test(all) && /colou?r/.test(all)) l.imeiMatching = true;
   }

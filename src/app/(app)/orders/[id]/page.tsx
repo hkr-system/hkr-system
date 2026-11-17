@@ -43,7 +43,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   if (!o) notFound();
   const acc = o.accounts as unknown as { id: string; code: string; name: string; country: string | null; invoice_format: { battery_line_separate?: boolean } | null; intermediaries: { name: string } | null };
 
-  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: intermediaries }, { data: charges }, { data: feeSetting }] = await Promise.all([
+  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: cnPending }, { data: intermediaries }, { data: charges }, { data: feeSetting }] = await Promise.all([
     db.from("order_overview").select("*").eq("id", id).single(),
     db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, price_source, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
@@ -56,6 +56,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
     db.from("credit_note_applications").select("id, credit_note_id, amount_usd, credit_notes(number)").eq("order_id", id).order("created_at"),
     db.from("credit_notes").select("id, number, amount, currency, status, reason, rmas(number), credit_note_applications(amount_usd)")
       .eq("account_id", acc.id).in("status", ["approved", "issued", "applied"]).order("number"),
+    db.from("credit_notes").select("id, number, amount, pending_amount_usd, reason").eq("pending_order_id", id).eq("status", "draft").order("number"),
     db.from("intermediaries").select("id, name, kind, account_intermediaries(account_id)").order("name"),
     db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", id).order("sort_order"),
     db.from("settings").select("value").eq("key", "usdt_fee_pct").maybeSingle(),
@@ -131,7 +132,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         { key: "overview", label: "Overview" },
         { key: "payments", label: "Payments", count: (payments ?? []).length, alert: awaiting > 0 },
         { key: "invoice", label: "Invoice", note: invoice ? invoice.status : undefined },
-        { key: "credit-notes", label: "Credit notes", count: appliedCn.length },
+        { key: "credit-notes", label: "Credit notes", count: appliedCn.length + (cnPending?.length ?? 0), alert: Boolean(cnPending?.length) },
         { key: "intermediary", label: "Intermediary" },
         { key: "shipping", label: "Shipping" },
         { key: "documents", label: "Documents", count: (files ?? []).length },
@@ -243,7 +244,8 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               <CardDescription>The discount on this invoice comes from approved credit notes of the client (with or without RMA / IMEIs). One credit note can be split across several invoices.</CardDescription>
             </CardHeader>
             <CardContent>
-              <CreditNotesPanel orderId={id} accountId={acc.id} applied={appliedCn} available={availableCn} isAdmin={isAdmin}
+              <CreditNotesPanel orderId={id} applied={appliedCn} available={availableCn} isAdmin={isAdmin}
+                pending={(cnPending ?? []).map((c) => ({ id: c.id, number: c.number, amount: Number(c.pending_amount_usd ?? c.amount), reason: c.reason }))}
                 canEdit={user.role === "admin" || user.role === "account_specialist"} frozen={Boolean(invoice && ["approved", "sent"].includes(invoice.status))} />
             </CardContent>
           </Card></div>

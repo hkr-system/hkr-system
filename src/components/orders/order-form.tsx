@@ -4,6 +4,8 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { saveOrder, type ActionState } from "@/app/(app)/orders/actions";
 import { orderTotals, shippingTotal } from "@/lib/orders/calc";
 import { ChargesEditor, chargesTotal, type Charge } from "./order-charges";
+import { OrderCreditNotes, cnNewSum, cnProblem, cnUseSum, type CnNew, type CnUse } from "./order-credit-notes";
+import type { AvailableCreditNote } from "@/lib/orders/credit-notes";
 import { DELIVERY_SETUP_LABEL, PAYMENT_METHOD_LABEL, money, type DeliverySetup, type PaymentMethod } from "@/lib/orders/constants";
 import { countryOptions } from "@/lib/leads/countries";
 import { modelKey } from "@/lib/price-lists/models";
@@ -43,6 +45,7 @@ export type OrderValues = {
   ship_to?: Record<string, string>; lines?: Line[]; intermediary_id?: string | null; address_id?: string | null;
   invoice_format?: { battery_line_separate?: boolean; show_ce_text?: boolean; plain_lines?: boolean; show_note?: boolean } | null;
   new_address_label?: string;     // "+ New address…" pre-filled (invoice import)
+  credit_notes?: { description: string; amount: number }[];   // "RMA's Discount" lines of an imported invoice
 };
 
 /** An order made from an Excel invoice (Gabriel, Nov 9 2026): the file travels with the form; the total must match. */
@@ -60,11 +63,12 @@ function F({ label, children, className }: { label: string; children: React.Reac
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo }: {
+export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo, creditNotes = {} }: {
   accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
   intermediaries?: { id: string; name: string; kind?: string; suggestedFor?: string[] }[]; addresses?: SavedAddress[];
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
   importInfo?: ImportInfo;
+  creditNotes?: Record<string, AvailableCreditNote[]>;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
   const fmtOf = (id: string): Fmt => ({ battery_line_separate: true, show_ce_text: false, plain_lines: false, show_note: false, ...(accounts.find((a) => a.id === id)?.invoice_format ?? {}) });
@@ -100,7 +104,24 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const [customsUnit, setCustomsUnit] = useState(values.customs_unit_usd != null ? String(values.customs_unit_usd) : "");
   const [customs, setCustoms] = useState(String(values.customs_mode === "unit" ? "" : values.customs_usd ?? 0));
   const [charges, setCharges] = useState<Charge[]>(values.charges ?? []);
-  const rma = String(values.rma_discount_usd ?? 0); // credit notes applied on the order page (Nov 3 2026), never typed
+  const rma = String(values.rma_discount_usd ?? 0); // credit notes already applied (order page), never typed
+  // credit notes used or created right here on a NEW order (Gabriel, Nov 17 2026); an imported "RMA's Discount" uses the
+  // client's approved credit note of exactly that amount when there is one, else a new credit note is prepared
+  const [cnUse, setCnUse] = useState<CnUse[]>(() => {
+    const free = [...(creditNotes[values.account_id ?? ""] ?? [])];
+    return (values.credit_notes ?? []).flatMap((c) => {
+      const i = free.findIndex((a) => Math.abs(a.left - c.amount) < 0.005);
+      return i < 0 ? [] : [{ credit_note_id: free.splice(i, 1)[0].id, amount: String(c.amount) }];
+    });
+  });
+  const [cnMade, setCnMade] = useState<CnNew[]>(() => {
+    const free = [...(creditNotes[values.account_id ?? ""] ?? [])];
+    return (values.credit_notes ?? []).flatMap((c, k) => {
+      const i = free.findIndex((a) => Math.abs(a.left - c.amount) < 0.005);
+      if (i >= 0) { free.splice(i, 1); return []; }
+      return [{ key: `imp${k}`, reason: c.description, amount: String(c.amount) }];
+    });
+  });
   const shipFor = (id: string) => accounts.find((a) => a.id === id)?.ship_default ?? {};
   const [ship, setShip] = useState<Record<string, string>>(() => {
     if (values.ship_to && Object.values(values.ship_to).some(Boolean)) return values.ship_to;
@@ -134,14 +155,19 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
   const freightTotal = shippingTotal(freightMode, Number(freightUnit) || 0, Number(freight) || 0, pcs);
   const customsTotal = shippingTotal(customsMode, Number(customsUnit) || 0, Number(customs) || 0, pcs);
   const chargesSum = chargesTotal(charges);
+  const cnTotal = (Number(rma) || 0) + cnUseSum(cnUse) + (isAdmin ? cnNewSum(cnMade) : 0);
   const t = orderTotals({
     lines: lines.map((l) => ({
       qty: Number(l.qty) || 0, unitPrice: Number(l.unit_price) || 0, batteryNew: l.battery === "new",
       batteryUnit: Number(l.battery_unit) || 0, batteryEligible: batteryLineEligible(l.model),
     })),
-    batteryLineSeparate: separate, freight: freightTotal, customs: customsTotal, charges: chargesSum, rmaDiscount: Number(rma) || 0,
+    batteryLineSeparate: separate, freight: freightTotal, customs: customsTotal, charges: chargesSum,
+    rmaDiscount: cnTotal,
     paymentMethod: method, depositPct: terms.depositPct, usdtFeePct: terms.usdtFeePct,
   });
+  const cnPending = isAdmin ? 0 : cnNewSum(cnMade);   // waiting for the SD: not in the total until approved
+  const cnAvail = accountId ? creditNotes[accountId] ?? [] : [];
+  const cnErr = cnProblem(cnUse, cnMade, cnAvail);
   const firstOrder = account ? account.orders === 0 && !values.id : false;
   const minimum = firstOrder ? terms.sampleMinUsd : terms.moqUsd;
 
@@ -149,6 +175,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     setLines((ls) => ls.map((l, j) => (j === i ? (typeof patch === "function" ? patch(l) : { ...l, ...patch }) : l)));
   const pickAccount = (id: string) => {
     setAccountId(id);
+    if (id !== accountId) setCnUse([]);
     const a = accounts.find((x) => x.id === id);
     if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
     if (!values.id) setFmt(fmtOf(id));
@@ -170,7 +197,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       <input type="hidden" name="lines" value={JSON.stringify(lines.map(lineToPayload))} />
       <input type="hidden" name="invoice_format" value={JSON.stringify(fmt)} />
       <input type="hidden" name="address_id" value={addrId === "new" ? "" : addrId} />
-      {importInfo ? <ImportCard info={importInfo} total={t.total} isAdmin={isAdmin} /> : null}
+      {importInfo ? <ImportCard info={importInfo} total={t.total - cnPending} pending={cnPending} isAdmin={isAdmin} /> : null}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Order</CardTitle><CardDescription>SOP P2. The order number (ORD-NN) is given automatically per account.</CardDescription></CardHeader>
@@ -269,6 +296,10 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
         </CardContent>
       </Card>
 
+      {!values.id ? (
+        <OrderCreditNotes available={cnAvail} use={cnUse} setUse={setCnUse} made={cnMade} setMade={setCnMade} isAdmin={isAdmin} accountChosen={Boolean(accountId)} />
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader><CardTitle className="text-base">Ship to (this order)</CardTitle><CardDescription>Pick one of the client&apos;s saved addresses (direct, forwarder, clearance company…) or add a new one. Changes typed here apply to this order only.</CardDescription></CardHeader>
@@ -335,7 +366,10 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
             <div className="flex justify-between"><span>Shipping{freightMode === "unit" ? ` (${pcs} × ${money(Number(freightUnit) || 0)})` : ""}</span><span data-testid="total-freight">{money(freightTotal)}</span></div>
             <div className="flex justify-between"><span>Customs{customsMode === "unit" ? ` (${pcs} × ${money(Number(customsUnit) || 0)})` : ""}</span><span data-testid="total-customs">{money(customsTotal)}</span></div>
             {charges.length ? <div className="flex justify-between"><span>Other charges / discounts</span><span data-testid="total-charges">{money(chargesSum)}</span></div> : null}
-            {Number(rma) ? <div className="flex items-center justify-between gap-2" title="Applied on the order page from approved credit notes"><span>Credit notes (−)</span><span className="tabular-nums">{Number(rma).toFixed(2)}</span></div> : null}
+            {cnTotal > 0.005 ? (
+              <div className="flex items-center justify-between gap-2"><span>Credit notes (−)</span><span className="tabular-nums" data-testid="total-credit-notes">{money(cnTotal)}</span></div>
+            ) : null}
+            {cnPending ? <div className="flex items-center justify-between gap-2 text-amber-800" data-testid="total-cn-pending"><span>Credit note waiting for the SD (not in the total yet)</span><span className="tabular-nums">−{money(cnPending)}</span></div> : null}
             {method === "usdt" ? <div className="flex justify-between"><span>USDT fee {terms.usdtFeePct} %</span><span>{money(t.usdtFee)}</span></div> : null}
             {method === "mixed" ? <p className="text-xs text-muted-foreground">Mixed: no USDT fee on the invoice — each USDT payment brings the part it covers + {terms.usdtFeePct} %.</p> : null}
             <div className="flex justify-between border-t pt-2 font-semibold"><span>Invoice total</span><span data-testid="total">{money(t.total)}</span></div>
@@ -351,13 +385,14 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending || problems.length > 0 || t.total < 0 || (importInfo ? Math.abs(t.total - importInfo.excelTotal) > 0.01 : false)}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
+        <Button type="submit" disabled={pending || problems.length > 0 || t.total < 0 || Boolean(cnErr) || (importInfo ? Math.abs(t.total - cnPending - importInfo.excelTotal) > 0.01 : false)}>{pending ? "Saving…" : values.id ? "Save order" : "Create order"}</Button>
         {/* leave without saving (Gabriel, Nov 3 2026) */}
         <Button asChild type="button" variant="outline" data-testid="order-cancel">
           <Link href={values.id ? `/orders/${values.id}` : "/orders"}>Cancel</Link>
         </Button>
         {problems.length ? <p className="text-sm text-destructive" role="alert" data-testid="lines-problem">Fix the colours first: {problems[0]}</p> : null}
         {t.total < 0 ? <p className="text-sm text-destructive" role="alert">The discounts are larger than the order.</p> : null}
+        {cnErr ? <p className="text-sm text-destructive" role="alert" data-testid="cn-problem">{cnErr}</p> : null}
         {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
       </div>
     </form>
@@ -376,7 +411,7 @@ function choicesOf(prices: AccountPrices, skus: Sku[], acc: string): ModelChoice
 }
 
 /** The imported invoice: file, number, status to give the order, and the total check (must equal the Excel to the cent). */
-function ImportCard({ info, total, isAdmin }: { info: ImportInfo; total: number; isAdmin: boolean }) {
+function ImportCard({ info, total, pending, isAdmin }: { info: ImportInfo; total: number; pending: number; isAdmin: boolean }) {
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     // the original Excel goes with the form: saved in the order's documents as the invoice (INV-HK)
@@ -402,7 +437,7 @@ function ImportCard({ info, total, isAdmin }: { info: ImportInfo; total: number;
           <span className="text-xs text-muted-foreground">“Closed — already paid” also records one confirmed payment for the total (“paid before the system”).</span>
         </F>
         <div className={`rounded-md p-3 text-sm ${Math.abs(diff) <= 0.01 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`} data-testid="import-total-check" role="status">
-          Excel total {money(info.excelTotal)} · this order {money(total)}{" "}
+          Excel total {money(info.excelTotal)} · this order {money(total)}{pending ? ` (with the credit note of ${money(pending)} waiting for the SD)` : ""}{" "}
           {Math.abs(diff) <= 0.01 ? "✓ same total" : `✗ difference ${money(diff)} — fix the lines or charges (Create order stays off until they match)`}
         </div>
         {info.notes.length ? (

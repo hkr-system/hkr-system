@@ -8,6 +8,7 @@ import { invoiceFileBase, type InvoiceLine } from "@/lib/documents/invoice-lines
 import { invoiceXlsx, loadInvoiceDoc } from "@/lib/documents/invoice";
 import { invoicePdf } from "@/lib/documents/invoice-pdf";
 import { invoiceDraftFromOrder } from "@/lib/orders/invoice-draft";
+import { addCreditNotesToOrder } from "@/lib/orders/credit-notes";
 
 export type InvoiceState = { ok?: boolean; error?: string; message?: string };
 
@@ -198,4 +199,47 @@ export async function removeCreditNote(applicationId: string): Promise<InvoiceSt
   refresh(a.order_id, a.account_id);
   revalidatePath(`/rmas/credit-notes/${a.credit_note_id}`);
   return { ok: true, message: "Credit note removed from this order." };
+}
+
+// A credit note created right on the order page (Gabriel, Nov 17 2026): the admin's is approved and applied at once,
+// anyone else's waits for the SD as a draft linked to this order and is applied when the admin approves it.
+export async function createCreditNoteOnOrder(orderId: string, reason: string, amount: number): Promise<InvoiceState> {
+  const user = await requireRole(PREPARERS);
+  const a = Math.round(amount * 100) / 100;
+  if (!(a > 0)) return { error: "Write the amount of the credit note." };
+  const db = await createClient();
+  const { data: o } = await db.from("orders").select("account_id, number").eq("id", orderId).maybeSingle();
+  if (!o) return { error: "Order not found." };
+  const r = await addCreditNotesToOrder(db, { orderId, accountId: o.account_id, orderNumber: o.number, isAdmin: user.role === "admin", userId: user.id },
+    [], [{ reason: reason.trim().slice(0, 200), amount: a }]);
+  if (r.error) return { error: r.error };
+  await refreshDraftOf(db, orderId);
+  refresh(orderId, o.account_id);
+  revalidatePath("/rmas/credit-notes");
+  return { ok: true, message: user.role === "admin" ? "Credit note created, approved and applied." : "Credit note sent to the SD: it is applied here as soon as the admin approves it." };
+}
+
+// The admin approves a pending credit note from the order page: the database applies it to this order.
+export async function approvePendingCreditNote(creditNoteId: string): Promise<InvoiceState> {
+  await requireRole(["admin"]);
+  const db = await createClient();
+  const { data: c, error } = await db.from("credit_notes").update({ status: "approved" }).eq("id", creditNoteId).select("account_id, pending_order_id").single();
+  if (error) return { error: friendly(error) };
+  const { data: app } = await db.from("credit_note_applications").select("order_id").eq("credit_note_id", creditNoteId).limit(1).maybeSingle();
+  if (app) { await refreshDraftOf(db, app.order_id); refresh(app.order_id, c.account_id); }
+  revalidatePath("/rmas/credit-notes");
+  return c.pending_order_id ? { ok: true, message: "Approved, but it could not be applied (is the invoice approved?): apply it below once the invoice is reopened." }
+    : { ok: true, message: "Approved and applied to this order." };
+}
+
+// A pending (draft) credit note made on the order is deleted again.
+export async function deletePendingCreditNote(creditNoteId: string, orderId: string): Promise<InvoiceState> {
+  await requireRole(PREPARERS);
+  const db = await createClient();
+  const { error, count } = await db.from("credit_notes").delete({ count: "exact" }).eq("id", creditNoteId).eq("status", "draft");
+  if (error) return { error: friendly(error) };
+  if (!count) return { error: "Only a credit note still waiting for the SD can be deleted here." };
+  refresh(orderId);
+  revalidatePath("/rmas/credit-notes");
+  return { ok: true, message: "Credit note deleted." };
 }

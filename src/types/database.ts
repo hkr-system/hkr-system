@@ -347,14 +347,14 @@ isOneToOne: false
                   ]
                 },"credit_notes": {
                   Row: {
-                    "account_id": string,"amount": number,"applied_invoice_no": string | null,"applied_on": string | null,"applied_order_id": string | null,"applied_to": Database["public"]['Enums']["credit_applied_to"],"approved_at": string | null,"approved_by": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"id": string,"in_favor_of": string | null,"invoice_no": string | null,"issued_on": string | null,"notes": string | null,"number": string,"order_id": string | null,"pdf_file_id": string | null,"reason": string | null,"rma_id": string | null,"status": Database["public"]['Enums']["credit_note_status"],"updated_at": string,"xlsx_file_id": string | null
+                    "account_id": string,"amount": number,"applied_invoice_no": string | null,"applied_on": string | null,"applied_order_id": string | null,"applied_to": Database["public"]['Enums']["credit_applied_to"],"approved_at": string | null,"approved_by": string | null,"created_at": string,"created_by": string | null,"currency": Database["public"]['Enums']["currency_code"],"id": string,"in_favor_of": string | null,"invoice_no": string | null,"issued_on": string | null,"notes": string | null,"number": string,"order_id": string | null,"pdf_file_id": string | null,"pending_amount_usd": number | null,"pending_order_id": string | null,"reason": string | null,"rma_id": string | null,"status": Database["public"]['Enums']["credit_note_status"],"updated_at": string,"xlsx_file_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"amount"?: number,"applied_invoice_no"?: string | null,"applied_on"?: string | null,"applied_order_id"?: string | null,"applied_to"?: Database["public"]['Enums']["credit_applied_to"],"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"id"?: string,"in_favor_of"?: string | null,"invoice_no"?: string | null,"issued_on"?: string | null,"notes"?: string | null,"number"?: string,"order_id"?: string | null,"pdf_file_id"?: string | null,"reason"?: string | null,"rma_id"?: string | null,"status"?: Database["public"]['Enums']["credit_note_status"],"updated_at"?: string,"xlsx_file_id"?: string | null
+                    "account_id": string,"amount"?: number,"applied_invoice_no"?: string | null,"applied_on"?: string | null,"applied_order_id"?: string | null,"applied_to"?: Database["public"]['Enums']["credit_applied_to"],"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"id"?: string,"in_favor_of"?: string | null,"invoice_no"?: string | null,"issued_on"?: string | null,"notes"?: string | null,"number"?: string,"order_id"?: string | null,"pdf_file_id"?: string | null,"pending_amount_usd"?: number | null,"pending_order_id"?: string | null,"reason"?: string | null,"rma_id"?: string | null,"status"?: Database["public"]['Enums']["credit_note_status"],"updated_at"?: string,"xlsx_file_id"?: string | null
                   }
                   Update: {
-                    "account_id"?: string,"amount"?: number,"applied_invoice_no"?: string | null,"applied_on"?: string | null,"applied_order_id"?: string | null,"applied_to"?: Database["public"]['Enums']["credit_applied_to"],"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"id"?: string,"in_favor_of"?: string | null,"invoice_no"?: string | null,"issued_on"?: string | null,"notes"?: string | null,"number"?: string,"order_id"?: string | null,"pdf_file_id"?: string | null,"reason"?: string | null,"rma_id"?: string | null,"status"?: Database["public"]['Enums']["credit_note_status"],"updated_at"?: string,"xlsx_file_id"?: string | null
+                    "account_id"?: string,"amount"?: number,"applied_invoice_no"?: string | null,"applied_on"?: string | null,"applied_order_id"?: string | null,"applied_to"?: Database["public"]['Enums']["credit_applied_to"],"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"currency"?: Database["public"]['Enums']["currency_code"],"id"?: string,"in_favor_of"?: string | null,"invoice_no"?: string | null,"issued_on"?: string | null,"notes"?: string | null,"number"?: string,"order_id"?: string | null,"pdf_file_id"?: string | null,"pending_amount_usd"?: number | null,"pending_order_id"?: string | null,"reason"?: string | null,"rma_id"?: string | null,"status"?: Database["public"]['Enums']["credit_note_status"],"updated_at"?: string,"xlsx_file_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -428,6 +428,30 @@ isOneToOne: false
       columns: ["pdf_file_id"]
 isOneToOne: false
       referencedRelation: "portal_files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pending_order_id_fkey"
+      columns: ["pending_order_id"]
+isOneToOne: false
+      referencedRelation: "order_cycle"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pending_order_id_fkey"
+      columns: ["pending_order_id"]
+isOneToOne: false
+      referencedRelation: "order_overview"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pending_order_id_fkey"
+      columns: ["pending_order_id"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_notes_pending_order_id_fkey"
+      columns: ["pending_order_id"]
+isOneToOne: false
+      referencedRelation: "portal_orders"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "credit_notes_rma_id_fkey"

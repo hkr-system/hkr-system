@@ -41,6 +41,11 @@ describe("magic order reader", () => {
     expect(l).toMatchObject({ qty: 30, battery: "new", ce: true });
     expect(readLine("iPhone 15 128 50 pcs boosted 85% BH")?.battery).toBe("bh85_boosted");
   });
+  it("80%+ BH not boosted on any iPhone (Gabriel, Nov 17 2026)", () => {
+    const l = readLine("100 iPhone 13 mini 128 80%+ BH not boosted")!;
+    expect([l.battery, l.problems.some((x) => /batter|BH/i.test(x))]).toEqual(["bh80", false]);
+    expect(readLine("iPhone 12 64 x20 80% BH sin boost")?.battery).toBe("bh80");
+  });
   it("reports what it cannot read", () => {
     const l = readLine("iPhone 13 256 25 negros 26 rojos x 50")!;
     expect(l.problems.join(" ")).toMatch(/51.*50/);

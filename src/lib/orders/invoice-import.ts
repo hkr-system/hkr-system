@@ -3,7 +3,7 @@
 // LABEL ("Invoice No:", "Ultimate Consignee…", "Line #", "Total C.F.R."), never by a fixed cell. Pure and unit-tested;
 // the server reads the .xlsx into a grid of plain values (formula results already resolved) and calls readInvoiceGrid().
 import { findModel } from "./magic";
-import { batteryLineEligible, matchColor, simChoice, type BatteryOption, type ColorSplit } from "./colors";
+import { batteryLineEligible, matchColor, saysBoosted, simChoice, type BatteryOption, type ColorSplit } from "./colors";
 import { orderTotals, type CalcInput } from "./calc";
 import { optionsApply } from "@/lib/brands";
 
@@ -21,6 +21,8 @@ export type ImportedInvoice = {
   products: ImportedProduct[];
   battery: ImportedRow | null; freight: ImportedRow | null; customs: ImportedRow | null;
   usdtFee: (ImportedRow & { pct: number | null }) | null; others: ImportedRow[];
+  /** "RMA's Discount" / "Credit note …" (negative): backed by a credit note on the order (Gabriel, Nov 17 2026) */
+  credits: ImportedRow[];
   total: number; problems: string[];
 };
 
@@ -57,8 +59,8 @@ export function readDescription(description: string, qty: number, unit: number):
   const bh = /(\d{2})\s*%\s*\+?\s*(bh|battery)/.exec(rest);
   if (!options) battery = "";
   else if (/new batt|0 cycle/.test(rest)) battery = "new";
-  else if (/boost/.test(rest) && bh?.[1] === "85") battery = "bh85_boosted";
-  else if (/boost/.test(rest)) battery = "boosted100";
+  else if (saysBoosted(rest) && bh?.[1] === "85") battery = "bh85_boosted";
+  else if (saysBoosted(rest)) battery = "boosted100";
   else if (bh?.[1] === "80") battery = "bh80";
   else if (bh) problems.push(`“${bh[1]}%+ BH” is not one of the battery options: none set on the line (the Excel keeps its text).`);
   // colours: "Colors: White(10), Natural(10)" or Mixed
@@ -131,7 +133,7 @@ export function readInvoiceGrid(g: Grid): ImportedInvoice {
   const colOf = (re: RegExp, fallback: number) => cells.find((c) => c.row === head?.row && typeof c.v === "string" && re.test(c.v))?.col ?? fallback;
   const dCol = colOf(/description|harmonized/i, 4), qCol = colOf(/^quantity/i, 19), pCol = colOf(/price/i, 22), tCol = colOf(/^total price/i, 25);
   const totalLabel = head ? find(/^total c\.?f\.?r/i, head.row) : undefined;
-  const products: ImportedProduct[] = []; const others: ImportedRow[] = [];
+  const products: ImportedProduct[] = []; const others: ImportedRow[] = []; const credits: ImportedRow[] = [];
   let battery: ImportedRow | null = null, freight: ImportedRow | null = null, customs: ImportedRow | null = null;
   let usdtFee: ImportedInvoice["usdtFee"] = null;
   let linesSum = 0;
@@ -151,6 +153,7 @@ export function readInvoiceGrid(g: Grid): ImportedInvoice {
     else if (/^shipping|^freight/i.test(description)) freight = row;
     else if (/customs/i.test(description)) customs = row;
     else if (/usdt/i.test(description)) usdtFee = { ...row, pct: Number(/(\d+(?:\.\d+)?)\s*%/.exec(description)?.[1] ?? NaN) || null };
+    else if (amount < 0 && /\brma\b|rma'?s|credit\s*note|\bcn\b/i.test(description)) credits.push(row);
     else others.push(row);
   }
   const totalCell = totalLabel ? asNum(get(tCol, totalLabel.row)) : null;
@@ -158,7 +161,7 @@ export function readInvoiceGrid(g: Grid): ImportedInvoice {
   if (totalCell !== null && Math.abs(totalCell - linesSum) > 0.01) problems.push(`The Excel total (${totalCell.toFixed(2)}) is not the sum of its lines (${linesSum.toFixed(2)}).`);
   if (!products.length && head) problems.push("No product line found (model + GB + quantity + price).");
   if (!number) problems.push("“Invoice No:” not found.");
-  return { number, invoiceDate, orderDate, consignee, shipTo, notify: notifyOut, products, battery, freight, customs, usdtFee, others, total, problems };
+  return { number, invoiceDate, orderDate, consignee, shipTo, notify: notifyOut, products, battery, freight, customs, usdtFee, others, credits, total, problems };
 }
 
 export type ImportPlan = {
@@ -166,6 +169,8 @@ export type ImportPlan = {
   freight: { mode: "unit" | "total"; unit: number | null; total: number };
   customs: { mode: "unit" | "total"; unit: number | null; total: number };
   charges: { description: string; qty: number | null; unit: number | null; amount: number }[];
+  /** credit notes to give on the order: reason + amount (positive), applied as the order's credit-note discount */
+  credits: { description: string; amount: number }[];
   paymentMethod: "wire" | "usdt" | "mixed"; ce: boolean; total: number; matches: boolean; notes: string[];
 };
 
@@ -188,10 +193,12 @@ export function planImport(inv: ImportedInvoice, usdtFeePct: number, depositPct 
   const fee = (row: ImportedRow | null) => !row ? { mode: "total" as const, unit: null, total: 0 }
     : row.qty === pcs && row.unit !== null ? { mode: "unit" as const, unit: row.unit, total: row.amount } : { mode: "total" as const, unit: null, total: row.amount };
   const freight = fee(inv.freight), customs = fee(inv.customs);
+  const credits = (inv.credits ?? []).map((c) => ({ description: c.description, amount: r2(-c.amount) }));
+  const creditSum = r2(credits.reduce((t, c) => t + c.amount, 0));
   const calc = (method: CalcInput["paymentMethod"], extra: number) => orderTotals({
     lines: inv.products.map((p) => ({ qty: p.qty, unitPrice: p.unit, batteryNew: p.battery === "new", batteryUnit, batteryEligible: batteryLineEligible(p.model) })),
     batteryLineSeparate: separate, freight: freight.total, customs: customs.total, charges: r2(charges.reduce((t, c) => t + c.amount, 0) + extra),
-    rmaDiscount: 0, paymentMethod: method, depositPct, usdtFeePct,
+    rmaDiscount: creditSum, paymentMethod: method, depositPct, usdtFeePct,
   });
   let paymentMethod: ImportPlan["paymentMethod"] = "wire";
   if (inv.usdtFee) {
@@ -204,7 +211,7 @@ export function planImport(inv: ImportedInvoice, usdtFeePct: number, depositPct 
   }
   const total = calc(paymentMethod, 0).total;
   return {
-    lines: inv.products, batteryLineSeparate: separate, batteryUnit, freight, customs, charges, paymentMethod,
+    lines: inv.products, batteryLineSeparate: separate, batteryUnit, freight, customs, charges, credits, paymentMethod,
     ce: inv.products.some((p) => p.ce), total, matches: Math.abs(total - inv.total) <= 0.01, notes,
   };
 }

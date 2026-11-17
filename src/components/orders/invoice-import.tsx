@@ -46,7 +46,7 @@ export function InvoiceImport(props: FormProps) {
       invoice_format: { battery_line_separate: plan.batteryLineSeparate, show_ce_text: plan.ce, plain_lines: false, show_note: false },
       intermediary_id: res.intermediaryId, address_id: res.addressId ?? (res.shipTo ? "new" : undefined),
       ship_to: res.shipTo, new_address_label: res.shipTo?.name, lines,
-      hk_invoice_no: inv.number,
+      hk_invoice_no: inv.number, credit_notes: plan.credits,
       notes: `Imported from the Excel invoice ${inv.number ?? res.file.name}.`,
     };
     const notes = [

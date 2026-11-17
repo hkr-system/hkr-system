@@ -8,6 +8,7 @@ import { parseImeis } from "@/lib/orders/imei";
 import { ORDER_STATUSES, type DeliverySetup, type OrderStatus, type PaymentMethod, type PaymentType } from "@/lib/orders/constants";
 import { onOrderStatusChange } from "@/lib/whatsapp/automations";
 import { FILES_BUCKET, sopFileName, storagePath } from "@/lib/files";
+import { addCreditNotesToOrder, readCreditNoteFields } from "@/lib/orders/credit-notes";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string };
 
@@ -201,6 +202,16 @@ export async function saveOrder(_p: ActionState, fd: FormData): Promise<ActionSt
     if (chErr) return { error: friendly(chErr) };
   }
   await rememberRoute(db, fd, accountId, fields.intermediary_id);
+  // credit notes chosen or created in the order form (Gabriel, Nov 17 2026) — new orders; the order page handles the rest
+  if (!id) {
+    const cn = readCreditNoteFields(fd);
+    if (cn.apply.length || cn.create.length) {
+      const { data: on } = await db.from("orders").select("number").eq("id", orderId!).single();
+      const r = await addCreditNotesToOrder(db, { orderId: orderId!, accountId, orderNumber: on?.number ?? "", isAdmin: user.role === "admin", userId: user.id },
+        cn.apply, cn.create);
+      if (r.error) return { error: `The order was created, but the credit note: ${r.error}` };
+    }
+  }
   const { data: tot } = await db.from("orders").select("total_usd").eq("id", orderId!).maybeSingle();
   if (tot && Number(tot.total_usd) < 0) return { error: "The discounts are larger than the order: the total is below zero. Correct them and save again." };
 

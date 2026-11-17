@@ -40,13 +40,15 @@ describe("import an HKR invoice from Excel (Nov 9 2026)", () => {
     expect(inv.products.map((p) => [p.model, p.storage_gb, p.qty, p.unit, p.sim, p.ce, p.battery, p.mixed])).toEqual([
       ["iPhone 14", 128, 150, 300, "", true, "bh80", false], ["iPhone 15 Pro", 256, 100, 500, "esim", false, "new", false]]);
     expect(inv.products[1].colors).toEqual([{ color: "Black Titanium", qty: 60 }, { color: "Natural Titanium", qty: 40 }]);
-    expect(inv.others).toEqual([{ description: "RMA's Credit note", qty: null, unit: null, amount: -600.5 }]);
+    expect(inv.others).toEqual([]);
+    expect(inv.credits).toEqual([{ description: "RMA's Credit note", qty: null, unit: null, amount: -600.5 }]);
     expect([inv.battery?.amount, inv.freight?.amount, inv.total]).toEqual([1000, 750, 96149.5]);
   });
   it("plans an order whose total is exactly the Excel total", () => {
     const p = planImport(readInvoiceGrid(grid()), 0.85);
     expect([p.batteryLineSeparate, p.batteryUnit, p.freight, p.paymentMethod]).toEqual([true, 10, { mode: "unit", unit: 3, total: 750 }, "wire"]);
-    expect(p.charges).toEqual([{ description: "RMA's Credit note", qty: null, unit: null, amount: -600.5 }]);
+    expect(p.charges).toEqual([]);
+    expect(p.credits).toEqual([{ description: "RMA's Credit note", amount: 600.5 }]);   // a credit note on the order (Nov 17 2026)
     expect([p.total, p.matches]).toEqual([96149.5, true]);
   });
   it("a battery line that bills other units (e.g. iPhone 16 included) stays a charge line", () => {
@@ -71,5 +73,20 @@ describe("import an HKR invoice from Excel (Nov 9 2026)", () => {
   });
   it("not an invoice → a clear problem", () => {
     expect(readInvoiceGrid({ A1: "hello" }).problems[0]).toMatch(/does not look like an HKR invoice/);
+  });
+
+  it("80%+ BH Not Boosted is 80%+ BH on every iPhone (Gabriel, Nov 17 2026), not Boosted to 100%", () => {
+    const d = readDescription("iPhone 13 Mini / 128 GB / Physical SIM / CE Marked / 80%+ BH Not Boosted / A+++ / Colors: Black(100)", 100, 240.2)!;
+    expect([d.model, d.battery, d.problems]).toEqual(["iPhone 13 mini", "bh80", []]);
+    expect(readDescription("iPhone 13 / 128 GB / Battery boosted to 100% / Colors: Mixed", 10, 200)!.battery).toBe("boosted100");
+    expect(readDescription("iPhone 12 / 64 GB / 85%+ BH + Boosted / Colors: Mixed", 10, 150)!.battery).toBe("bh85_boosted");
+  });
+
+  it("an RMA's Discount line is a credit note on the order, and the total still matches", () => {
+    const g = grid();
+    const r = Object.keys(g).find((k) => g[k] === "RMA's Credit note")!.slice(1);
+    g[`D${r}`] = "RMA's Discount";
+    const p = planImport(readInvoiceGrid(g), 0.85);
+    expect([p.credits, p.matches]).toEqual([[{ description: "RMA's Discount", amount: 600.5 }], true]);
   });
 });

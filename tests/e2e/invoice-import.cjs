@@ -1,6 +1,8 @@
 // Import an invoice made in Excel (Nov 9 2026). Builds an INVENTED invoice in HKR's layout, then: the specialist imports it
 // as Invoiced (route Global Connect found from the consignee, total check, the Excel saved as INV-HK); the admin imports it
 // as "Closed — already paid" (confirmed payment); a wrong Excel total keeps Create order off. Run after `npm run db:reset`.
+// Nov 17 2026: "80%+ BH Not Boosted" on an iPhone 13 mini → 80%+ BH; "RMA's Credit note" → a credit note on the order
+// (specialist: waiting for the SD, the admin approves it on the order page; admin: approved and applied at once).
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
 const ExcelJS = require('exceljs');
@@ -30,7 +32,7 @@ async function makeInvoice(file, number, totalCell) {
   put('L13', 'Contact:'); put('N13', 'Demo Person'); put('L14', 'email:'); put('N14', 'ops@example.com'); put('L16', 'Phone:'); put('N16', '+31 6 0000');
   put('L17', 'Transportation:');
   put('B20', 'Line #'); put('D20', 'Harmonized Number, Product Description'); put('S20', 'Quantity'); put('V20', 'U. Price'); put('Y20', 'Total Price');
-  put('B24', 1); put('D24', 'iPhone 15 / 128 GB / Physical SIM + eSIM / CE Marked / 80%+ BH / A+++ / Colors: Black(10), Blue(10)'); put('S24', 20); put('V24', 400); put('Y24', { formula: 'V24*S24', result: 8000 });
+  put('B24', 1); put('D24', 'iPhone 13 Mini / 128 GB / Physical SIM / CE Marked / 80%+ BH Not Boosted / A+++ / Colors: Black(10), Blue(10)'); put('S24', 20); put('V24', 400); put('Y24', { formula: 'V24*S24', result: 8000 });
   put('B25', 2); put('D25', 'iPhone 14 Pro / 256 GB / New Battery cell 0 Cycle / CE Marked / A+++ / Mixed'); put('S25', 10); put('V25', 460); put('Y25', { formula: 'V25*S25' });
   put('D26', 'New battery cell'); put('S26', 10); put('V26', 10); put('Y26', { formula: 'V26*S26', result: 100 });
   put('D27', 'Shipping HK to Netherlands'); put('S27', 30); put('V27', 3); put('Y27', { formula: 'V27*S27', result: 90 });
@@ -73,13 +75,20 @@ async function importAs(page, file, status) {
   check(route.includes('Global Connect'), `route from the Ultimate consignee: ${route}`);
   check((await page.locator('[data-testid=order-line]').count()) === 2, 'two product lines');
   check((await page.locator('[data-testid=new-address] input[name=new_address_label]').inputValue()) === 'Demo Logistics / CO Global Connect', 'ship to → "+ New address" filled from the Excel');
+  check((await page.locator('[data-testid=order-line]').first().locator('select[aria-label=Battery]').inputValue()) === 'bh80', '80%+ BH Not Boosted → 80%+ BH (iPhone 13 mini)');
+  check((await page.locator('[data-testid=cn-new-row]').count()) === 1 && (await page.locator('[data-testid=cn-new-row] input[aria-label="Credit note amount"]').inputValue()) === '50',
+    "RMA's Credit note → a new credit note of US$50 in the form");
+  check((await page.locator('[data-testid=order-charges] [data-testid=charge-row]').count()) === 0, 'no loose discount charge');
+  check(await page.locator('[data-testid=total-cn-pending]').isVisible(), 'specialist: credit note shown as waiting for the SD');
   await page.screenshot({ path: path.join(DIR, 'invoice-import.png'), fullPage: true });
   await page.click('button:has-text("Create order")');
   await page.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });
   const id1 = page.url().split('/').pop();
   const { data: o1 } = await admin.from('orders').select('status, total_usd, hk_invoice_no, order_date, payment_method, intermediaries(name)').eq('id', id1).single();
-  check(o1.status === 'invoiced' && Number(o1.total_usd) === 12740 && o1.hk_invoice_no === '11022026' && o1.intermediaries?.name === 'Global Connect' && o1.order_date === '2026-10-30',
-    `order: ${JSON.stringify(o1)}`);
+  check(o1.status === 'invoiced' && Number(o1.total_usd) === 12790 && o1.hk_invoice_no === '11022026' && o1.intermediaries?.name === 'Global Connect' && o1.order_date === '2026-10-30',
+    `order (credit note still waiting for the SD): ${JSON.stringify(o1)}`);
+  const { data: cn1 } = await admin.from('credit_notes').select('id, status, amount, pending_order_id').eq('pending_order_id', id1);
+  check(cn1.length === 1 && cn1[0].status === 'draft' && Number(cn1[0].amount) === 50, `credit note draft linked to the order: ${JSON.stringify(cn1)}`);
   const { data: f1 } = await admin.from('files').select('kind, file_name').eq('owner_id', id1);
   check(f1.some((f) => f.kind === 'INV-HK' && f.file_name.endsWith('_INV-HK.xlsx')), `the Excel saved as INV-HK (${f1.map((f) => f.file_name).join(', ')})`);
   await ctx.close();
@@ -91,12 +100,30 @@ async function importAs(page, file, status) {
   await importAs(p2, bad);
   check((await p2.locator('[data-testid=import-total-check]').innerText()).includes('difference'), 'wrong Excel total → red difference');
   check(await p2.locator('button:has-text("Create order")').isDisabled(), 'wrong Excel total → Create order is off');
+  // the admin approves the specialist's credit note on the order page → applied, total = the Excel
+  await p2.goto(`${BASE}/orders/${id1}?tab=credit-notes`);
+  await p2.waitForSelector('[data-testid=cn-approve]', { timeout: 60000 });
+  await p2.click('[data-testid=cn-approve]');
+  await p2.waitForSelector('[data-testid=cn-applied]', { timeout: 30000 });
+  const { data: o1b } = await admin.from('orders').select('total_usd, rma_discount_usd').eq('id', id1).single();
+  check(Number(o1b.total_usd) === 12740 && Number(o1b.rma_discount_usd) === 50, `approved on the order page → applied: ${JSON.stringify(o1b)}`);
+  // the admin creates one more right on the order page
+  await p2.fill('[data-testid=cn-create] input[aria-label="New credit note amount"]', '10');
+  await p2.click('[data-testid=cn-create-button]');
+  await p2.waitForFunction(() => document.querySelectorAll('[data-testid=cn-applied]').length === 2, null, { timeout: 30000 });
+  const { data: o1c } = await admin.from('orders').select('total_usd').eq('id', id1).single();
+  check(Number(o1c.total_usd) === 12730, `admin: "Create and apply" on the order page (${o1c.total_usd})`);
+
   await importAs(p2, tmp, 'closed_paid');
+  check((await p2.locator('[data-testid=total-cn-pending]').count()) === 0 && (await p2.locator('[data-testid=import-total-check]').innerText()).includes('same total'),
+    'admin: the new credit note counts in the total at once');
   await p2.click('button:has-text("Create order")');
   await p2.waitForURL(/\/orders\/[0-9a-f-]{36}$/, { timeout: 30000 });
   const id2 = p2.url().split('/').pop();
   const { data: o2 } = await admin.from('orders').select('status, total_usd').eq('id', id2).single();
   const { data: pays } = await admin.from('payments').select('amount, status').eq('order_id', id2);
+  const { data: cn2 } = await admin.from('credit_note_applications').select('amount_usd, credit_notes(status)').eq('order_id', id2);
+  check(cn2.length === 1 && Number(cn2[0].amount_usd) === 50 && cn2[0].credit_notes.status === 'applied', `admin import: credit note approved + applied (${JSON.stringify(cn2)})`);
   check(o2.status === 'closed' && pays.length === 1 && pays[0].status === 'confirmed' && Number(pays[0].amount) === 12740, `closed + paid: ${JSON.stringify({ o2, pays })}`);
   const { data: ov } = await admin.from('order_overview').select('*').eq('id', id2).single();
   const due = Number(ov.payable_total) - Number(ov.deposit_confirmed) - Number(ov.balance_confirmed);

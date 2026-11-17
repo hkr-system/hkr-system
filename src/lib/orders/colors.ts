@@ -95,10 +95,13 @@ export const BATTERY_OPTIONS = [
   { value: "new", label: "New batteries", invoice: "New Battery cell 0 Cycle" },
   { value: "boosted100", label: "Boosted to 100%", invoice: "Battery boosted to 100%" },
   { value: "bh85_boosted", label: "85%+ BH + Boosted", invoice: "Battery health 85%+ (boosted)" },
-  { value: "bh80", label: "80%+ BH (iPhone 14 and newer)", invoice: "Battery health 80%+" },
+  { value: "bh80", label: "80%+ BH (not boosted)", invoice: "Battery health 80%+" },
 ] as const;
 export type BatteryOption = (typeof BATTERY_OPTIONS)[number]["value"];
-export const batteryAllowed = (opt: BatteryOption, model: string | null | undefined) => opt !== "bh80" || generation(model) >= 14;
+/** Every battery option fits every iPhone (Gabriel, Nov 17 2026: 80%+ BH no longer only iPhone 14 and newer). */
+export const batteryAllowed = (_opt: BatteryOption, _model: string | null | undefined) => true; // eslint-disable-line @typescript-eslint/no-unused-vars
+/** "Boosted" in a text, but not "Not boosted" / "no boost" / "sin boost" (Gabriel's "80%+ BH Not Boosted"). */
+export const saysBoosted = (s: string) => /boost/i.test(s) && !/\b(not|no|non|without|sin)[\s-]*boost/i.test(s);
 
 /** iPhone 16 series never carries the separate battery line (brief §6). */
 export const batteryLineEligible = (model: string | null | undefined) => !/iphone 16/i.test(String(model ?? ""));

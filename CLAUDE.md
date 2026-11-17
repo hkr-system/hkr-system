@@ -750,7 +750,8 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 
 - View `order_cycle` (orders ≥ Invoiced): processing time = deposit confirmed → shipped; cash cycle = invoice → fully paid
   (invoice date = the Invoiced status event, else order date); "to collect" = payable − confirmed payments of unpaid orders.
-- /sales shows orders made (period), paid, pending payment (today), to collect (USD + EUR), avg processing, avg cash cycle,
+- /sales shows orders made (period), paid, PENDING DEPOSIT (Nov 17 2026: status Quoted with no confirmed deposit, count + US$ of
+  deposits; link /orders?attention=quoted_deposit, also a tile on All orders), pending payment (today), to collect (USD + EUR), avg processing, avg cash cycle,
   average order (not for the specialist). The account page shows the same per client ("Orders at a glance").
 - Account overview tiles (Gabriel, Nov 3–4 2026): Lifetime sales (Σ invoice totals ≥ Invoiced; not for the specialist), Lifetime
   gross margin (on the real cost; admin, bd own accounts via sales_orders; shown even at US$0), Sales · last 30 days and Gross

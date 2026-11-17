@@ -40,6 +40,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const att = p("attention");
   const needs = {
     confirm: (o: OrderRow) => o.payment_awaiting,
+    quoted_deposit: (o: OrderRow) => o.status === "quoted" && o.deposit_confirmed <= 0,
     deposit: (o: OrderRow) => o.status === "invoiced" && Number(o.deposit_payable) > 0 && o.deposit_confirmed <= 0,
     balance: (o: OrderRow) => o.status === "ready_to_ship" && !o.balance_ok,
     eta: (o: OrderRow) => ["deposit_paid", "in_preparation"].includes(o.status) && !o.eta_date,
@@ -56,9 +57,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
         <Button asChild size="sm"><Link href="/orders/new">New order</Link></Button>
       </PageHeader>
       <SectionTabs tabs={SALES_TABS} />
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="order-kpis">
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 min-[1600px]:grid-cols-7" data-testid="order-kpis">
         <StatTile label="Open orders" value={open.length} sub={money(openUsd)} href="/orders" />
         <StatTile label="Payment to confirm" value={count("confirm")} tone="attention" href="/orders?attention=confirm" />
+        <StatTile label="Pending deposit (quoted)" value={count("quoted_deposit")} tone="attention" href="/orders?attention=quoted_deposit" />
         <StatTile label="Deposit due" value={count("deposit")} tone="attention" href="/orders?attention=deposit" />
         <StatTile label="Ready, balance due" value={count("balance")} tone="attention" href="/orders?attention=balance" />
         <StatTile label="ETA pending" value={count("eta")} tone="attention" href="/orders?attention=eta" />

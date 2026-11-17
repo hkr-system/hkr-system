@@ -80,6 +80,9 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
   }));
 
   const openRows = open ?? [];
+  // Pending deposit (Gabriel, Nov 17 2026): orders still Quoted whose deposit has not been paid (confirmed) yet
+  const pendingDeposit = openRows.filter((o) => o.status === "quoted" && Number(o.deposit_confirmed) <= 0);
+  const pendingDepositUsd = pendingDeposit.reduce((t, o) => t + Number(o.deposit_payable ?? 0), 0);
   const attention = {
     confirm: openRows.filter((o) => o.payment_awaiting).length,
     deposit: openRows.filter((o) => o.status === "invoiced" && Number(o.deposit_payable) > 0 && Number(o.deposit_confirmed) <= 0).length,
@@ -126,9 +129,10 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
       </PageHeader>
       <SectionTabs tabs={SALES_TABS} />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7" data-testid="order-kpis">
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 min-[1800px]:grid-cols-8" data-testid="order-kpis">
         <StatTile label="Orders made" value={made.length} sub="invoiced, in the period" href="/orders?status=all" />
         <StatTile label="Orders paid" value={made.filter((c) => c.fully_paid).length} sub="of those, fully paid" />
+        <StatTile label="Pending deposit" value={pendingDeposit.length} sub={`quoted, deposit not paid yet · ${usd(pendingDepositUsd)}`} tone="attention" href="/orders?attention=quoted_deposit" />
         <StatTile label="Pending payment" value={pendingPay.length} sub="deposit or balance due, today" tone="attention" href="/orders" />
         <StatTile label="To collect" value={usd(toCollect)} sub="money still due on invoiced orders (USD)" />
         <StatTile label="Avg processing" value={days(procDays)} sub="deposit confirmed → shipped" />

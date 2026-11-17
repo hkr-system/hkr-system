@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Upload } from "lucide-react";
 import { readInvoiceExcel, type ReadInvoiceResult } from "@/app/(app)/orders/import-actions";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { emptyLine, type Line } from "./order-lines";
 import { OrderForm, type ImportInfo, type OrderValues } from "./order-form";
 
@@ -19,6 +18,7 @@ export function InvoiceImport(props: FormProps) {
   const [res, setRes] = useState<(ReadInvoiceResult & { file: File; accountId: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [drag, setDrag] = useState(false);
 
   const read = () => {
     if (!file || !accountId) return;
@@ -66,30 +66,84 @@ export function InvoiceImport(props: FormProps) {
     );
   }
 
+  const pick = (f: File | null | undefined) => {
+    setError(null);
+    if (!f) return;
+    if (!/\.xlsx$/i.test(f.name)) { setFile(null); setError("Choose an Excel file ending in .xlsx (save .xls or PDF invoices as .xlsx first)."); return; }
+    setFile(f);
+  };
+  const missing = !accountId && !file ? "Choose the client and the Excel file first." : !accountId ? "Choose the client first." : !file ? "Choose the Excel file first." : null;
+
   return (
-    <Card className="max-w-2xl" data-testid="import-start">
-      <CardHeader>
-        <CardTitle className="text-base">1. Client and invoice file</CardTitle>
-        <CardDescription>The end client does not always appear on the invoice (clearance companies, intermediaries): choose it here. The file must be an HKR invoice in Excel (.xlsx).</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        <div className="grid gap-1.5">
-          <Label>Client *</Label>
-          <NativeSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} data-testid="import-account">
-            <option value="">Choose…</option>
+    <div className="grid max-w-2xl gap-4" data-testid="import-start">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">How it works</CardTitle>
+          <CardDescription>Turn an invoice you already made in Excel into an order, without typing it again.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ol className="grid gap-3 text-sm sm:grid-cols-3" data-testid="import-howto">
+            {[
+              ["Choose the client", "The company that buys. On invoices via a clearance company or intermediary its name is not on the invoice."],
+              ["Add the Excel invoice", "Click “Choose Excel file” or drag the .xlsx into the box, then “Read the invoice”."],
+              ["Check and create", "The order form opens filled in. Check the total (green = same as the Excel), pick the status, then “Create order”."],
+            ].map(([t, d], i) => (
+              <li key={t} className="flex gap-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-hkr-ink/30 text-xs font-semibold text-hkr-ink">{i + 1}</span>
+                <span><span className="font-medium text-foreground">{t}</span><br /><span className="text-muted-foreground">{d}</span></span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs text-muted-foreground">Nothing is saved until you press “Create order”.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">1. Client</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NativeSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} data-testid="import-account" aria-label="Client">
+            <option value="">Choose the client…</option>
             {props.accounts.map((a) => <option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}
           </NativeSelect>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="inv-file">Invoice (.xlsx) *</Label>
-          <input id="inv-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-sm" data-testid="import-file" />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button type="button" onClick={read} disabled={pending || !file || !accountId} data-testid="import-read">{pending ? "Reading…" : "Read the invoice"}</Button>
-          {error ? <p className="text-sm text-destructive" role="alert" data-testid="import-error">{error}</p> : null}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">2. Excel invoice (.xlsx)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <label htmlFor="inv-file" data-testid="import-drop"
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files?.[0]); }}
+            className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors ${drag ? "border-hkr-accent bg-hkr-accent-tint" : "border-border hover:bg-muted/50"}`}>
+            <FileSpreadsheet className="size-8 text-hkr-ink" aria-hidden />
+            {file ? (
+              <>
+                <span className="text-sm font-medium text-foreground" data-testid="import-file-name">{file.name}</span>
+                <span className="text-xs text-muted-foreground">{Math.max(1, Math.round(file.size / 1024))} KB · click to choose another file</span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-xs">
+                  <Upload className="size-4" aria-hidden /> Choose Excel file
+                </span>
+                <span className="text-xs text-muted-foreground">or drag the .xlsx here</span>
+              </>
+            )}
+            <input id="inv-file" type="file" className="sr-only" data-testid="import-file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" onClick={read} disabled={pending || !file || !accountId} data-testid="import-read">{pending ? "Reading…" : "Read the invoice"}</Button>
+            {missing && !error ? <span className="text-sm text-muted-foreground" data-testid="import-missing">{missing}</span> : null}
+            {error ? <p className="text-sm text-destructive" role="alert" data-testid="import-error">{error}</p> : null}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

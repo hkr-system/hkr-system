@@ -498,7 +498,7 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   none + note), colours "Black(10), Blue(10)" (not adding up → Mixed + note). "New battery cell" → the order's battery line when it
   bills exactly the system's eligible units (never iPhone 16), else a charge line; Shipping / Customs → per unit when qty = units,
   else total; "USDT Fee" → method USDT when it equals today's fee, else a charge line + method Mixed; negative "RMA's Discount" /
-  "Credit note" lines → credit notes on the order (Nov 17: the client's approved one of exactly that amount, else a new one);
+  "Credit note" / "Nota de crédito" / "CN" / "NC" lines → credit notes on the order (Nov 17: the client's approved one of exactly that amount, else a new one);
   any other line → order charges (negative = discount); bank/wallet text ignored. "Not boosted" / "no boost" / "sin boost" is
   never read as Boosted (`saysBoosted`, colors.ts; also the Magic invoice creator).
 - `planImport()` checks with the same calculator as the order (calc.ts) that the order total = the Excel total to the cent; the form
@@ -513,6 +513,9 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   invoice is made (the Excel IS the invoice). e2e `tests/e2e/invoice-import.cjs`.
 
 ## Credit notes right on the order (Gabriel, Nov 17 2026)
+
+- Delivery set-up: a NEW order starts with "Our courier booking" (Gabriel); an imported invoice too (its Shipping line = HKR's
+  FedEx courier; without one a note asks to check it). Existing orders keep theirs.
 
 - "The RMA's discount must be backed by a credit note, created on the same page": the new-order form and the import have a card
   "Credit notes (RMA discount)" (`components/orders/order-credit-notes.tsx`): use an approved credit note of the client (amount

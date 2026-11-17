@@ -84,7 +84,8 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     .sort((a, b) => Number(b.saved) - Number(a.saved) || a.name.localeCompare(b.name)), [intermediaries, accountId]);
   const [saveRoute, setSaveRoute] = useState(true);
   const [method, setMethod] = useState<PaymentMethod>(values.payment_method ?? account?.payment_method ?? "wire");
-  const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? account?.delivery_setup ?? "client_label");
+  // a new order starts with "Our courier booking" (Gabriel, Nov 17 2026); an existing order keeps its own
+  const [setup, setSetup] = useState<DeliverySetup>(values.delivery_setup ?? (values.id ? account?.delivery_setup ?? "client_label" : "our_booking"));
   // Magic invoice creator → Cancel puts the lines back as they were before "Read the order" (Gabriel, Nov 9 2026)
   const beforeMagic = useRef<Line[] | null>(null);
   const [lines, setLines] = useState<Line[]>(() => {
@@ -177,7 +178,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
     setAccountId(id);
     if (id !== accountId) setCnUse([]);
     const a = accounts.find((x) => x.id === id);
-    if (a) { setMethod(a.payment_method); setSetup(a.delivery_setup); }
+    if (a) setMethod(a.payment_method);
     if (!values.id) setFmt(fmtOf(id));
     if (!values.id) {
       setRoute(a?.intermediary_id ?? "");
@@ -438,7 +439,8 @@ function ImportCard({ info, total, pending, isAdmin }: { info: ImportInfo; total
         </F>
         <div className={`rounded-md p-3 text-sm ${Math.abs(diff) <= 0.01 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`} data-testid="import-total-check" role="status">
           Excel total {money(info.excelTotal)} · this order {money(total)}{pending ? ` (with the credit note of ${money(pending)} waiting for the SD)` : ""}{" "}
-          {Math.abs(diff) <= 0.01 ? "✓ same total" : `✗ difference ${money(diff)} — fix the lines or charges (Create order stays off until they match)`}
+          {Math.abs(diff) <= 0.01 ? "✓ same total" : `✗ difference ${money(diff)} — fix the lines, charges or credit notes (Create order stays off until they match)`}
+          {Math.abs(diff) > 0.01 ? <a href="#credit-notes" className="mt-1 block underline">Go to Credit notes ↓</a> : null}
         </div>
         {info.notes.length ? (
           <ul className="list-disc pl-5 text-xs text-amber-800 sm:col-span-2" data-testid="import-notes">

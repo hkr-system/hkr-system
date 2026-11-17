@@ -153,7 +153,8 @@ export function readInvoiceGrid(g: Grid): ImportedInvoice {
     else if (/^shipping|^freight/i.test(description)) freight = row;
     else if (/customs/i.test(description)) customs = row;
     else if (/usdt/i.test(description)) usdtFee = { ...row, pct: Number(/(\d+(?:\.\d+)?)\s*%/.exec(description)?.[1] ?? NaN) || null };
-    else if (amount < 0 && /\brma\b|rma'?s|credit\s*note|\bcn\b/i.test(description)) credits.push(row);
+    // "RMA's Discount", "RMA discount", "Credit note …", "Nota de crédito …", "CN-03", "NC" (Gabriel, Nov 17 2026)
+    else if (amount < 0 && /\brma\b|rma'?s|credit\s*note|nota\s*de\s*cr[eé]dito|\bcn\b|\bnc\b/i.test(description)) credits.push(row);
     else others.push(row);
   }
   const totalCell = totalLabel ? asNum(get(tCol, totalLabel.row)) : null;

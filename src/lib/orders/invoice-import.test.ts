@@ -89,4 +89,13 @@ describe("import an HKR invoice from Excel (Nov 9 2026)", () => {
     const p = planImport(readInvoiceGrid(g), 0.85);
     expect([p.credits, p.matches]).toEqual([[{ description: "RMA's Discount", amount: 600.5 }], true]);
   });
+
+  it("Spanish and short credit-note wording becomes a credit note too", () => {
+    for (const w of ["Nota de crédito RMA-03", "nota de credito", "CN-04 Telcos", "RMA discount"]) {
+      const g = grid();
+      const r = Object.keys(g).find((k) => g[k] === "RMA's Credit note")!.slice(1);
+      g[`D${r}`] = w;
+      expect(planImport(readInvoiceGrid(g), 0.85).credits).toEqual([{ description: w, amount: 600.5 }]);
+    }
+  });
 });

@@ -33,7 +33,7 @@ export function OrderCreditNotes({ available, use, setUse, made, setMade, isAdmi
 }) {
   const free = available.filter((a) => !use.some((u) => u.credit_note_id === a.id));
   return (
-    <Card data-testid="order-credit-notes">
+    <Card data-testid="order-credit-notes" id="credit-notes" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">Credit notes (RMA discount)</CardTitle>
         <CardDescription>

@@ -47,12 +47,16 @@ export function InvoiceImport(props: FormProps) {
       intermediary_id: res.intermediaryId, address_id: res.addressId ?? (res.shipTo ? "new" : undefined),
       ship_to: res.shipTo, new_address_label: res.shipTo?.name, lines,
       hk_invoice_no: inv.number, credit_notes: plan.credits,
+      // a Shipping line on the invoice = HKR's own FedEx courier (Gabriel, Nov 17 2026)
+      delivery_setup: "our_booking",
       notes: `Imported from the Excel invoice ${inv.number ?? res.file.name}.`,
     };
     const notes = [
       ...(res.notes ?? []),
       ...inv.products.flatMap((p, i) => p.problems.map((x) => `Line ${i + 1} (${p.model}${p.storage_gb ? ` ${p.storage_gb}GB` : ""}): ${x}`)),
       ...inv.problems,
+      ...plan.credits.map((c) => `“${c.description}” −US$${c.amount.toFixed(2)} → a credit note: see the “Credit notes (RMA discount)” card below (use one the client has, or the new one prepared there).`),
+      ...(inv.freight ? [] : ["No shipping line on the invoice: check the delivery set-up (Our courier booking is chosen)."]),
     ];
     const info: ImportInfo = { file: res.file, number: inv.number, excelTotal: inv.total, canClosePaid: props.isAdmin, notes };
     return (

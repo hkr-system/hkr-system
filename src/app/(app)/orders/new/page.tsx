@@ -7,6 +7,7 @@ import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { OrderForm } from "@/components/orders/order-form";
 import { loadAvailableCreditNotes } from "@/lib/orders/credit-notes";
+import { loadSentSummaries } from "@/lib/price-lists/versions";
 import { SectionTabs } from "@/components/sales/tabs";
 import { SALES_TABS } from "@/lib/sales/tabs";
 
@@ -17,8 +18,8 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/orders/
   if (!access.allowed) return <NoAccess />;
   const sp = await searchParams;
   const db = await createClient();
-  const [accounts, skus, terms, prices, intermediaries, addresses, creditNotes] = await Promise.all([
-    loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db), loadAvailableCreditNotes(db),
+  const [accounts, skus, terms, prices, intermediaries, addresses, creditNotes, sentLists] = await Promise.all([
+    loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db), loadAvailableCreditNotes(db), loadSentSummaries(db),
   ]);
   const account = typeof sp.account === "string" && accounts.some((a) => a.id === sp.account) ? sp.account : undefined;
   return (
@@ -27,7 +28,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/orders/
       <SectionTabs tabs={SALES_TABS} />
       {accounts.length ? (
         <OrderForm accounts={accounts} skus={skus} isAdmin={access.user.role === "admin"} terms={terms} prices={prices} values={{ account_id: account }}
-          intermediaries={intermediaries} addresses={addresses} creditNotes={creditNotes} />
+          intermediaries={intermediaries} addresses={addresses} creditNotes={creditNotes} sentLists={sentLists} />
       ) : <p className="text-sm text-muted-foreground">You have no accounts to order for yet.</p>}
     </>
   );

@@ -218,6 +218,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/order-delete.cjs` | Delete an order (after db:reset): specialist none, blockers shown, admin deletes by typing the number |
+| `node tests/e2e/price-history.cjs` | Price list history + Mark as sent (after db:reset): account tab, History ★ and filters, order versions warning |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
@@ -644,6 +645,20 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   and applies again if the model returns). The list page shows "Client rules used in this list — check the amounts" (base admin
   only, rule, rule price, vs engine, vs before). pgTAP `14_price_rules`, e2e `tests/e2e/price-rules.cjs`.
 - Part B pending: weekly promotions (4 % real-margin floor, US$5 cap) and Haslet-type rotation.
+
+## Price list history and "sent to the client" (Gabriel, Nov 18 2026)
+
+- "Es importante saber qué versión del pricelist tiene cada cliente": table `price_list_sends` (list, account from the list by
+  trigger, sent_on, channel whatsapp/email/portal/in_person/other, note). Only approved/superseded CLIENT lists (trigger 23514);
+  RLS has_account_access (bd her accounts); delete = author or admin. "Mark as sent to the client" (`components/price-lists/
+  sends.tsx`) on the account tab's current list and on the list page ("Sent to the client" card). rpc `price_list_base_versions()`
+  = base version numbers/dates for staff, NO prices.
+- Account → Price lists: "The client has vN (sent …) — up to date / vM not sent yet"; versions table + Built on (base vN), Approved
+  (date · who), Sent to the client. Price lists → History (`/price-lists/history`, tabs `src/lib/price-lists/tabs.ts`): every
+  version (base = admin only; drafts not for bd), filters client/brand/list/status/valid from–to, ★ = the version the client has.
+- Orders: `orderListVersions()` (`src/lib/price-lists/versions.ts`) → `OrderListVersions` on Overview, Invoice and Finance tabs:
+  per brand "prices from vN · current vM · sent to the client: vK on date", amber + warning when the used version was never sent
+  (or a different one was). The order form says "Last sent to the client: …". pgTAP `21_price_list_sends`, e2e `tests/e2e/price-history.cjs`.
 
 ## Shipping, customs, other charges; mixed payments (Gabriel, Nov 4 2026)
 

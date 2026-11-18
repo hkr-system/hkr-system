@@ -1237,6 +1237,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"price_list_sends": {
+                  Row: {
+                    "account_id": string,"channel": string,"created_at": string,"created_by": string | null,"id": string,"note": string | null,"price_list_id": string,"sent_on": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"price_list_id": string,"sent_on"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"price_list_id"?: string,"sent_on"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_list_sends_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_list_sends_account_id_fkey"
+      columns: ["account_id"]
+isOneToOne: false
+      referencedRelation: "portal_account"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_list_sends_price_list_id_fkey"
+      columns: ["price_list_id"]
+isOneToOne: false
+      referencedRelation: "price_lists"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"price_lists": {
                   Row: {
                     "account_id": string | null,"approved_at": string | null,"approved_by": string | null,"base_list_id": string | null,"brand": Database["public"]['Enums']["product_brand"],"created_at": string,"created_by": string | null,"engine": NonNullable<Json>,"extra_c": number | null,"id": string,"note": string | null,"rma_c": number | null,"source_file": string | null,"status": Database["public"]['Enums']["price_list_status"],"updated_at": string,"valid_from": string,"valid_until": string | null,"version": number
@@ -2029,6 +2061,11 @@ isOneToOne: false
                            },
 "price_engine_params":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"price_list_base_versions":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "approved_at": string,"brand": Database["public"]['Enums']["product_brand"],"id": string,"status": Database["public"]['Enums']["price_list_status"],"valid_from": string,"version": number
+            }[]
                            },
 "price_list_create_draft":
 { Args: { "p_account": string,"p_brand"?: Database["public"]['Enums']["product_brand"],"p_engine": Json,"p_extra": number,"p_rma": number,"p_valid_from"?: string }; Returns: string

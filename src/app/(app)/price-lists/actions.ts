@@ -236,3 +236,32 @@ export async function saveRules(accountId: string, rules: { id?: string; model: 
   refresh(accountId);
   return { ok: true, message: "Rules saved. They apply the next time a list is prepared." };
 }
+
+// "Mark as sent" (Gabriel, Nov 18 2026): the client received this version — so we always know which list each client has.
+const CHANNELS = ["whatsapp", "email", "portal", "in_person", "other"] as const;
+export async function markListSent(listId: string, sentOn: string, channel: string, note: string): Promise<PlState> {
+  await requireRole(["admin", "account_specialist", "bd"]);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sentOn)) return { error: "Choose the date it was sent." };
+  if (!(CHANNELS as readonly string[]).includes(channel)) return { error: "Choose how it was sent." };
+  const db = await createClient();
+  const { data: l } = await db.from("price_lists").select("account_id, version").eq("id", listId).maybeSingle();
+  if (!l?.account_id) return { error: "Price list not found." };
+  const { error } = await db.from("price_list_sends").insert({ price_list_id: listId, account_id: l.account_id, sent_on: sentOn, channel, note: note.trim().slice(0, 300) || null });
+  if (error) return { error: error.message };
+  revalidatePath(`/price-lists/${listId}`);
+  revalidatePath(`/accounts/${l.account_id}`);
+  revalidatePath("/price-lists/history");
+  return { ok: true, message: `v${l.version} marked as sent.` };
+}
+
+export async function deleteListSend(sendId: string): Promise<PlState> {
+  await requireRole(["admin", "account_specialist", "bd"]);
+  const db = await createClient();
+  const { data, error } = await db.from("price_list_sends").delete().eq("id", sendId).select("price_list_id, account_id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Only the person who recorded it, or an admin, can remove it." };
+  revalidatePath(`/price-lists/${data[0].price_list_id}`);
+  revalidatePath(`/accounts/${data[0].account_id}`);
+  revalidatePath("/price-lists/history");
+  return { ok: true, message: "Removed." };
+}

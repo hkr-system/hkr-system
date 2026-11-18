@@ -307,7 +307,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
         </Card>
       ) : null}
       {tab === "price-lists" ? (
-        <AccountPriceLists accountId={id} canPrepare={user.role === "admin" || user.role === "account_specialist"} today={today} />
+        <AccountPriceLists accountId={id} canPrepare={user.role === "admin" || user.role === "account_specialist"} today={today} isAdmin={user.role === "admin"} />
       ) : null}
 
       {tab === "files" ? (

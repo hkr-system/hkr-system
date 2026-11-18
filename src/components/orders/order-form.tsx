@@ -63,12 +63,13 @@ function F({ label, children, className }: { label: string; children: React.Reac
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo, creditNotes = {} }: {
+export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo, creditNotes = {}, sentLists = {} }: {
   accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
   intermediaries?: { id: string; name: string; kind?: string; suggestedFor?: string[] }[]; addresses?: SavedAddress[];
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
   importInfo?: ImportInfo;
   creditNotes?: Record<string, AvailableCreditNote[]>;
+  sentLists?: Record<string, string>;   // what was last sent to each client (Nov 18 2026)
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
   const fmtOf = (id: string): Fmt => ({ battery_line_separate: true, show_ce_text: false, plain_lines: false, show_note: false, ...(accounts.find((a) => a.id === id)?.invoice_format ?? {}) });
@@ -256,6 +257,7 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
           <CardTitle className="text-base">Lines</CardTitle>
           <CardDescription>
             {account ? list ? `Unit prices come from the client's approved price list ${list.version}; a different price is marked “manual” and logged.` : "This client has no approved price list yet: type the unit prices." : "Choose the account first."}
+            {account ? <span className="block" data-testid="form-list-sent">{sentLists[account.id] ? `Last sent to the client: ${sentLists[account.id]}.` : "No price list marked as sent to this client yet."}</span> : null}
             {account ? separate ? " This account shows a separate “New battery cell” line (iPhone 16 series never carries it)." : " This account has the battery absorbed in the unit price." : ""}
           </CardDescription>
         </CardHeader>

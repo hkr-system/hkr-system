@@ -18,6 +18,8 @@ import { DraftActions, PercentForm, RemoveRowButton } from "@/components/price-l
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PriceTable, type PriceRow } from "@/components/price-lists/price-table";
+import { ListSends } from "@/components/price-lists/sends";
+import { todayIn } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Price list" };
 
@@ -45,7 +47,7 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
   const { id } = await params;
   const db = await createClient();
   const { data: l } = await db.from("price_lists")
-    .select("id, account_id, brand, version, status, valid_from, valid_until, base_list_id, rma_c, extra_c, engine, source_file, approved_at, created_at, accounts(code, name)")
+    .select("id, account_id, brand, version, status, valid_from, valid_until, base_list_id, rma_c, extra_c, engine, source_file, approved_at, approved_by, created_at, accounts(code, name)")
     .eq("id", id).maybeSingle();
   if (!l) notFound();
   const acc = l.accounts as unknown as { code: string; name: string } | null;
@@ -58,10 +60,15 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
     isAdmin && l.base_list_id ? loadRows(db, l.base_list_id) : Promise.resolve([]),
     isAdmin && !isBase ? db.from("settings").select("value").eq("key", "base_margin_pct").maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  const [prevRows, { data: filed }] = await Promise.all([
+  const [prevRows, { data: filed }, { data: sendRows }, { data: people }, { data: bases }] = await Promise.all([
     prev ? loadRows(db, prev.id) : Promise.resolve([]),
     db.from("files").select("id, file_name").eq("owner_table", "price_lists").eq("owner_id", id).order("file_name"),
+    isBase ? Promise.resolve({ data: [] }) : db.from("price_list_sends").select("id, sent_on, channel, note, created_by").eq("price_list_id", id).order("sent_on", { ascending: false }),
+    db.from("profiles").select("user_id, full_name, email"),
+    l.base_list_id ? db.rpc("price_list_base_versions") : Promise.resolve({ data: [] }),
   ]);
+  const nameOf = (uid: string | null) => { const p = (people ?? []).find((x) => x.user_id === uid); return p ? p.full_name || p.email : null; };
+  const baseV = (bases ?? []).find((b) => b.id === l.base_list_id)?.version;
   const before = new Map(prevRows.map((r) => [modelKey(r.model, r.storage_gb), r.price_usd]));
   const beforeRow = new Map(prevRows.map((r) => [modelKey(r.model, r.storage_gb), r]));
   const baseOf = new Map(baseRows.map((r) => [modelKey(r.model, r.storage_gb), r.price_usd]));
@@ -98,13 +105,26 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
             {draft && canPrepare && !isBase ? <DraftActions listId={l.id} isAdmin={isAdmin} /> : null}
             {l.approved_at ? (
               <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="filed">
-                Approved {formatDateTime(l.approved_at, user.timezone)}
+                Approved {formatDateTime(l.approved_at, user.timezone)}{nameOf(l.approved_by) ? ` by ${nameOf(l.approved_by)}` : ""}
+                {baseV ? <> · built on {BRAND_LABEL[l.brand]} base v{baseV}</> : null}
                 {(filed ?? []).length ? <>· filed in the account:</> : null}
                 {(filed ?? []).map((f) => <a key={f.id} href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="text-hkr-accent hover:underline">{f.file_name}</a>)}
               </span>
             ) : null}
           </CardContent>
         </Card>
+        {!isBase && !draft ? (
+          <Card data-testid="sends-card">
+            <CardHeader>
+              <CardTitle className="text-base">Sent to the client</CardTitle>
+              <CardDescription>Record every time this version went to the client, so we always know which list the client has.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ListSends listId={l.id} today={todayIn(user.timezone)} canDeleteAll={isAdmin}
+                sends={(sendRows ?? []).map((s) => ({ id: s.id, sentOn: fmtDate(s.sent_on), channel: s.channel, note: s.note, by: nameOf(s.created_by), mine: s.created_by === user.id }))} />
+            </CardContent>
+          </Card>
+        ) : null}
 
         {!isBase ? (
           <Card data-testid="engine-card">

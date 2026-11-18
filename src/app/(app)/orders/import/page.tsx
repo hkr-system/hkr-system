@@ -9,6 +9,7 @@ import { SectionTabs } from "@/components/sales/tabs";
 import { SALES_TABS } from "@/lib/sales/tabs";
 import { InvoiceImport } from "@/components/orders/invoice-import";
 import { loadAvailableCreditNotes } from "@/lib/orders/credit-notes";
+import { loadSentSummaries } from "@/lib/price-lists/versions";
 
 export const metadata: Metadata = { title: "Import invoice" };
 
@@ -18,15 +19,15 @@ export default async function ImportInvoicePage() {
   if (!access.allowed) return <NoAccess />;
   if (!["admin", "account_specialist"].includes(access.user.role ?? "")) return <NoAccess />;
   const db = await createClient();
-  const [accounts, skus, terms, prices, intermediaries, addresses, creditNotes] = await Promise.all([
-    loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db), loadAvailableCreditNotes(db),
+  const [accounts, skus, terms, prices, intermediaries, addresses, creditNotes, sentLists] = await Promise.all([
+    loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db), loadAvailableCreditNotes(db), loadSentSummaries(db),
   ]);
   return (
     <>
       <PageHeader title="Import invoice (Excel)" description="Upload an HKR invoice made in Excel: the system reads it, shows the order to check, and registers the sale." />
       <SectionTabs tabs={SALES_TABS} />
       <InvoiceImport accounts={accounts} skus={skus} isAdmin={access.user.role === "admin"} terms={terms} prices={prices}
-        intermediaries={intermediaries} addresses={addresses} creditNotes={creditNotes} />
+        intermediaries={intermediaries} addresses={addresses} creditNotes={creditNotes} sentLists={sentLists} />
     </>
   );
 }

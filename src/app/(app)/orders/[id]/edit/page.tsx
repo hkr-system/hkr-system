@@ -7,6 +7,7 @@ import { loadApprovedPrices } from "@/lib/price-lists/service";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
 import { OrderForm, type Line } from "@/components/orders/order-form";
+import { loadSentSummaries } from "@/lib/price-lists/versions";
 import { modelKey } from "@/lib/price-lists/models";
 
 export const metadata: Metadata = { title: "Edit order" };
@@ -17,11 +18,12 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   const { id } = await params;
   const db = await createClient();
   const isAdmin = access.user.role === "admin";
-  const [{ data: o }, { data: lines }, accounts, skus, terms, prices, intermediaries, addresses, { data: charges }] = await Promise.all([
+  const [{ data: o }, { data: lines }, accounts, skus, terms, prices, intermediaries, addresses, { data: charges }, sentLists] = await Promise.all([
     db.from("orders").select("*, accounts(code)").eq("id", id).maybeSingle(),
     db.from("order_lines").select("id, sku_id, skus(model, storage_gb, color), model, storage_gb, description, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, colors_mixed, colors, ce_marked, imei_matching_color, sim_option, price_list_row_id, list_price_usd").eq("order_id", id).order("sort_order"),
     loadFormAccounts(db), loadSkus(db), loadTerms(db), loadApprovedPrices(db), loadIntermediaries(db), loadAddresses(db),
     db.from("order_charges").select("description, qty, unit_usd, amount_usd").eq("order_id", id).order("sort_order"),
+    loadSentSummaries(db),
   ]);
   if (!o) notFound();
   const fin = isAdmin && lines?.length
@@ -34,7 +36,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   return (
     <>
       <PageHeader title={`Edit ${(o.accounts as { code: string } | null)?.code ?? ""} ${o.number}`} />
-      <OrderForm accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
+      <OrderForm sentLists={sentLists} accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
         intermediaries={intermediaries} addresses={addresses.filter((x) => x.account_id === o.account_id)}
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,

@@ -23,6 +23,8 @@ import { IntermediaryPanel } from "@/components/orders/intermediary-panel";
 import { CreditNotesPanel } from "@/components/orders/credit-notes-panel";
 import { OrderIndicators, OrderTabs } from "@/components/orders/order-tabs";
 import { DeleteOrder } from "@/components/orders/delete-order";
+import { OrderListVersions } from "@/components/price-lists/version-info";
+import { orderListVersions } from "@/lib/price-lists/versions";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +46,8 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   if (!o) notFound();
   const acc = o.accounts as unknown as { id: string; code: string; name: string; country: string | null; invoice_format: { battery_line_separate?: boolean } | null; intermediaries: { name: string } | null };
 
-  const [{ data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: cnPending }, { data: intermediaries }, { data: charges }, { data: feeSetting }] = await Promise.all([
+  const [listVersions, { data: ov }, { data: lines }, { data: payments }, { data: events }, { data: files }, team, finance, { data: invoice }, { data: issuers }, { data: cnApplied }, { data: cnAll }, { data: cnPending }, { data: intermediaries }, { data: charges }, { data: feeSetting }] = await Promise.all([
+    orderListVersions(db, id, acc.id),
     db.from("order_overview").select("*").eq("id", id).single(),
     db.from("order_lines").select("id, qty, unit_price_usd, battery_new, battery_unit_usd, battery_option, description, model, storage_gb, colors_mixed, colors, ce_marked, imei_matching_color, price_source, skus(model, storage_gb, color, battery_eligible)").eq("order_id", id).order("sort_order"),
     db.from("payments").select("*").eq("order_id", id).order("created_at"),
@@ -149,6 +152,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                 {imName ? ` · ${imName} invoice ${o.partner_invoice_no ?? "pending"}${o.partner_invoice_eur ? ` (${money(o.partner_invoice_eur, "EUR")})` : ""}` : " · direct"}
                 {` · ${PAYMENT_METHOD_LABEL[o.payment_method]} · order date ${formatDate(o.order_date)}`}
               </CardDescription>
+              <OrderListVersions info={listVersions} />
             </CardHeader>
             <CardContent className="px-0">
               <Table data-testid="lines-table">
@@ -243,6 +247,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             <CardHeader>
               <CardTitle>Invoice</CardTitle>
               <CardDescription>Draft → Approved (admin) → Sent. Same layout as our commercial invoices; PDF and Excel.</CardDescription>
+              <OrderListVersions info={listVersions} compact />
             </CardHeader>
             <CardContent>
               <InvoicePanel orderId={id} invoice={(invoice ?? null) as InvoiceRow | null} orderTotal={Number(o.total_usd)} role={user.role ?? ""} issuerReady={issuerReady} />
@@ -311,7 +316,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             </CardContent>
           </Card></div>
         {isAdmin ? <div data-tab="finance"><Card data-testid="finance">
-              <CardHeader><CardTitle>Finance (admin only)</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Finance (admin only)</CardTitle><OrderListVersions info={listVersions} compact /></CardHeader>
               <CardContent className="grid gap-1 text-sm" data-tabular>
                 {/* the profit is worked out on the invoice total, which already has the applied credit notes taken off */}
                 <div className="flex justify-between font-medium" data-testid="fin-invoice-total"><span>Invoice total{Number(o.rma_discount_usd) ? " (after credit notes)" : ""}</span><span>{money(o.total_usd)}</span></div>

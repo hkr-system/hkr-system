@@ -8,6 +8,8 @@ import { isDue, pctText } from "@/lib/price-lists/labels";
 import { fmtDate } from "@/lib/price-lists/outputs";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
+import { SectionTabs } from "@/components/sales/tabs";
+import { PRICE_LIST_TABS } from "@/lib/price-lists/tabs";
 import { DueBadge, ListStatusBadge } from "@/components/price-lists/badges";
 import { GetPriceList } from "@/components/price-lists/get-list";
 import { PrepareListButton } from "@/components/price-lists/list-actions";
@@ -58,6 +60,7 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
   return (
     <>
       <PageHeader title="Price lists" description="Each client gets the base list plus its RMA amortization and extra margin (SOP ch. 5), refreshed every 2 weeks." />
+      <SectionTabs tabs={PRICE_LIST_TABS} />
       <div className="grid gap-4">
         {isAdmin ? (
           <div className="grid gap-4 lg:grid-cols-2">

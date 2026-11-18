@@ -19,6 +19,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PriceTable, type PriceRow } from "@/components/price-lists/price-table";
 import { ListSends } from "@/components/price-lists/sends";
+import { loadD2DChoices } from "@/lib/price-lists/d2d-service";
+import { sendWhat } from "@/lib/price-lists/versions";
 import { todayIn } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Price list" };
@@ -60,12 +62,13 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
     isAdmin && l.base_list_id ? loadRows(db, l.base_list_id) : Promise.resolve([]),
     isAdmin && !isBase ? db.from("settings").select("value").eq("key", "base_margin_pct").maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  const [prevRows, { data: filed }, { data: sendRows }, { data: people }, { data: bases }] = await Promise.all([
+  const [prevRows, { data: filed }, { data: sendRows }, { data: people }, { data: bases }, d2d] = await Promise.all([
     prev ? loadRows(db, prev.id) : Promise.resolve([]),
     db.from("files").select("id, file_name").eq("owner_table", "price_lists").eq("owner_id", id).order("file_name"),
-    isBase ? Promise.resolve({ data: [] }) : db.from("price_list_sends").select("id, sent_on, channel, note, created_by").eq("price_list_id", id).order("sent_on", { ascending: false }),
+    isBase ? Promise.resolve({ data: [] }) : db.from("price_list_sends").select("id, sent_on, channel, note, created_by, variant, fx_rate, intermediaries(name)").eq("price_list_id", id).order("sent_on", { ascending: false }),
     db.from("profiles").select("user_id, full_name, email"),
     l.base_list_id ? db.rpc("price_list_base_versions") : Promise.resolve({ data: [] }),
+    loadD2DChoices(db, l.account_id),
   ]);
   const nameOf = (uid: string | null) => { const p = (people ?? []).find((x) => x.user_id === uid); return p ? p.full_name || p.email : null; };
   const baseV = (bases ?? []).find((b) => b.id === l.base_list_id)?.version;
@@ -101,7 +104,7 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
       <div className="grid gap-4">
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-            <GetPriceList listId={l.id} />
+            <GetPriceList listId={l.id} d2d={d2d} />
             {draft && canPrepare && !isBase ? <DraftActions listId={l.id} isAdmin={isAdmin} /> : null}
             {l.approved_at ? (
               <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="filed">
@@ -120,8 +123,8 @@ export default async function PriceListPage({ params }: PageProps<"/price-lists/
               <CardDescription>Record every time this version went to the client, so we always know which list the client has.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ListSends listId={l.id} today={todayIn(user.timezone)} canDeleteAll={isAdmin}
-                sends={(sendRows ?? []).map((s) => ({ id: s.id, sentOn: fmtDate(s.sent_on), channel: s.channel, note: s.note, by: nameOf(s.created_by), mine: s.created_by === user.id }))} />
+              <ListSends listId={l.id} today={todayIn(user.timezone)} canDeleteAll={isAdmin} d2d={d2d}
+                sends={(sendRows ?? []).map((s) => ({ id: s.id, sentOn: fmtDate(s.sent_on), channel: s.channel, note: s.note, by: nameOf(s.created_by), mine: s.created_by === user.id, what: sendWhat(s) }))} />
             </CardContent>
           </Card>
         ) : null}

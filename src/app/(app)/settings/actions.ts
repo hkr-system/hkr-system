@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ASSIGNABLE_SECTIONS, SECTIONS } from "@/lib/nav";
+import { parseD2D, type D2DConfig } from "@/lib/price-lists/door-to-door";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
@@ -235,10 +236,23 @@ export type IntermediaryInput = {
   id?: string; name: string; kind: IntermediaryKind; rsin: string | null; eori: string | null; kvk: string | null; vat: string | null;
   contact: string | null; contact_phone: string | null;
   contact_email: string | null; address: string | null; country: string | null; default_cutoff_weekday: number | null;
+  d2d?: D2DConfig | null;   // door-to-door pricing set-up (admin only, Nov 18 2026)
 };
 
+/** A door-to-door set-up as typed: numbers only, brackets sorted, spread 0–0.2. */
+function cleanD2D(v: D2DConfig): D2DConfig {
+  const c = parseD2D(v)!;
+  const pos = (n: number) => Math.max(0, Math.round(n * 100) / 100);
+  return {
+    ...c, brackets: c.brackets.filter((b) => b.eur || b.up_to !== null).map((b) => ({ up_to: b.up_to === null ? null : pos(b.up_to), eur: pos(b.eur) })),
+    fixed_eur: pos(c.fixed_eur), ship_amount: pos(c.ship_amount), small_eur: pos(c.small_eur), shipment_eur: pos(c.shipment_eur),
+    small_under: c.small_under && c.small_under > 0 ? c.small_under : null, fx_spread: Math.min(0.2, Math.max(0, Math.round(c.fx_spread * 10000) / 10000)),
+  };
+}
+
 export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<SettingState & { message?: string }> {
-  await requireRole(["admin", "account_specialist"]);   // the specialist onboards accounts (Nov 18 2026); removing = admin
+  const me = await requireRole(["admin", "account_specialist"]);   // the specialist onboards accounts (Nov 18 2026); removing = admin
+  const isAdmin = me.role === "admin";
   const t = (v: unknown, max: number) => String(v ?? "").trim().replace(/[ \t]+/g, " ").slice(0, max) || null;
   const clean = rows.map((r, i) => {
     const day = Number(r.default_cutoff_weekday);
@@ -249,6 +263,8 @@ export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<Set
         rsin: t(r.rsin, 40), eori: t(r.eori, 40), kvk: t(r.kvk, 40), vat: t(r.vat, 40), contact: t(r.contact, 120), contact_phone: t(r.contact_phone, 40),
         contact_email: t(r.contact_email, 160), address: t(r.address, 400), country: t(r.country, 2),
         default_cutoff_weekday: Number.isInteger(day) && day >= 1 && day <= 7 ? day : null,
+        // door-to-door set-up: only the admin sends it (the database refuses it from anyone else)
+        ...(isAdmin && r.d2d !== undefined ? { d2d: (r.d2d ? cleanD2D(r.d2d) : null) as unknown as Json } : {}),
       },
     };
   });

@@ -239,14 +239,20 @@ export async function saveRules(accountId: string, rules: { id?: string; model: 
 
 // "Mark as sent" (Gabriel, Nov 18 2026): the client received this version — so we always know which list each client has.
 const CHANNELS = ["whatsapp", "email", "portal", "in_person", "other"] as const;
-export async function markListSent(listId: string, sentOn: string, channel: string, note: string): Promise<PlState> {
+export async function markListSent(listId: string, sentOn: string, channel: string, note: string,
+  sent: { variant: "usd" | "d2d"; via?: string | null; rate?: number | null } = { variant: "usd" }): Promise<PlState> {
   await requireRole(["admin", "account_specialist", "bd"]);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(sentOn)) return { error: "Choose the date it was sent." };
   if (!(CHANNELS as readonly string[]).includes(channel)) return { error: "Choose how it was sent." };
   const db = await createClient();
   const { data: l } = await db.from("price_lists").select("account_id, version").eq("id", listId).maybeSingle();
   if (!l?.account_id) return { error: "Price list not found." };
-  const { error } = await db.from("price_list_sends").insert({ price_list_id: listId, account_id: l.account_id, sent_on: sentOn, channel, note: note.trim().slice(0, 300) || null });
+  const d2d = sent.variant === "d2d";
+  if (d2d && !(sent.via && /^[0-9a-f-]{36}$/.test(sent.via) && Number(sent.rate) > 0.5 && Number(sent.rate) < 2)) return { error: "Door to door: choose the company and the rate used." };
+  const { error } = await db.from("price_list_sends").insert({
+    price_list_id: listId, account_id: l.account_id, sent_on: sentOn, channel, note: note.trim().slice(0, 300) || null,
+    variant: d2d ? "d2d" : "usd", via_intermediary_id: d2d ? sent.via! : null, fx_rate: d2d ? Number(sent.rate) : null,
+  });
   if (error) return { error: error.message };
   revalidatePath(`/price-lists/${listId}`);
   revalidatePath(`/accounts/${l.account_id}`);

@@ -5,7 +5,7 @@ import { BRANDS, BRAND_LABEL, isBrand, type Brand } from "@/lib/brands";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDate } from "@/lib/price-lists/outputs";
 import { pctText } from "@/lib/price-lists/labels";
-import { CHANNEL_LABEL } from "@/lib/price-lists/versions";
+import { CHANNEL_LABEL, sendWhat } from "@/lib/price-lists/versions";
 import { PRICE_LIST_TABS } from "@/lib/price-lists/tabs";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/coming-soon";
@@ -48,7 +48,7 @@ export default async function PriceListHistoryPage({ searchParams }: PageProps<"
   const [{ data: lists }, { data: accounts }, { data: sends }, { data: files }, { data: people }, { data: bases }] = await Promise.all([
     q,
     db.from("accounts").select("id, code, name").order("code"),
-    db.from("price_list_sends").select("price_list_id, account_id, sent_on, channel, created_at").order("sent_on", { ascending: false }).order("created_at", { ascending: false }),
+    db.from("price_list_sends").select("price_list_id, account_id, sent_on, channel, created_at, variant, fx_rate, intermediaries(name)").order("sent_on", { ascending: false }).order("created_at", { ascending: false }),
     db.from("files").select("id, owner_id, file_name").eq("owner_table", "price_lists").order("file_name"),
     db.from("profiles").select("user_id, full_name, email"),
     db.rpc("price_list_base_versions"),
@@ -130,7 +130,7 @@ export default async function PriceListHistoryPage({ searchParams }: PageProps<"
                     <TableCell>{l.account_id && baseV(l.base_list_id) ? `base v${baseV(l.base_list_id)}` : "—"}</TableCell>
                     <TableCell className="text-right">{l.account_id ? `${pctText(l.rma_c)} · ${pctText(l.extra_c)}` : "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{l.approved_at ? <>{fmtDate(l.approved_at.slice(0, 10))}<span className="block text-xs text-muted-foreground">{nameOf(l.approved_by)}</span></> : "—"}</TableCell>
-                    <TableCell>{!l.account_id || l.status === "draft" ? "—" : sent.length ? sent.map((s, i) => <span key={i} className="block whitespace-nowrap">{fmtDate(s.sent_on)} · {CHANNEL_LABEL[s.channel] ?? s.channel}</span>) : <span className="text-muted-foreground">not sent</span>}</TableCell>
+                    <TableCell>{!l.account_id || l.status === "draft" ? "—" : sent.length ? sent.map((s, i) => <span key={i} className="block whitespace-nowrap">{fmtDate(s.sent_on)} · {CHANNEL_LABEL[s.channel] ?? s.channel} · {sendWhat(s)}</span>) : <span className="text-muted-foreground">not sent</span>}</TableCell>
                     <TableCell>{fl.length ? fl.map((f) => <a key={f.id} href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="block text-hkr-accent hover:underline">{f.file_name.endsWith(".pdf") ? "PDF" : f.file_name.endsWith(".xlsx") ? "Excel" : f.file_name}</a>) : "—"}</TableCell>
                   </TableRow>
                 );

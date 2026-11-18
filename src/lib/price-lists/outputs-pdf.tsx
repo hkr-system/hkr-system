@@ -1,6 +1,6 @@
 import "server-only";
 import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
-import { groupRows, money2, type OutMeta, type OutRow } from "./outputs";
+import { groupRows, moneyIn, termsOf, type OutMeta, type OutRow } from "./outputs";
 import { fmtDate } from "./outputs";
 
 // Client price list PDF with HKR identity (navy type, red only as a thin accent — brand tokens).
@@ -25,7 +25,7 @@ function ListPdf({ rows, meta, logo }: { rows: OutRow[]; meta: OutMeta; logo: Bu
     <Document title={meta.title} author="HK Refurbished Stock">
       <Page size="A4" style={s.page}>
         <View style={s.head}>
-          <View><Text style={s.title}>{meta.title}</Text><Text style={s.sub}>{validity} · Grade A+++ · USD · FOB Hong Kong</Text></View>
+          <View><Text style={s.title}>{meta.title}</Text><Text style={s.sub}>{validity} · Grade A+++ · {termsOf(meta)}</Text></View>
           {logoEl}
         </View>
         <View style={s.rule} />
@@ -33,10 +33,15 @@ function ListPdf({ rows, meta, logo }: { rows: OutRow[]; meta: OutMeta; logo: Bu
           <View key={g.label} style={s.group} wrap={false}>
             <Text style={s.model}>{g.label}</Text>
             {g.rows.map((r) => (
-              <View key={r.storage_gb} style={s.row}><Text>{r.storage_gb}GB</Text><Text>{money2(r.price_usd)}</Text></View>
+              <View key={r.storage_gb} style={s.row}><Text>{r.storage_gb}GB</Text><Text>{moneyIn(r.price_usd, meta.currency)}</Text></View>
             ))}
           </View>
         ))}
+        {meta.notes?.length ? (
+          <View style={{ marginTop: 10, paddingTop: 6, borderTopWidth: 0.6, borderColor: "#c9cfdb" }} wrap={false}>
+            {meta.notes.map((n) => <Text key={n} style={{ fontSize: 8.5, color: "#4b5568", marginBottom: 2 }}>{n}</Text>)}
+          </View>
+        ) : null}
         <Text style={s.foot} fixed>HK Refurbished Stock · Hong Kong</Text>
       </Page>
     </Document>

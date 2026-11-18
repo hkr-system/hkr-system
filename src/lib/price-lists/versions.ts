@@ -63,3 +63,10 @@ export async function loadSentSummaries(db: Db): Promise<Record<string, string>>
   }
   return Object.fromEntries(Object.entries(out).map(([a, t]) => [a, t.sort().join(" · ")]));
 }
+
+/** "USD" or "EUR door to door via X @ 1.1200" for a recorded send (staff screens only — never on the client's file). */
+export function sendWhat(s: { variant?: string | null; fx_rate?: number | null; intermediaries?: unknown }) {
+  if (s.variant !== "d2d") return "USD";
+  const via = (s.intermediaries as { name: string } | null)?.name;
+  return `EUR door to door${via ? ` via ${via}` : ""}${s.fx_rate ? ` @ ${Number(s.fx_rate).toFixed(4)}` : ""}`;
+}

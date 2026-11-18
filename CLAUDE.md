@@ -220,6 +220,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/order-delete.cjs` | Delete an order (after db:reset): specialist none, blockers shown, admin deletes by typing the number |
 | `node tests/e2e/price-history.cjs` | Price list history + Mark as sent (after db:reset): account tab, History ★ and filters, order versions warning |
 | `node tests/e2e/user-modules.cjs` | Modules per user (after db:reset): untick Leads + WhatsApp for Atreyi → menu, pages, tiles hidden; tick back |
+| `node tests/e2e/door-to-door.cjs` | Door-to-door EUR lists (after db:reset): set-up in Settings, EU list in EUR without the company name, Mark as sent, LATAM none |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
@@ -682,6 +683,21 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Orders: `orderListVersions()` (`src/lib/price-lists/versions.ts`) → `OrderListVersions` on Overview, Invoice and Finance tabs:
   per brand "prices from vN · current vM · sent to the client: vK on date", amber + warning when the used version was never sent
   (or a different one was). The order form says "Last sent to the client: …". pgTAP `21_price_list_sends`, e2e `tests/e2e/price-history.cjs`.
+
+## Door-to-door EUR price lists for EU clients (Gabriel, Nov 18 2026)
+
+- Per company in Settings → Intermediaries & clearance (admin only; trigger `intermediaries_d2d_guard`): `intermediaries.d2d` jsonb
+  {enabled, brackets [{up_to (inclusive, null = above), eur}], fixed_eur, ship_amount + ship_currency EUR|USD, small_under +
+  small_eur, shipment_eur, fx_spread}. Real fees are typed by Gabriel there — NEVER in this public repo (tests use invented ones).
+- Unit price (`src/lib/price-lists/door-to-door.ts`, unit-tested): EUR = round((client's APPROVED list USD [+ USD shipping]) ÷ rate)
+  + bracket fee (on that EUR) + fixed € + EUR shipping. Rate = official ECB EUR→USD (`src/lib/price-lists/fx.ts`, Frankfurter, free,
+  cached 6 h) − the company's spread, editable before producing. Small-order and per-shipment fees print as notes.
+  Gabriel's set-ups (Nov 18): Barry Trading / ABC / Global Connect (same company) = brackets + EUR shipping HK→NL + small orders;
+  PGS Megastore = fixed € per unit + USD FedEx HK→Italy per unit + € per shipment (customs clearance), no brackets.
+- EU clients only (accounts.market = 'EU'): Get price list → "Prices in" USD · FOB Hong Kong or "EUR · Door to door via <company>"
+  + rate → /api/price-lists/<id>/<format>?mode=d2d&via=&rate= (file `…_D2D-EUR`); the company's NAME is never on the file.
+  "Mark as sent" records `price_list_sends.variant` usd|d2d + via_intermediary_id + fx_rate (shown as "EUR door to door via X @ r").
+  pgTAP `24_door_to_door`, e2e `tests/e2e/door-to-door.cjs`.
 
 ## Shipping, customs, other charges; mixed payments (Gabriel, Nov 4 2026)
 

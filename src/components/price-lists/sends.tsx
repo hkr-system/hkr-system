@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
 import { deleteListSend, markListSent } from "@/app/(app)/price-lists/actions";
+import type { D2DChoices } from "@/lib/price-lists/d2d-service";
 
-export type SendRow = { id: string; sentOn: string; channel: string; note: string | null; by: string | null; mine: boolean };
+export type SendRow = { id: string; sentOn: string; channel: string; note: string | null; by: string | null; mine: boolean; what?: string };
 const CHANNELS: [string, string][] = [["whatsapp", "WhatsApp"], ["email", "Email"], ["portal", "Client portal"], ["in_person", "In person"], ["other", "Other"]];
 const label = (c: string) => CHANNELS.find((x) => x[0] === c)?.[1] ?? c;
 
 // "Sent to the client" on a client price list (Gabriel, Nov 18 2026): record each time this version went to the client.
-export function ListSends({ listId, sends, today, canDeleteAll, compact = false }: { listId: string; sends: SendRow[]; today: string; canDeleteAll: boolean; compact?: boolean }) {
+export function ListSends({ listId, sends, today, canDeleteAll, compact = false, d2d }: { listId: string; sends: SendRow[]; today: string; canDeleteAll: boolean; compact?: boolean; d2d?: D2DChoices }) {
+  const [what, setWhat] = useState("usd");
+  const [rate, setRate] = useState("");
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(today);
   const [channel, setChannel] = useState("whatsapp");
@@ -28,7 +31,7 @@ export function ListSends({ listId, sends, today, canDeleteAll, compact = false 
           <ul className="grid gap-1">
             {sends.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-x-2" data-testid="list-send">
-                <span className="font-medium">{s.sentOn}</span><span>· {label(s.channel)}</span>
+                <span className="font-medium">{s.sentOn}</span><span>· {label(s.channel)}</span>{s.what ? <span>· {s.what}</span> : null}
                 {s.by ? <span className="text-muted-foreground">· by {s.by}</span> : null}
                 {s.note ? <span className="text-muted-foreground">· {s.note}</span> : null}
                 {s.mine || canDeleteAll ? (
@@ -51,10 +54,24 @@ export function ListSends({ listId, sends, today, canDeleteAll, compact = false 
               {CHANNELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </NativeSelect>
           </label>
+          {d2d?.eligible && d2d.companies.length ? (
+            <label className="grid gap-1 text-xs text-muted-foreground">What was sent
+              <NativeSelect value={what} aria-label="What was sent" className="w-64"
+                onChange={(e) => { setWhat(e.target.value); const c = d2d.companies.find((x) => x.id === e.target.value); setRate(c?.suggested ? c.suggested.toFixed(4) : ""); }}>
+                <option value="usd">USD · FOB Hong Kong</option>
+                {d2d.companies.map((c) => <option key={c.id} value={c.id}>EUR · Door to door via {c.name}</option>)}
+              </NativeSelect>
+            </label>
+          ) : null}
+          {what !== "usd" ? (
+            <label className="grid gap-1 text-xs text-muted-foreground">Rate used
+              <Input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" className="h-8 w-24 text-right text-foreground" aria-label="Rate used" />
+            </label>
+          ) : null}
           <label className="grid flex-1 gap-1 text-xs text-muted-foreground">Note (optional)
             <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="e.g. sent to Jana on WhatsApp" className="h-8 min-w-48 text-foreground" aria-label="Send note" />
           </label>
-          <Button type="button" size="sm" disabled={pending} data-testid="send-save" onClick={() => run(() => markListSent(listId, date, channel, note))}>{pending ? "Saving…" : "Save"}</Button>
+          <Button type="button" size="sm" disabled={pending} data-testid="send-save" onClick={() => run(() => markListSent(listId, date, channel, note, what === "usd" ? { variant: "usd" } : { variant: "d2d", via: what, rate: Number(rate) }))}>{pending ? "Saving…" : "Save"}</Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
         </div>
       ) : (

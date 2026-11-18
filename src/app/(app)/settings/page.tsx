@@ -15,6 +15,7 @@ import { MessageRatesForm } from "./message-rates";
 import { InvoiceIssuerForm, type IssuerValue } from "./invoice-issuer";
 import { SkuAddForm, SkuBatteryToggle, UserAccessRow } from "./admin-lists";
 import { IntermediariesEditor } from "./intermediaries";
+import { loadIntermediaryRows } from "@/lib/orders/intermediary-rows";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -27,22 +28,14 @@ export default async function SettingsPage() {
   if (!access.allowed) return <NoAccess />;
 
   const supabase = await createClient();
-  const [settings, users, rules, intermediaries, skus, portalUsers, imOrders, imAccounts, imBatches] = await Promise.all([
+  const [settings, users, rules, intermediaryRows, skus, portalUsers] = await Promise.all([
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
     supabase.from("profiles").select("user_id, full_name, email, role, timezone, active, sections").order("full_name"),
     supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
-    supabase.from("intermediaries").select("id, name, kind, rsin, eori, kvk, vat, contact, contact_phone, contact_email, address, country, default_cutoff_weekday").order("name"),
+    loadIntermediaryRows(supabase),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
     supabase.from("portal_users").select("user_id"),
-    // how many orders / clients / RMA batches use each intermediary (only unused ones can be removed)
-    supabase.from("orders").select("intermediary_id").not("intermediary_id", "is", null),
-    supabase.from("accounts").select("intermediary_id").not("intermediary_id", "is", null),
-    supabase.from("rma_batches").select("intermediary_id"),
   ]);
-  const countBy = (rows: { intermediary_id: string | null }[] | null, id: string) => (rows ?? []).filter((r) => r.intermediary_id === id).length;
-  const intermediaryRows = (intermediaries.data ?? []).map((i) => ({
-    ...i, kind: (i.kind === "clearance" ? "clearance" : "intermediary") as "clearance" | "intermediary", orders: countBy(imOrders.data, i.id), clients: countBy(imAccounts.data, i.id), batches: countBy(imBatches.data, i.id),
-  }));
   // client-portal logins are managed per account (Accounts → Client portal), not here
   const portalIds = new Set((portalUsers.data ?? []).map((p) => p.user_id));
   const staffUsers = (users.data ?? []).filter((u) => !portalIds.has(u.user_id));

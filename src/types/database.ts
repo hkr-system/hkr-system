@@ -649,14 +649,14 @@ isOneToOne: false
                   ]
                 },"intermediaries": {
                   Row: {
-                    "address": string | null,"contact": string | null,"contact_email": string | null,"contact_phone": string | null,"country": string | null,"created_at": string,"created_by": string | null,"default_cutoff_weekday": number | null,"eori": string | null,"id": string,"kind": string,"kvk": string | null,"name": string,"rsin": string | null,"updated_at": string,"vat": string | null,"vat_eori": string | null
+                    "address": string | null,"contact": string | null,"contact_email": string | null,"contact_phone": string | null,"country": string | null,"created_at": string,"created_by": string | null,"d2d": Json | null,"default_cutoff_weekday": number | null,"eori": string | null,"id": string,"kind": string,"kvk": string | null,"name": string,"rsin": string | null,"updated_at": string,"vat": string | null,"vat_eori": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"eori"?: string | null,"id"?: string,"kind"?: string,"kvk"?: string | null,"name": string,"rsin"?: string | null,"updated_at"?: string,"vat"?: string | null,"vat_eori"?: string | null
+                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"d2d"?: Json | null,"default_cutoff_weekday"?: number | null,"eori"?: string | null,"id"?: string,"kind"?: string,"kvk"?: string | null,"name": string,"rsin"?: string | null,"updated_at"?: string,"vat"?: string | null,"vat_eori"?: string | null
                   }
                   Update: {
-                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_cutoff_weekday"?: number | null,"eori"?: string | null,"id"?: string,"kind"?: string,"kvk"?: string | null,"name"?: string,"rsin"?: string | null,"updated_at"?: string,"vat"?: string | null,"vat_eori"?: string | null
+                    "address"?: string | null,"contact"?: string | null,"contact_email"?: string | null,"contact_phone"?: string | null,"country"?: string | null,"created_at"?: string,"created_by"?: string | null,"d2d"?: Json | null,"default_cutoff_weekday"?: number | null,"eori"?: string | null,"id"?: string,"kind"?: string,"kvk"?: string | null,"name"?: string,"rsin"?: string | null,"updated_at"?: string,"vat"?: string | null,"vat_eori"?: string | null
                   }
                   Relationships: [
                     
@@ -1239,14 +1239,14 @@ isOneToOne: false
                   ]
                 },"price_list_sends": {
                   Row: {
-                    "account_id": string,"channel": string,"created_at": string,"created_by": string | null,"id": string,"note": string | null,"price_list_id": string,"sent_on": string,"updated_at": string
+                    "account_id": string,"channel": string,"created_at": string,"created_by": string | null,"fx_rate": number | null,"id": string,"note": string | null,"price_list_id": string,"sent_on": string,"updated_at": string,"variant": string,"via_intermediary_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"price_list_id": string,"sent_on"?: string,"updated_at"?: string
+                    "account_id": string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"fx_rate"?: number | null,"id"?: string,"note"?: string | null,"price_list_id": string,"sent_on"?: string,"updated_at"?: string,"variant"?: string,"via_intermediary_id"?: string | null
                   }
                   Update: {
-                    "account_id"?: string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"price_list_id"?: string,"sent_on"?: string,"updated_at"?: string
+                    "account_id"?: string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"fx_rate"?: number | null,"id"?: string,"note"?: string | null,"price_list_id"?: string,"sent_on"?: string,"updated_at"?: string,"variant"?: string,"via_intermediary_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -1266,6 +1266,12 @@ isOneToOne: false
       columns: ["price_list_id"]
 isOneToOne: false
       referencedRelation: "price_lists"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_list_sends_via_intermediary_id_fkey"
+      columns: ["via_intermediary_id"]
+isOneToOne: false
+      referencedRelation: "intermediaries"
       referencedColumns: ["id"]
     }
                   ]

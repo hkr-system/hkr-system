@@ -108,7 +108,7 @@ async function resolveIntermediary(db: Awaited<ReturnType<typeof createClient>>,
   const { data: same } = await db.from("intermediaries").select("id").ilike("name", name.replace(/[\\%_]/g, (c) => "\\" + c)).limit(1).maybeSingle();
   if (same) return { id: same.id };                  // "galimix" typed again = the Galimix already saved
   const { data: im, error } = await db.from("intermediaries").insert({ name }).select("id").single();
-  if (error) return { id: null, error: error.code === "42501" ? "Only an admin adds a new intermediary (Settings → Intermediaries)." : friendly(error) };
+  if (error) return { id: null, error: error.code === "42501" ? "Only an admin or the account specialist adds a new intermediary / clearance company." : friendly(error) };
   return { id: im.id };
 }
 

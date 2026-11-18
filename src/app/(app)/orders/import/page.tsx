@@ -26,7 +26,7 @@ export default async function ImportInvoicePage() {
     <>
       <PageHeader title="Import invoice (Excel)" description="Upload an HKR invoice made in Excel: the system reads it, shows the order to check, and registers the sale." />
       <SectionTabs tabs={SALES_TABS} />
-      <InvoiceImport accounts={accounts} skus={skus} isAdmin={access.user.role === "admin"} terms={terms} prices={prices}
+      <InvoiceImport canAddCompany={access.user.role === "admin" || access.user.role === "account_specialist"} accounts={accounts} skus={skus} isAdmin={access.user.role === "admin"} terms={terms} prices={prices}
         intermediaries={intermediaries} addresses={addresses} creditNotes={creditNotes} sentLists={sentLists} />
     </>
   );

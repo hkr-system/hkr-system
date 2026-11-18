@@ -13,9 +13,9 @@ import { EditLock } from "@/components/edit-lock";
 // Route via an EU intermediary (Gabriel, Nov 2 2026): we invoice the intermediary in USD; the intermediary invoices the
 // client in EUR (added here when it arrives); the client pays the intermediary, the intermediary pays US in USD.
 // The intermediary belongs to the ORDER (Nov 3 2026): any company, changeable here; the account only gives the default.
-export function IntermediaryPanel({ orderId, accountId, accountCode, orderNumber, intermediaryId, intermediaries, isAdmin, no, eur, depositWithIntermediary, editable }: {
+export function IntermediaryPanel({ orderId, accountId, accountCode, orderNumber, intermediaryId, intermediaries, isAdmin, no, eur, depositWithIntermediary, editable, canAddCompany = false }: {
   orderId: string; accountId: string; accountCode: string; orderNumber: string; intermediaryId: string | null;
-  intermediaries: { id: string; name: string; kind?: string; saved?: boolean }[]; isAdmin: boolean;
+  intermediaries: { id: string; name: string; kind?: string; saved?: boolean }[]; isAdmin: boolean; canAddCompany?: boolean;
   no: string | null; eur: number | null; depositWithIntermediary: boolean; editable: boolean;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveIntermediaryInvoice, {});
@@ -34,7 +34,7 @@ export function IntermediaryPanel({ orderId, accountId, accountCode, orderNumber
             <NativeSelect id="pim" name="intermediary_id" value={pick} onChange={(e) => setPick(e.target.value)} disabled={!editable} data-testid="order-intermediary">
               <option value="">— Direct: invoice the client —</option>
               {sorted.map((i) => <option key={i.id} value={i.id}>{i.saved ? "★ " : ""}{i.name} ({i.kind === "clearance" ? "clearance company" : "intermediary"})</option>)}
-              {isAdmin ? <option value="new">+ New intermediary / clearance company…</option> : null}
+              {isAdmin || canAddCompany ? <option value="new">+ New intermediary / clearance company…</option> : null}
             </NativeSelect>
           </div>
           {pick === "new" ? (

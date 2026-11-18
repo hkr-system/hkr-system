@@ -63,14 +63,16 @@ function F({ label, children, className }: { label: string; children: React.Reac
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo, creditNotes = {}, sentLists = {} }: {
+export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices = {}, intermediaries = [], addresses = [], importInfo, creditNotes = {}, sentLists = {}, canAddCompany }: {
   accounts: FormAccount[]; skus: Sku[]; values?: OrderValues; isAdmin: boolean; prices?: AccountPrices;
   intermediaries?: { id: string; name: string; kind?: string; suggestedFor?: string[] }[]; addresses?: SavedAddress[];
   terms: { depositPct: number; usdtFeePct: number; moqUsd: number; sampleMinUsd: number };
   importInfo?: ImportInfo;
   creditNotes?: Record<string, AvailableCreditNote[]>;
   sentLists?: Record<string, string>;   // what was last sent to each client (Nov 18 2026)
+  canAddCompany?: boolean;   // admin + specialist add intermediaries / clearance companies (Nov 18 2026)
 }) {
+  const addCompany = canAddCompany ?? isAdmin;
   const [state, action, pending] = useActionState<ActionState, FormData>(saveOrder, {});
   const fmtOf = (id: string): Fmt => ({ battery_line_separate: true, show_ce_text: false, plain_lines: false, show_note: false, ...(accounts.find((a) => a.id === id)?.invoice_format ?? {}) });
   const [fmt, setFmt] = useState<Fmt>(() => (values.invoice_format && Object.keys(values.invoice_format).length
@@ -229,9 +231,9 @@ export function OrderForm({ accounts, skus, values = {}, isAdmin, terms, prices 
               {routeOptions.map((i) => (
                 <option key={i.id} value={i.id}>{i.saved ? "★ " : ""}Via {i.name} ({i.kind === "clearance" ? "clearance company" : "intermediary"})</option>
               ))}
-              {isAdmin ? <option value="new">+ New intermediary / clearance company…</option> : null}
+              {addCompany ? <option value="new">+ New intermediary / clearance company…</option> : null}
             </NativeSelect>
-            {!isAdmin ? <span className="text-xs text-muted-foreground">Not in the list? An admin adds it in Settings → Intermediaries &amp; clearance.</span> : null}
+            {!addCompany ? <span className="text-xs text-muted-foreground">Not in the list? An admin or the account specialist adds it.</span> : null}
             {accountId && routeOptions.some((i) => i.saved) ? <span className="text-xs text-muted-foreground">★ = saved for this client</span> : null}
           </F>
           {route === "new" ? (

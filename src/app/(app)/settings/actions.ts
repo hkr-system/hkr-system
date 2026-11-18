@@ -238,7 +238,7 @@ export type IntermediaryInput = {
 };
 
 export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<SettingState & { message?: string }> {
-  await requireRole(["admin"]);
+  await requireRole(["admin", "account_specialist"]);   // the specialist onboards accounts (Nov 18 2026); removing = admin
   const t = (v: unknown, max: number) => String(v ?? "").trim().replace(/[ \t]+/g, " ").slice(0, max) || null;
   const clean = rows.map((r, i) => {
     const day = Number(r.default_cutoff_weekday);
@@ -273,7 +273,7 @@ export async function saveIntermediaries(rows: IntermediaryInput[]): Promise<Set
     if (error) return { error: error.code === "23505" ? `There is already a company called ${r.fields.name}.` : error.message };
     if (!r.id) added++;
   }
-  revalidatePath("/settings");
+  revalidatePath("/settings"); revalidatePath("/accounts/intermediaries");
   return { ok: true, message: added ? `Saved (${added} new).` : "Saved." };
 }
 

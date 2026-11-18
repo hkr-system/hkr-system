@@ -12,6 +12,6 @@ export function accountTabs(canCreate: boolean) {
   return [
     { href: "/accounts", label: "Overview", exact: true },
     { href: "/accounts/list", label: "All accounts" },
-    ...(canCreate ? [{ href: "/accounts/new", label: "New account", exact: true }] : []),
+    ...(canCreate ? [{ href: "/accounts/new", label: "New account", exact: true }, { href: "/accounts/intermediaries", label: "Intermediaries & clearance" }] : []),
   ];
 }

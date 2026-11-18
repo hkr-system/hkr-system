@@ -24,7 +24,7 @@ const FIELDS = ["name", "kind", "rsin", "eori", "kvk", "vat", "contact", "contac
 // Settings → Intermediaries & clearance companies (Gabriel, Nov 9 2026), laid out like the client's saved addresses: one
 // card per company. These are the companies HKR invoices instead of the client (Ultimate consignee on the invoice); they
 // pay HKR in USD. Identifiers RSIN / EORI / KVK/CoC / VAT are separate; empty ones are not printed. One Save.
-export function IntermediariesEditor({ rows: initial }: { rows: IntermediaryRow[] }) {
+export function IntermediariesEditor({ rows: initial, canDelete = true }: { rows: IntermediaryRow[]; canDelete?: boolean }) {
   const router = useRouter();
   const start0 = (): Row[] => initial.map((r) => ({ ...r, key: r.id }));
   const [rows, setRows] = useState<Row[]>(start0);
@@ -104,7 +104,7 @@ export function IntermediariesEditor({ rows: initial }: { rows: IntermediaryRow[
               {r.key.startsWith("new-") ? <span>New — saved with “Save companies”.</span> : (
                 <span>Used by {r.orders} order{r.orders === 1 ? "" : "s"} · last route of {r.clients} client{r.clients === 1 ? "" : "s"}{r.batches ? ` · ${r.batches} RMA batch${r.batches === 1 ? "" : "es"}` : ""}</span>
               )}
-              {used === 0 ? <Button type="button" size="sm" variant="ghost" className="h-7 text-destructive" disabled={pending} onClick={() => remove(r)}>Remove</Button> : null}
+              {used === 0 && (canDelete || r.key.startsWith("new-")) ? <Button type="button" size="sm" variant="ghost" className="h-7 text-destructive" disabled={pending} onClick={() => remove(r)}>Remove</Button> : null}
             </div>
           </div>
         );

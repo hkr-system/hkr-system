@@ -118,15 +118,28 @@ const login = async (page, email) => {
   check(pdf.status() === 200, 'invoice PDF downloads');
   fs.writeFileSync(path.join(DIR, 'invoice-galimix.pdf'), await pdf.body());
 
-  // specialist: picks from the list, cannot add
+  // specialist (Nov 18 2026): adds and edits companies (onboarding) — on the order form and in Accounts → Intermediaries; never removes
   const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await autoUnlock(ctx2);
   const p2 = await ctx2.newPage();
   await login(p2, 'atreyi.demo@hk-refurbished-stock.com');
   await p2.goto(BASE + '/orders/new');
   await p2.waitForSelector('[data-testid=order-route]', { timeout: 60000 });
   await p2.waitForTimeout(800);
-  check((await p2.locator('[data-testid=order-route] option[value=new]').count()) === 0, 'specialist: no "+ New intermediary…"');
-  check((await p2.content()).includes('An admin adds it in Settings'), 'specialist: told where an admin adds one');
+  check((await p2.locator('[data-testid=order-route] option[value=new]').count()) === 1, 'specialist: "+ New intermediary / clearance company…" offered');
+  await p2.goto(BASE + '/accounts/intermediaries');
+  await p2.waitForSelector('[data-testid=intermediaries]', { timeout: 60000 });
+  await p2.click('[data-testid=add-intermediary]');
+  const card = p2.locator('[data-testid=intermediary-row]').last();
+  await card.locator('input[aria-label="Company name *"]').fill('Onboard Clearance BV');
+  await card.locator('select[aria-label=Type]').selectOption('clearance');
+  await card.locator('input[aria-label=VAT]').fill('NL000000000B01');
+  await p2.click('[data-testid=save-intermediaries]');
+  await p2.waitForFunction(() => document.body.innerText.includes('Saved') || document.body.innerText.includes('saved'), null, { timeout: 30000 }).catch(() => {});
+  const { data: added } = await admin.from('intermediaries').select('name, kind, vat').eq('name', 'Onboard Clearance BV').maybeSingle();
+  check(added && added.kind === 'clearance' && added.vat === 'NL000000000B01', `specialist adds a clearance company (${JSON.stringify(added)})`);
+  await p2.reload(); await p2.waitForSelector('[data-testid=intermediary-row]', { timeout: 60000 }); await p2.waitForTimeout(800);
+  check((await p2.getByRole('button', { name: 'Remove' }).count()) === 0, 'specialist: no Remove on saved companies (admin only)');
   check(await p2.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'phone width: no page-level horizontal scroll');
 
   await browser.close();

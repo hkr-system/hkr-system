@@ -270,7 +270,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               <CardDescription>{imName ? `We invoice ${imName} in USD → they invoice the client in EUR → the client pays them → they pay us in USD.` : "Choose the company if this order goes through an intermediary (Global Connect, Galimix, DWT…)."} The client&apos;s usual intermediary is only the default for new orders.</CardDescription>
             </CardHeader>
             <CardContent>
-              <IntermediaryPanel orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number}
+              <IntermediaryPanel canAddCompany={isAdmin || user.role === "account_specialist"} orderId={id} accountId={acc.id} accountCode={acc.code} orderNumber={o.number}
                 intermediaryId={o.intermediary_id} intermediaries={(intermediaries ?? []).map((i) => ({ id: i.id, name: i.name, kind: i.kind, saved: (i.account_intermediaries ?? []).some((x) => x.account_id === acc.id) }))} isAdmin={isAdmin}
                 no={o.partner_invoice_no} eur={o.partner_invoice_eur === null ? null : Number(o.partner_invoice_eur)}
                 depositWithIntermediary={Boolean(o.deposit_with_intermediary)} editable={editable} />

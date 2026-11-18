@@ -36,7 +36,7 @@ export default async function EditOrderPage({ params }: PageProps<"/orders/[id]/
   return (
     <>
       <PageHeader title={`Edit ${(o.accounts as { code: string } | null)?.code ?? ""} ${o.number}`} />
-      <OrderForm sentLists={sentLists} accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
+      <OrderForm canAddCompany={isAdmin || access.user.role === "account_specialist"} sentLists={sentLists} accounts={accounts.filter((a) => a.id === o.account_id)} skus={skus} isAdmin={isAdmin} terms={terms} prices={prices}
         intermediaries={intermediaries} addresses={addresses.filter((x) => x.account_id === o.account_id)}
         values={{
           ...o, ship_to: (o.ship_to ?? {}) as Record<string, string>,

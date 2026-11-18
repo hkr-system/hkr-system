@@ -27,7 +27,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/orders/
       <PageHeader title="New order" description="Lines, totals with the 10/90 split, USDT fee and freight; the number ORD-NN is given on save." />
       <SectionTabs tabs={SALES_TABS} />
       {accounts.length ? (
-        <OrderForm accounts={accounts} skus={skus} isAdmin={access.user.role === "admin"} terms={terms} prices={prices} values={{ account_id: account }}
+        <OrderForm canAddCompany={access.user.role === "admin" || access.user.role === "account_specialist"} accounts={accounts} skus={skus} isAdmin={access.user.role === "admin"} terms={terms} prices={prices} values={{ account_id: account }}
           intermediaries={intermediaries} addresses={addresses} creditNotes={creditNotes} sentLists={sentLists} />
       ) : <p className="text-sm text-muted-foreground">You have no accounts to order for yet.</p>}
     </>

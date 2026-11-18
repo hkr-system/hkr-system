@@ -475,6 +475,11 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   pick from
   the list. Migration 20261109010000 adds vat_eori, contact_phone, contact_email (`contact` = contact name). e2e `tests/e2e/intermediaries.cjs`.
 
+- Nov 18 2026 (Gabriel: Atreyi onboards accounts): admin AND account specialist add / edit companies — Accounts →
+  "Intermediaries & clearance" (`/accounts/intermediaries`, same editor as Settings, no Remove) and "+ New intermediary /
+  clearance company…" on the order form / Intermediary tab; removing stays admin only (RLS `intermediaries_insert/update`).
+  pgTAP `23_intermediaries_specialist`.
+
 ## Invoiced company vs ship-to vs contact (Gabriel, Nov 9 2026, from the Telcos invoice)
 
 - Ultimate consignee = the company HKR INVOICES. Via an intermediary (Galimix, Global Connect…) or a clearance company (Barry

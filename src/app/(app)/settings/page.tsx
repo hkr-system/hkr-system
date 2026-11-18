@@ -29,7 +29,7 @@ export default async function SettingsPage() {
   const supabase = await createClient();
   const [settings, users, rules, intermediaries, skus, portalUsers, imOrders, imAccounts, imBatches] = await Promise.all([
     supabase.from("settings").select("key, label, description, confidential, value, category, sort_order").order("sort_order"),
-    supabase.from("profiles").select("user_id, full_name, email, role, timezone, active").order("full_name"),
+    supabase.from("profiles").select("user_id, full_name, email, role, timezone, active, sections").order("full_name"),
     supabase.from("scoring_rules").select("id, label, operator, value, points, disqualify, active").order("sort_order"),
     supabase.from("intermediaries").select("id, name, kind, rsin, eori, kvk, vat, contact, contact_phone, contact_email, address, country, default_cutoff_weekday").order("name"),
     supabase.from("skus").select("id, model, storage_gb, color, grade, battery_eligible").order("model"),
@@ -82,10 +82,11 @@ export default async function SettingsPage() {
       <OpenFromHash />
       <div className="grid gap-3">
         <SettingsSection id="users" title="Users" count={`${staffUsers.length}`}
-          description="Who can sign in and with which role. Logins are created in Supabase → Authentication → Users.">
+          description="Who can sign in, with which role and which modules. Logins are created in Supabase → Authentication → Users.">
           <p className="mb-3 text-sm text-muted-foreground">
             Create a login in Supabase → Authentication → Users (Add user → email + password, Auto Confirm). It appears here
-            without a role: give it one and press Save. Inactive users cannot sign in to the system.
+            without a role: give it one, tick the modules it may use and press Save. A role is the most a person can have; untick a
+            module to hide it (menu, pages, notices, and its data for Leads and WhatsApp). Inactive users cannot sign in to the system.
           </p>
           <Table>
             <TableHeader><TableRow><TableHead colSpan={2}>Email</TableHead><TableHead colSpan={3}>Name · role · active · time zone</TableHead></TableRow></TableHeader>

@@ -39,16 +39,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // The page never waits for the menu counters or the bell: they stream in right after.
   return (
     <div className="flex min-h-svh">
-      <Suspense fallback={<AppSidebar items={menuItems(role)} initialCollapsed={sidebar.collapsed} initialWidth={sidebar.width} />}>
-        <SidebarWithBadges role={role} collapsed={sidebar.collapsed} width={sidebar.width} />
+      <Suspense fallback={<AppSidebar items={menuItems(role, {}, user.sections)} initialCollapsed={sidebar.collapsed} initialWidth={sidebar.width} />}>
+        <SidebarWithBadges role={role} collapsed={sidebar.collapsed} width={sidebar.width} sections={user.sections} />
       </Suspense>
       <RealtimeRefresh tables={["notifications", "payments", "wa_conversations", "rmas"]} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-          <Suspense fallback={<MobileNav items={menuItems(role)} />}><MobileNavWithBadges role={role} /></Suspense>
+          <Suspense fallback={<MobileNav items={menuItems(role, {}, user.sections)} />}><MobileNavWithBadges role={role} sections={user.sections} /></Suspense>
           <Clocks />
           <div className="ml-auto flex items-center gap-1">
-            <Suspense fallback={<NotificationsBell unread={0} notes={[]} />}><BellWithNotes timezone={user.timezone} /></Suspense>
+            <Suspense fallback={<NotificationsBell unread={0} notes={[]} />}><BellWithNotes timezone={user.timezone} role={role} sections={user.sections} /></Suspense>
             <UserMenu name={user.fullName} email={user.email} roleLabel={ROLE_LABELS[role]} />
           </div>
         </header>

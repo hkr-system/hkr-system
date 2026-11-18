@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // Account → Price lists tab, per brand: current list, versions and the change per model across the last 4 versions (brief item 8).
-export async function AccountPriceLists({ accountId, canPrepare, today, isAdmin = false }: { accountId: string; canPrepare: boolean; today: string; isAdmin?: boolean }) {
+export async function AccountPriceLists({ accountId, canPrepare, today, isAdmin = false, canSend = true }: { accountId: string; canPrepare: boolean; today: string; isAdmin?: boolean; canSend?: boolean }) {
   const db = await createClient();
   const { data: lists } = await db.from("price_lists").select("id, brand, version, status, valid_from, valid_until, rma_c, extra_c, approved_at, approved_by, base_list_id")
     .eq("account_id", accountId).order("version", { ascending: false });
@@ -93,7 +93,7 @@ export async function AccountPriceLists({ accountId, canPrepare, today, isAdmin 
               <CardContent className="flex flex-wrap items-center gap-3">
                 {current && isDue(current.valid_until, today) ? <DueBadge /> : null}
                 {current ? <GetPriceList listId={current.id} /> : null}
-                {current ? <ListSends listId={current.id} sends={[]} today={today} canDeleteAll={isAdmin} compact /> : null}
+                {current && canSend ? <ListSends listId={current.id} sends={[]} today={today} canDeleteAll={isAdmin} compact /> : null}
                 {draft ? <Link href={`/price-lists/${draft.id}`} className="inline-flex items-center gap-2 text-sm hover:underline"><ListStatusBadge status="draft" /> Version {draft.version} waiting for approval →</Link> : null}
                 {canPrepare && !draft ? <PrepareListButton accountId={accountId} brand={brand} label={current ? "Prepare the refresh" : `Prepare the first ${label} list`} primary={brand === "iphone"} /> : null}
               </CardContent>

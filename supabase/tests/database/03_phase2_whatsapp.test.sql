@@ -86,7 +86,7 @@ select throws_ok($$ update public.wa_broadcasts set status = 'approved' $$, 'P00
 select pg_temp.logout();
 
 select pg_temp.login('as');
-select is((select count(*)::int from public.wa_conversations where contact_phone = '+5037000111'), 0, 'specialist: no access to WhatsApp (Nov 18 2026)');
+select is((select count(*)::int from public.wa_conversations where contact_phone = '+5037000111'), 1, 'specialist sees unassigned conversation');
 select is((select count(*)::int from public.wa_broadcasts), 0, 'specialist cannot see broadcasts');
 select pg_temp.logout();
 

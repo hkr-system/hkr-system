@@ -1303,14 +1303,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "active": boolean,"created_at": string,"created_by": string | null,"email": string,"full_name": string,"role": Database["public"]['Enums']["app_role"] | null,"timezone": string,"updated_at": string,"user_id": string
+                    "active": boolean,"created_at": string,"created_by": string | null,"email": string,"full_name": string,"role": Database["public"]['Enums']["app_role"] | null,"sections": (string)[] | null,"timezone": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"email": string,"full_name"?: string,"role"?: Database["public"]['Enums']["app_role"] | null,"timezone"?: string,"updated_at"?: string,"user_id": string
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"email": string,"full_name"?: string,"role"?: Database["public"]['Enums']["app_role"] | null,"sections"?: (string)[] | null,"timezone"?: string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"email"?: string,"full_name"?: string,"role"?: Database["public"]['Enums']["app_role"] | null,"timezone"?: string,"updated_at"?: string,"user_id"?: string
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"email"?: string,"full_name"?: string,"role"?: Database["public"]['Enums']["app_role"] | null,"sections"?: (string)[] | null,"timezone"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     
@@ -1979,6 +1979,9 @@ isOneToOne: false
 "brand_of":
 { Args: { "p_model": string }; Returns: Database["public"]['Enums']["product_brand"]
                            },
+"can_broadcast":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "can_manage_portal":
 { Args: { "p_account": string }; Returns: boolean
                            },
@@ -1999,6 +2002,12 @@ isOneToOne: false
                            },
 "has_account_access":
 { Args: { "p_account_id": string }; Returns: boolean
+                           },
+"has_section":
+{ Args: { "p_key": string }; Returns: boolean
+                           },
+"has_section_for":
+{ Args: { "p_key": string,"p_user": string }; Returns: boolean
                            },
 "invoice_next_number":
 { Args: { "p_date": string }; Returns: string

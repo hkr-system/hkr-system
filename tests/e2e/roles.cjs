@@ -12,7 +12,7 @@ const users = [
   { name: 'gabriel', role: 'Admin', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp','finance','settings'] },
   { name: 'yessica', role: 'Business development', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp'] },
   { name: 'arslan', role: 'Business development', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp'] },
-  { name: 'atreyi', role: 'Account specialist', expect: ['dashboard','accounts','orders','rmas','price-lists'] },   // no Leads / WhatsApp (Nov 18 2026)
+  { name: 'atreyi', role: 'Account specialist', expect: ['dashboard','accounts','orders','rmas','price-lists','leads','whatsapp'] },
 ];
 (async () => {
   const browser = await chromium.launch();
@@ -71,15 +71,8 @@ const users = [
       await page.screenshot({ path: `${DIR}/${u.name}-settings.png` });
     }
     await page.goto(BASE + '/leads/list');
-    if (u.name === 'atreyi') {
-      await page.waitForTimeout(800);
-      check((await page.getByText('No access').count()) > 0, 'atreyi: /leads shows No access');
-      await page.goto(BASE + '/whatsapp'); await page.waitForTimeout(800);
-      check((await page.getByText('No access').count()) > 0, 'atreyi: /whatsapp shows No access');
-    } else {
-      const ro = await page.getByText('Read-only for your role').count();
-      check(ro === 0, `${u.name}: leads read-only badge = ${ro}`);
-    }
+    const ro = await page.getByText('Read-only for your role').count();
+    check(u.name === 'atreyi' ? ro === 1 : ro === 0, `${u.name}: leads read-only badge = ${ro}`);
     // sign out
     await page.click('[data-testid=user-menu]');
     await page.click('[data-testid=sign-out]');

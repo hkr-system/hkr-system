@@ -219,6 +219,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
 | `node tests/e2e/order-delete.cjs` | Delete an order (after db:reset): specialist none, blockers shown, admin deletes by typing the number |
 | `node tests/e2e/price-history.cjs` | Price list history + Mark as sent (after db:reset): account tab, History ★ and filters, order versions warning |
+| `node tests/e2e/user-modules.cjs` | Modules per user (after db:reset): untick Leads + WhatsApp for Atreyi → menu, pages, tiles hidden; tick back |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
@@ -571,6 +572,20 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Deposit: usually the 10 % reaches us; sometimes (small deposits, "usually under US$5k") the intermediary keeps it and
   sends 100 % when the order is ready → order flag `deposit_with_intermediary` (set by hand): deposit expected 0, balance
   100 %, the order may move to Deposit paid without a deposit payment.
+
+## Modules per user (Gabriel, Nov 18 2026)
+
+- "Debe haber un lugar donde yo pueda cambiar los accesos a los módulos": Settings → Users → per user a Yes/No box per module
+  (Dashboard, Accounts, Sales, RMAs, Price lists, Leads, WhatsApp). `profiles.sections` text[] (null = every module of the role;
+  all ticked saves null); the ROLE is the ceiling (Finance + Settings admin only; an admin always has everything — check
+  constraint + `profiles_sections_guard`: only an admin edits). One rule everywhere: `canUseSection()` (src/lib/nav.ts) for menu,
+  `checkSection()` pages, `requireSection()` / `userCan()` (src/lib/auth.ts), bell (notices of hidden modules left out), and SQL
+  `has_section(key)` / `has_section_for(user, key)`.
+- Database: Leads (`leads_read`, `lead_events_read` = has_section('leads'); `can_work_leads()` = admin/bd AND Leads) and WhatsApp
+  (`can_see_conversation`, numbers, templates; broadcasts via `can_broadcast()` = admin/bd AND WhatsApp — no longer tied to Leads).
+  Other modules' data shown inside Accounts (orders, RMAs, price lists) stays: no interference; their buttons hide when the module
+  is off (e.g. price list Prepare / Mark as sent on the account tab). A contact's phone links its chat by trigger `contacts_link_chat`.
+- pgTAP `22_user_modules`, e2e `tests/e2e/user-modules.cjs`.
 
 ## Go-live (Oct 30 2026)
 

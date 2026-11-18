@@ -38,10 +38,9 @@ export const SECTIONS: readonly Section[] = [
     summary: "RMA intake, IMEI check, weekly EU batches and credit notes." },
   { key: "price-lists", label: "Price lists", href: "/price-lists", roles: ALL, phase: 6,
     summary: "Price-list engine, client lists, outputs and weekly promotions." },
-  // Leads and WhatsApp: admin + bd only (Gabriel, Nov 18 2026: the account specialist does not use them; RLS matches)
-  { key: "leads", label: "Leads", href: "/leads", roles: ["admin", "bd"], phase: 1,
+  { key: "leads", label: "Leads", href: "/leads", roles: ALL, readOnlyFor: ["account_specialist"], phase: 1,
     summary: "Leads, stages, next actions, the public qualification form and Brevo sync." },
-  { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", roles: ["admin", "bd"], phase: 2,
+  { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", roles: ALL, phase: 2,
     summary: "Inbox for the 4 numbers, templates and broadcasts." },
   { key: "finance", label: "Finance", href: "/finance", roles: ["admin"], phase: 3,
     summary: "Sales goals, sales history, projections and margins (admin)." },
@@ -49,8 +48,20 @@ export const SECTIONS: readonly Section[] = [
     summary: "Parameters, users and scoring rules." },
 ];
 
-export function sectionsFor(role: AppRole): Section[] {
-  return SECTIONS.filter((s) => s.roles.includes(role));
+/** Modules the admin can switch on/off per user in Settings → Users (Gabriel, Nov 18 2026). Finance and Settings stay
+ *  admin-only by role. Same list as the SQL check on profiles.sections. */
+export const ASSIGNABLE_SECTIONS = ["dashboard", "accounts", "orders", "rmas", "price-lists", "leads", "whatsapp"] as const satisfies readonly SectionKey[];
+
+/** May this user use the module? Role = ceiling; `sections` = the boxes ticked by the admin (null = all of the role);
+ *  an admin always has everything. Mirrors SQL has_section(). */
+export function canUseSection(role: AppRole, sections: readonly string[] | null, key: SectionKey): boolean {
+  if (!SECTIONS.find((s) => s.key === key)?.roles.includes(role)) return false;
+  if (role === "admin" || sections === null) return true;
+  return sections.includes(key);
+}
+
+export function sectionsFor(role: AppRole, sections: readonly string[] | null = null): Section[] {
+  return SECTIONS.filter((s) => canUseSection(role, sections, s.key));
 }
 
 export function getSection(key: SectionKey): Section {

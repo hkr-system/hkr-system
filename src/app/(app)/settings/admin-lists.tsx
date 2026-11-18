@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { addSkus, setSkuBatteryEligible, updateUserAccess } from "./actions";
+import { ASSIGNABLE_SECTIONS, SECTIONS } from "@/lib/nav";
 
 export function UserAccessRow({ u, isMe }: {
-  u: { user_id: string; full_name: string | null; email: string | null; role: string | null; timezone: string; active: boolean }; isMe: boolean;
+  u: { user_id: string; full_name: string | null; email: string | null; role: string | null; timezone: string; active: boolean; sections: string[] | null }; isMe: boolean;
 }) {
   const [state, action, pending] = useActionState(updateUserAccess, {});
+  const [role, setRole] = useState(u.role ?? "");
+  // modules this role may have (the role is the ceiling); null sections = all of them
+  const mods = SECTIONS.filter((s) => (ASSIGNABLE_SECTIONS as readonly string[]).includes(s.key) && role && s.roles.includes(role as never));
   return (
     <TableRow data-testid={`user-${u.email}`}>
       <TableCell colSpan={2}>
@@ -21,10 +25,10 @@ export function UserAccessRow({ u, isMe }: {
       </TableCell>
       <TableCell colSpan={3}>
         {/* key: after Save, React resets the form to its first values; a new key redraws it with the saved values */}
-        <form key={`${u.full_name ?? ""}-${u.role ?? ""}-${u.active}`} action={action} className="flex flex-wrap items-center gap-2">
+        <form key={`${u.full_name ?? ""}-${u.role ?? ""}-${u.active}-${(u.sections ?? ["all"]).join(",")}`} action={action} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="user_id" value={u.user_id} />
           <Input name="full_name" defaultValue={u.full_name ?? ""} placeholder="Full name" maxLength={80} className="h-8 w-44" aria-label={`Name of ${u.email}`} />
-          <NativeSelect name="role" defaultValue={u.role ?? ""} className="w-44" aria-label={`Role of ${u.email}`} disabled={isMe}>
+          <NativeSelect name="role" value={role} onChange={(e) => setRole(e.target.value)} className="w-44" aria-label={`Role of ${u.email}`} disabled={isMe}>
             <option value="">No role (no access)</option>
             <option value="admin">Admin</option>
             <option value="bd">Business development</option>
@@ -34,6 +38,22 @@ export function UserAccessRow({ u, isMe }: {
           <label className="flex items-center gap-1 text-sm"><input type="checkbox" name="active" defaultChecked={u.active} disabled={isMe} className="size-4" /> Active</label>
           {isMe ? <input type="hidden" name="active" value="on" /> : null}
           <span className="text-xs text-muted-foreground">{u.timezone}</span>
+          {/* Modules per user (Gabriel, Nov 18 2026): Yes/No per module, never more than the role allows */}
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-muted/50 px-2 py-1.5 text-sm" data-testid={`modules-${u.email}`}>
+            <span className="text-xs font-medium text-muted-foreground">Modules:</span>
+            {role === "admin" ? <span className="text-xs text-muted-foreground">Admin — every module, Finance and Settings included</span>
+              : !role ? <span className="text-xs text-muted-foreground">Give a role first</span>
+              : <>
+                  <input type="hidden" name="sections_set" value="1" />
+                  {mods.map((s) => (
+                    <label key={`${role}-${s.key}`} className="flex items-center gap-1">
+                      <input type="checkbox" name="sections" value={s.key} defaultChecked={u.sections === null || u.sections.includes(s.key)} className="size-4" aria-label={`${s.label} for ${u.email}`} />
+                      {s.label}
+                    </label>
+                  ))}
+                  <span className="text-xs text-muted-foreground">· Finance and Settings: admin only</span>
+                </>}
+          </div>
           <Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "…" : "Save"}</Button>
           {state.error ? <span className="text-xs text-destructive">{state.error}</span> : null}
           {state.ok ? <Check className="size-4 text-emerald-600" aria-label="Saved" /> : null}

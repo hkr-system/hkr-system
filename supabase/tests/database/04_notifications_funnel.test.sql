@@ -30,8 +30,8 @@ select public.wa_ingest($json$
  "messages":[{"from":"50377776666","id":"wamid.NT1","timestamp":"1761570000","type":"text","text":{"body":"first"}},
              {"from":"50377776666","id":"wamid.NT2","timestamp":"1761570060","type":"text","text":{"body":"second"}}]}}]}]}
 $json$::jsonb);
-select is((select count(*)::int from public.notifications n join ids on ids.id = n.user_id where n.kind = 'wa_message'), 2,
-  'unassigned chat notifies admin + bd once each (bumped, not duplicated); not the specialist (Nov 18 2026)');
+select is((select count(*)::int from public.notifications n join ids on ids.id = n.user_id where n.kind = 'wa_message'), 3,
+  'unassigned chat notifies the 3 test users once each (bumped, not duplicated)');
 select is((select body from public.notifications n where n.user_id = (select id from ids where name = 'bd') and n.kind = 'wa_message'), 'second',
   'notification shows the latest message');
 

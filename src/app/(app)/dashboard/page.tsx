@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { checkSection } from "@/lib/auth";
+import { checkSection, userCan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS } from "@/lib/roles";
 import { HK, loadOps } from "@/lib/dashboard/load";
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
     db.from("escalations").select("id, answer_by").eq("status", "open").limit(500).then((r) => r.data ?? []),
     db.from("rma_units").select("unit_status, batch_id, rma_batches(status, cutoff_date), accounts(intermediary_id), rmas!inner(status)")
       .eq("resolution", "return_hk").in("rmas.status", ["approved", "awaiting_return", "in_batch"]).in("unit_status", ["reported", "verified", "awaiting_shipment"]).limit(5000).then((r) => r.data ?? []),
-    role === "account_specialist" ? Promise.resolve([])
+    role === "account_specialist" || !userCan(user, "leads") ? Promise.resolve([])
       : db.from("leads").select("stage, tier, created_at").limit(10000).then((r) => r.data ?? []),
     role === "account_specialist" ? Promise.resolve([]) : loadSales(db, prevStart, today0),
     role === "admin"
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
         <StatTile label="Open orders" value={open.length} sub={money(openUsd)} href="/orders" />
         <StatTile label="Pending shipment" value={toShip.length} sub="Balance paid, not shipped" href="/orders?attention=ship" />
         <StatTile label="Balance overdue" value={paymentAlerts} tone="attention" sub="Ready to ship > 2 days" href="#alerts" />
-        {role !== "account_specialist" ? <StatTile label="Unanswered WhatsApp" value={chats} tone="attention" href="/whatsapp" /> : null}
+        {userCan(user, "whatsapp") ? <StatTile label="Unanswered WhatsApp" value={chats} tone="attention" href="/whatsapp" /> : null}
         <StatTile label="Thursday update" value={thursdayTodo} tone="attention" sub={`${thursday.length - thursdayTodo} of ${thursday.length} sent this week`} href="/dashboard/thursday" />
         <StatTile label="For the SD" value={escalations.length} tone="attention" sub={lateEsc ? `${lateEsc} past the time promised` : "Open escalations"} href="/dashboard/escalations" />
       </div>
@@ -175,7 +175,7 @@ export default async function DashboardPage() {
           </Card>
         ) : null}
 
-        {role !== "account_specialist" ? (
+        {role !== "account_specialist" && userCan(user, "leads") ? (
           <Card className={cn(role === "bd" && "lg:col-span-2")} data-testid="leads-by-stage">
             <CardHeader>
               <CardTitle>Leads by stage</CardTitle>

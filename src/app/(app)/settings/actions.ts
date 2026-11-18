@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { ASSIGNABLE_SECTIONS, SECTIONS } from "@/lib/nav";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
@@ -209,8 +210,16 @@ export async function updateUserAccess(_prev: SettingState, formData: FormData):
   if (!/^[0-9a-f-]{36}$/.test(userId)) return { error: "Unknown user." };
   if (!["", "admin", "bd", "account_specialist"].includes(role)) return { error: "Unknown role." };
   if (userId === me.id && (role !== "admin" || !active)) return { error: "You cannot remove your own admin access." };
+  // modules per user (Nov 18 2026): only the ones the role allows; all of them (or an admin) = null = "every module of the role"
+  let sections: string[] | null = null;
+  if (role && role !== "admin" && formData.get("sections_set") !== null) {
+    const allowed = SECTIONS.filter((s) => (ASSIGNABLE_SECTIONS as readonly string[]).includes(s.key) && s.roles.includes(role as never)).map((s) => s.key as string);
+    const picked = formData.getAll("sections").map(String).filter((k) => allowed.includes(k));
+    if (!picked.length) return { error: "Tick at least one module (or make the user inactive)." };
+    sections = picked.length === allowed.length ? null : picked;
+  }
   const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ full_name: fullName, role: (role || null) as never, active }).eq("user_id", userId);
+  const { error } = await supabase.from("profiles").update({ full_name: fullName, role: (role || null) as never, active, sections }).eq("user_id", userId);
   if (error) return { error: error.message };
   revalidatePath("/settings");
   return { ok: true };

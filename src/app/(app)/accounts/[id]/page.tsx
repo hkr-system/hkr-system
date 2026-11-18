@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { checkSection } from "@/lib/auth";
+import { checkSection, userCan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { countryName } from "@/lib/leads/countries";
 import { loadTeam } from "@/lib/leads/service";
@@ -216,7 +216,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
               <CardHeader><CardTitle>Account Notes</CardTitle></CardHeader>
               <CardContent className="text-sm whitespace-pre-wrap">{a.notes || <span className="text-muted-foreground">Nothing written yet. If it is not written here, the next person does not know it (SOP §2.5).</span>}</CardContent>
             </Card>
-            {user.role !== "account_specialist" ? <Card>
+            {userCan(user, "whatsapp") ? <Card>
               <CardHeader><CardTitle>WhatsApp</CardTitle></CardHeader>
               <CardContent className="grid gap-1 text-sm">
                 {(chats.data ?? []).map((c) => (
@@ -307,7 +307,8 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
         </Card>
       ) : null}
       {tab === "price-lists" ? (
-        <AccountPriceLists accountId={id} canPrepare={user.role === "admin" || user.role === "account_specialist"} today={today} isAdmin={user.role === "admin"} />
+        <AccountPriceLists accountId={id} canPrepare={(user.role === "admin" || user.role === "account_specialist") && userCan(user, "price-lists")} today={today}
+          isAdmin={user.role === "admin"} canSend={userCan(user, "price-lists")} />
       ) : null}
 
       {tab === "files" ? (

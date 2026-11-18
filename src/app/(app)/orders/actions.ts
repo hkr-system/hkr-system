@@ -430,3 +430,23 @@ function parseFormat(raw: FormDataEntryValue | null) {
     return { battery_line_separate: x.battery_line_separate !== false, show_ce_text: x.show_ce_text === true, plain_lines: x.plain_lines === true, show_note: x.show_note === true };
   } catch { return null; }
 }
+
+// Delete an order (Gabriel, Nov 18 2026): admin only. The rules live in SQL `order_delete` (confirmed payments, approved /
+// sent invoice and shipped units refuse it); here we also remove the order's documents from storage (folder ORD-NN).
+export async function deleteOrder(orderId: string): Promise<ActionState> {
+  await requireRole(["admin"]);
+  const db = await createClient();
+  const { data: o } = await db.from("orders").select("number, account_id").eq("id", orderId).maybeSingle();
+  if (!o) return { error: "Order not found." };
+  const { data, error } = await db.rpc("order_delete", { p_order: orderId });
+  if (error) return { error: error.message };
+  const res = data as { paths?: string[] } | null;
+  const folder = storagePath(o.account_id, o.number, "").replace(/\/$/, "");
+  const { data: inFolder } = await db.storage.from(FILES_BUCKET).list(folder, { limit: 1000 });
+  const paths = [...new Set([...(res?.paths ?? []), ...(inFolder ?? []).filter((f) => f.id).map((f) => `${folder}/${f.name}`)])];
+  if (paths.length) await db.storage.from(FILES_BUCKET).remove(paths);
+  revalidatePath("/orders");
+  revalidatePath("/sales");
+  revalidatePath(`/accounts/${o.account_id}`);
+  redirect(`/orders?deleted=${encodeURIComponent(o.number)}`);
+}

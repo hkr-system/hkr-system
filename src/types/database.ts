@@ -663,14 +663,14 @@ isOneToOne: false
                   ]
                 },"invoices": {
                   Row: {
-                    "account_id": string,"approved_at": string | null,"approved_by": string | null,"billing_entity": Database["public"]['Enums']["billing_entity"],"consignee": string,"created_at": string,"created_by": string | null,"file_pdf_id": string | null,"file_xlsx_id": string | null,"id": string,"invoice_date": string,"lines": NonNullable<Json>,"notify": NonNullable<Json>,"number": string,"order_id": string,"payment_method": Database["public"]['Enums']["payment_method"],"sent_at": string | null,"sent_by": string | null,"ship_to": string,"shipment": NonNullable<Json>,"status": Database["public"]['Enums']["invoice_status"],"total_usd": number,"updated_at": string,"version": number
+                    "account_id": string,"approved_at": string | null,"approved_by": string | null,"billing_entity": Database["public"]['Enums']["billing_entity"],"consignee": string,"created_at": string,"created_by": string | null,"file_pdf_id": string | null,"file_xlsx_id": string | null,"id": string,"invoice_date": string,"lines": NonNullable<Json>,"notify": NonNullable<Json>,"number": string,"order_id": string | null,"payment_method": Database["public"]['Enums']["payment_method"],"sent_at": string | null,"sent_by": string | null,"ship_to": string,"shipment": NonNullable<Json>,"status": Database["public"]['Enums']["invoice_status"],"total_usd": number,"updated_at": string,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"approved_at"?: string | null,"approved_by"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"consignee"?: string,"created_at"?: string,"created_by"?: string | null,"file_pdf_id"?: string | null,"file_xlsx_id"?: string | null,"id"?: string,"invoice_date"?: string,"lines"?: NonNullable<Json>,"notify"?: NonNullable<Json>,"number"?: string,"order_id": string,"payment_method"?: Database["public"]['Enums']["payment_method"],"sent_at"?: string | null,"sent_by"?: string | null,"ship_to"?: string,"shipment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["invoice_status"],"total_usd"?: number,"updated_at"?: string,"version"?: number
+                    "account_id": string,"approved_at"?: string | null,"approved_by"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"consignee"?: string,"created_at"?: string,"created_by"?: string | null,"file_pdf_id"?: string | null,"file_xlsx_id"?: string | null,"id"?: string,"invoice_date"?: string,"lines"?: NonNullable<Json>,"notify"?: NonNullable<Json>,"number"?: string,"order_id"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"sent_at"?: string | null,"sent_by"?: string | null,"ship_to"?: string,"shipment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["invoice_status"],"total_usd"?: number,"updated_at"?: string,"version"?: number
                   }
                   Update: {
-                    "account_id"?: string,"approved_at"?: string | null,"approved_by"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"consignee"?: string,"created_at"?: string,"created_by"?: string | null,"file_pdf_id"?: string | null,"file_xlsx_id"?: string | null,"id"?: string,"invoice_date"?: string,"lines"?: NonNullable<Json>,"notify"?: NonNullable<Json>,"number"?: string,"order_id"?: string,"payment_method"?: Database["public"]['Enums']["payment_method"],"sent_at"?: string | null,"sent_by"?: string | null,"ship_to"?: string,"shipment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["invoice_status"],"total_usd"?: number,"updated_at"?: string,"version"?: number
+                    "account_id"?: string,"approved_at"?: string | null,"approved_by"?: string | null,"billing_entity"?: Database["public"]['Enums']["billing_entity"],"consignee"?: string,"created_at"?: string,"created_by"?: string | null,"file_pdf_id"?: string | null,"file_xlsx_id"?: string | null,"id"?: string,"invoice_date"?: string,"lines"?: NonNullable<Json>,"notify"?: NonNullable<Json>,"number"?: string,"order_id"?: string | null,"payment_method"?: Database["public"]['Enums']["payment_method"],"sent_at"?: string | null,"sent_by"?: string | null,"ship_to"?: string,"shipment"?: NonNullable<Json>,"status"?: Database["public"]['Enums']["invoice_status"],"total_usd"?: number,"updated_at"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1987,6 +1987,9 @@ isOneToOne: false
                            },
 "notify_upsert":
 { Args: { "p_body": string,"p_kind": string,"p_link": string,"p_title": string,"p_user": string }; Returns: undefined
+                           },
+"order_delete":
+{ Args: { "p_order": string }; Returns: Json
                            },
 "order_finance_recalc":
 { Args: { "p_order": string }; Returns: undefined

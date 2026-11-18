@@ -57,6 +57,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
         <Button asChild size="sm"><Link href="/orders/new">New order</Link></Button>
       </PageHeader>
       <SectionTabs tabs={SALES_TABS} />
+      {/^[A-Z0-9-]{1,40}$/i.test(p("deleted")) ? (
+        <p className="mb-3 rounded-md bg-muted px-3 py-2 text-sm" role="status" data-testid="order-deleted">Order {p("deleted")} was deleted.</p>
+      ) : null}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 min-[1600px]:grid-cols-7" data-testid="order-kpis">
         <StatTile label="Open orders" value={open.length} sub={money(openUsd)} href="/orders" />
         <StatTile label="Payment to confirm" value={count("confirm")} tone="attention" href="/orders?attention=confirm" />

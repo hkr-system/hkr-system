@@ -46,7 +46,7 @@ export async function refreshInvoiceFromOrder(id: string, alsoHeader = false): P
   await requireRole(PREPARERS);
   const db = await createClient();
   const { data: inv } = await db.from("invoices").select("order_id, status").eq("id", id).maybeSingle();
-  if (!inv) return { error: "Invoice not found." };
+  if (!inv?.order_id) return { error: "Invoice not found (or its order was deleted)." };
   if (inv.status !== "draft") return { error: "Only a draft can be refreshed." };
   const d = await invoiceDraftFromOrder(db, inv.order_id);
   if (!d) return { error: "Order not found." };
@@ -66,7 +66,7 @@ export async function saveInvoiceDraft(_p: InvoiceState, fd: FormData): Promise<
   const db = await createClient();
   const id = str(fd, "id");
   const { data: inv } = await db.from("invoices").select("order_id, status, lines").eq("id", id).maybeSingle();
-  if (!inv) return { error: "Invoice not found." };
+  if (!inv?.order_id) return { error: "Invoice not found (or its order was deleted)." };
   if (inv.status !== "draft") return { error: "Only a draft can be edited." };
   const date = str(fd, "invoice_date");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Enter the invoice date." };
@@ -87,7 +87,7 @@ export async function approveInvoice(id: string): Promise<InvoiceState> {
   await requireRole(["admin"]);
   const db = await createClient();
   const { data: inv } = await db.from("invoices").select("order_id, total_usd, orders(total_usd)").eq("id", id).maybeSingle();
-  if (!inv) return { error: "Invoice not found." };
+  if (!inv?.order_id) return { error: "Invoice not found (or its order was deleted)." };
   const orderTotal = Number((inv.orders as unknown as { total_usd: number }).total_usd);
   if (Math.abs(orderTotal - Number(inv.total_usd)) > 0.004) {
     return { error: `The invoice total differs from the order total (${orderTotal.toFixed(2)}). Press "Take lines again from the order" first.` };
@@ -103,7 +103,7 @@ export async function markInvoiceSent(id: string): Promise<InvoiceState> {
   await requireRole(PREPARERS);
   const db = await createClient();
   const { data: inv } = await db.from("invoices").select("order_id, account_id, status").eq("id", id).maybeSingle();
-  if (!inv) return { error: "Invoice not found." };
+  if (!inv?.order_id) return { error: "Invoice not found (or its order was deleted)." };
   if (inv.status !== "approved") return { error: "Only an approved invoice can be sent." };
   const { error: se } = await db.from("invoices").update({ status: "sent" }).eq("id", id);
   if (se) return { error: friendly(se) };
@@ -148,7 +148,7 @@ export async function reopenInvoice(id: string): Promise<InvoiceState> {
   const db = await createClient();
   const { data, error } = await db.from("invoices").update({ status: "draft", file_pdf_id: null, file_xlsx_id: null }).eq("id", id).select("order_id, version").single();
   if (error) return { error: friendly(error) };
-  refresh(data.order_id);
+  if (data.order_id) refresh(data.order_id);
   return { ok: true, message: `Reopened as version ${data.version}. The files already sent stay in the documents.` };
 }
 
@@ -158,7 +158,7 @@ export async function deleteInvoiceDraft(id: string): Promise<InvoiceState> {
   const { data, error } = await db.from("invoices").delete().eq("id", id).eq("status", "draft").select("order_id");
   if (error) return { error: friendly(error) };
   if (!data?.length) return { error: "Only a draft can be deleted." };
-  refresh(data[0].order_id);
+  if (data[0].order_id) refresh(data[0].order_id);
   return { ok: true, message: "Draft deleted." };
 }
 

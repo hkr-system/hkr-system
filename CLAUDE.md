@@ -217,6 +217,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/samsung.cjs` | Samsung lists (after db:reset): Samsung base upload, client Samsung list, both lists on account/order/portal |
 | `node tests/e2e/price-lists.cjs` | Price lists browser test (after db:reset): base upload, prepare/approve, outputs, roles, order prices |
 | `node tests/e2e/order-board.cjs` | Orders board browser test (after db:reset): stages, alerts, bd scope, phone width |
+| `node tests/e2e/order-delete.cjs` | Delete an order (after db:reset): specialist none, blockers shown, admin deletes by typing the number |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
 | `node tests/e2e/whatsapp.cjs` | Phase 2 browser test (after db:reset, with `npx supabase functions serve --env-file supabase/functions/.env`) |
@@ -531,6 +532,16 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   "Approve and apply" or the credit note page) trigger `credit_notes_apply_pending` applies it to that order. If the invoice was
   approved meanwhile it stays pending (admin reopens the invoice). Server: `src/lib/orders/credit-notes.ts` (addCreditNotesToOrder,
   loadAvailableCreditNotes). pgTAP `19_bh80_pending_credit_notes`, e2e `tests/e2e/invoice-import.cjs`.
+
+## Delete an order (Gabriel, Nov 18 2026)
+
+- Admin only: order page → Overview → card "Delete this order" (type ORD-NN to confirm) → rpc `order_delete` (security definer)
+  + the action removes the order's storage folder → back to /orders?deleted=ORD-NN. Refused with a CONFIRMED payment, an
+  APPROVED/SENT invoice (void it first) or shipped IMEIs; the card lists the reasons. Goes with it: lines, charges, unconfirmed
+  payments, events, finance, the draft invoice, IMEIs not shipped, file rows + files. Applied credit notes are released (back to
+  Issued). A VOIDED invoice stays with its number (`invoices.order_id` nullable, on delete set null; `invoices_before_write`
+  allows it only inside order_delete). The audit log keeps the deleted rows. ORD-NN may be given again to a new order.
+  pgTAP `20_order_delete`, e2e `tests/e2e/order-delete.cjs`.
 
 ## Per-order route, saved addresses, searchable dropdowns (Gabriel, Nov 4 2026)
 

@@ -22,6 +22,7 @@ import { InvoicePanel, type InvoiceRow } from "@/components/orders/invoice-panel
 import { IntermediaryPanel } from "@/components/orders/intermediary-panel";
 import { CreditNotesPanel } from "@/components/orders/credit-notes-panel";
 import { OrderIndicators, OrderTabs } from "@/components/orders/order-tabs";
+import { DeleteOrder } from "@/components/orders/delete-order";
 import { RealtimeRefresh } from "@/components/whatsapp/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -215,6 +216,15 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               {o.notes ? <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{o.notes}</p> : null}
             </CardContent>
           </Card>
+          {isAdmin ? (
+            <div className="xl:col-span-2">
+              <DeleteOrder orderId={id} number={o.number} blockers={[
+                ...((payments ?? []).filter((p) => p.status === "confirmed").length
+                  ? [`${(payments ?? []).filter((p) => p.status === "confirmed").length} confirmed payment(s): delete or fix them in the Payments tab first.`] : []),
+                ...(invoice && ["approved", "sent"].includes(invoice.status) ? [`Invoice ${invoice.number} is ${invoice.status}: void it in the Invoice tab first (its number is kept).`] : []),
+              ]} />
+            </div>
+          ) : null}
         </div>
         <div data-tab="payments"><Card>
             <CardHeader>

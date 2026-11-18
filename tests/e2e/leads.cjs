@@ -180,22 +180,14 @@ async function apply(browser, data) {
     await ctx.close();
   }
 
-  // 4. Atreyi: read only
+  // 4. Atreyi: no access to Leads at all (Gabriel, Nov 18 2026)
   {
     const { ctx, page } = await login(browser, 'atreyi');
-    await page.goto(BASE + '/leads/my-day');
-    // the page streams in after the instant loading screen, so the redirect can happen after goto() returns
-    await page.waitForURL(/\/leads$/, { timeout: 10000 }).catch(() => {});
-    await page.waitForSelector('[data-testid=funnel]', { timeout: 10000 }).catch(() => {});
-    check(page.url().endsWith('/leads'), 'account_specialist: My day sends to the overview');
-    check(!!(await page.$('[data-testid=funnel]')), 'account_specialist: sees the overview funnel');
-    await page.goto(BASE + '/leads/list');
-    check((await page.getByText('Read-only for your role').count()) === 1, 'account_specialist: read-only badge');
-    await page.click('text=Amstel Mobile BV');
-    await page.waitForSelector('[data-testid=timeline]');
-    check((await page.locator('input[name=company]').count()) === 0, 'account_specialist: no edit form on lead');
-    await page.goto(BASE + '/leads/board');
-    check(!!(await page.$('[data-testid=no-access]')), 'account_specialist: board shows No access');
+    for (const path of ['/leads', '/leads/my-day', '/leads/list', '/leads/board']) {
+      await page.goto(BASE + path);
+      await page.waitForSelector('[data-testid=no-access]', { timeout: 15000 }).catch(() => {});
+      check(!!(await page.$('[data-testid=no-access]')), `account_specialist: ${path} shows No access`);
+    }
     await ctx.close();
   }
 

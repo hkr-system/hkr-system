@@ -56,7 +56,7 @@ select is((select count(*)::int from public.leads where id = 'aaaaaaaa-0000-0000
 
 -- account specialist: read only
 select pg_temp.login('as');
-select is((select count(*)::int from public.leads where id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1, 'account_specialist: can read leads');
+select is((select count(*)::int from public.leads where id = 'aaaaaaaa-0000-0000-0000-000000000001'), 0, 'account_specialist: no access to leads (Nov 18 2026)');
 select throws_ok($$ insert into public.leads (company) values ('AS lead') $$, '42501', null, 'account_specialist: cannot create leads');
 update public.leads set company = 'Changed by AS' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select is((select count(*)::int from public.lead_form_submissions), 0, 'account_specialist: form submissions hidden');

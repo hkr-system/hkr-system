@@ -216,7 +216,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
               <CardHeader><CardTitle>Account Notes</CardTitle></CardHeader>
               <CardContent className="text-sm whitespace-pre-wrap">{a.notes || <span className="text-muted-foreground">Nothing written yet. If it is not written here, the next person does not know it (SOP §2.5).</span>}</CardContent>
             </Card>
-            <Card>
+            {user.role !== "account_specialist" ? <Card>
               <CardHeader><CardTitle>WhatsApp</CardTitle></CardHeader>
               <CardContent className="grid gap-1 text-sm">
                 {(chats.data ?? []).map((c) => (
@@ -224,7 +224,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
                 ))}
                 {!chats.data?.length ? <span className="text-muted-foreground">No chats yet. Chats from the contacts&apos; phones appear here.</span> : null}
               </CardContent>
-            </Card>
+            </Card> : null}
           </div>
         </div>
       ) : null}

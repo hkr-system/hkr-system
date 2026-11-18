@@ -308,7 +308,10 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Real messages arrive only if (1) the Meta app is PUBLISHED (privacy policy URL = HKR website "Legal Notices" page) and
   (2) the WhatsApp account is subscribed to the app: Numbers → "Import numbers from Meta" does this (POST <WABA>/subscribed_apps).
   Live since Oct 27 2026 on Meta's test number.
-- Visibility: admin all; bd/specialist see chats assigned to them or UNASSIGNED (all can see unassigned).
+- Visibility: admin all; bd sees chats assigned to her or UNASSIGNED. Since Nov 18 2026 the account specialist has NO Leads and
+  NO WhatsApp (Gabriel): nav roles admin + bd; RLS `can_work_leads()` on leads, lead_events, chats (`can_see_conversation`),
+  numbers, templates; new-message bells only to admin + bd; a contact's phone links its chat to the account by trigger
+  `contacts_link_chat`. pgTAP `22_specialist_scope`.
 - Unknown number writing in → new lead (stage New, source whatsapp_inbound).
 - Opt-out: button/text "Stop promotions", STOP, BAJA… → whatsapp_opt_in = false (never in broadcasts).
 - Broadcasts: bd/admin create drafts, only admin approves (DB trigger); per-number daily limit (default 200);

@@ -113,7 +113,7 @@ export default async function DashboardPage() {
         <StatTile label="Open orders" value={open.length} sub={money(openUsd)} href="/orders" />
         <StatTile label="Pending shipment" value={toShip.length} sub="Balance paid, not shipped" href="/orders?attention=ship" />
         <StatTile label="Balance overdue" value={paymentAlerts} tone="attention" sub="Ready to ship > 2 days" href="#alerts" />
-        <StatTile label="Unanswered WhatsApp" value={chats} tone="attention" href="/whatsapp" />
+        {role !== "account_specialist" ? <StatTile label="Unanswered WhatsApp" value={chats} tone="attention" href="/whatsapp" /> : null}
         <StatTile label="Thursday update" value={thursdayTodo} tone="attention" sub={`${thursday.length - thursdayTodo} of ${thursday.length} sent this week`} href="/dashboard/thursday" />
         <StatTile label="For the SD" value={escalations.length} tone="attention" sub={lateEsc ? `${lateEsc} past the time promised` : "Open escalations"} href="/dashboard/escalations" />
       </div>

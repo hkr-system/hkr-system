@@ -38,9 +38,10 @@ export const SECTIONS: readonly Section[] = [
     summary: "RMA intake, IMEI check, weekly EU batches and credit notes." },
   { key: "price-lists", label: "Price lists", href: "/price-lists", roles: ALL, phase: 6,
     summary: "Price-list engine, client lists, outputs and weekly promotions." },
-  { key: "leads", label: "Leads", href: "/leads", roles: ALL, readOnlyFor: ["account_specialist"], phase: 1,
+  // Leads and WhatsApp: admin + bd only (Gabriel, Nov 18 2026: the account specialist does not use them; RLS matches)
+  { key: "leads", label: "Leads", href: "/leads", roles: ["admin", "bd"], phase: 1,
     summary: "Leads, stages, next actions, the public qualification form and Brevo sync." },
-  { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", roles: ALL, phase: 2,
+  { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", roles: ["admin", "bd"], phase: 2,
     summary: "Inbox for the 4 numbers, templates and broadcasts." },
   { key: "finance", label: "Finance", href: "/finance", roles: ["admin"], phase: 3,
     summary: "Sales goals, sales history, projections and margins (admin)." },

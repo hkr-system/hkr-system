@@ -13,7 +13,7 @@ import { isoWeekday, weekStart } from "@/lib/dashboard/dates";
 //   Leads    — unread "new lead" / "lead qualified" notices
 //   RMAs     — admin: RMAs to approve + units to batch; specialist: RMAs to verify + units to batch;
 //              bd: her clients' RMAs waiting (requested / to verify / to approve)
-//   Price lists — admin: drafts to approve + lists due for refresh; specialist: lists due (SOP P7, every 2 weeks)
+//   Price lists — admin: drafts to approve + lists due for refresh + approved lists not sent; specialist: due + not sent (SOP P7)
 //   Dashboard — admin: escalations waiting for the SD; bd/specialist: Thursday updates still to send (from the update day on)
 export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole): Promise<Partial<Record<SectionKey, number>>> {
   const today = new Date().toISOString().slice(0, 10);
@@ -42,12 +42,16 @@ export async function sectionBadges(db: SupabaseClient<Database>, role: AppRole)
         return rows.filter((x) => ["requested", "form_received", "verified"].includes(x.status!)).length;
       }),
     role === "bd" ? Promise.resolve(0)
-      : db.from("price_lists").select("status, valid_until, accounts!inner(status)").in("status", ["draft", "approved"])
+      : db.from("price_lists").select("id, status, valid_until, accounts!inner(status)").in("status", ["draft", "approved"])
         .not("account_id", "is", null).neq("accounts.status", "closed").limit(2000)
-        .then((r) => {
+        .then(async (r) => {
           const rows = r.data ?? [];
           const due = rows.filter((l) => l.status === "approved" && l.valid_until && l.valid_until <= today).length;
-          return due + (role === "admin" ? rows.filter((l) => l.status === "draft").length : 0);
+          // approved, still valid, never marked as sent to the client (Nov 19 2026)
+          const valid = rows.filter((l) => l.status === "approved" && !(l.valid_until && l.valid_until <= today)).map((l) => l.id);
+          const { data: sent } = valid.length ? await db.from("price_list_sends").select("price_list_id").in("price_list_id", valid) : { data: [] };
+          const notSent = valid.filter((id) => !(sent ?? []).some((x) => x.price_list_id === id)).length;
+          return due + notSent + (role === "admin" ? rows.filter((l) => l.status === "draft").length : 0);
         }),
     role === "admin"
       ? db.from("escalations").select("id", { count: "exact", head: true }).eq("status", "open").then((r) => r.count ?? 0)

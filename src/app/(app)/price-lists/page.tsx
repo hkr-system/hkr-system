@@ -15,6 +15,9 @@ import { GetPriceList } from "@/components/price-lists/get-list";
 import { PrepareListButton } from "@/components/price-lists/list-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LIST_STATES, LIST_STATE_HINT, LIST_STATE_LABEL, LIST_STATE_STYLE, countStates, isListState } from "@/lib/price-lists/send-status";
+import { CHANNEL_LABEL, loadListStates } from "@/lib/price-lists/versions";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const metadata: Metadata = { title: "Price lists" };
@@ -24,21 +27,27 @@ export const metadata: Metadata = { title: "Price lists" };
 export default async function PriceListsPage({ searchParams }: PageProps<"/price-lists">) {
   const sp = await searchParams;
   const brand: Brand = isBrand(sp.brand) ? sp.brand : "iphone";
+  const stateFilter = isListState(sp.state) ? sp.state : null;
   const access = await checkSection("price-lists");
   if (!access.allowed) return <NoAccess />;
   const { user } = access;
   const isAdmin = user.role === "admin";
   const canPrepare = isAdmin || user.role === "account_specialist";
   const db = await createClient();
-  const [accounts, lists, base] = await Promise.all([
+  const today = todayIn(user.timezone);
+  const [accounts, lists, base, states] = await Promise.all([
     db.from("accounts").select("id, code, name, status").neq("status", "closed").order("code"),
     db.from("price_lists").select("id, account_id, version, status, valid_from, valid_until, rma_c, extra_c")
       .in("status", ["draft", "approved"]).not("account_id", "is", null).eq("brand", brand),
     isAdmin
       ? db.from("price_lists").select("id, brand, version, valid_from, source_file, price_list_rows(count)").is("account_id", null).eq("status", "approved")
       : Promise.resolve({ data: [] }),
+    loadListStates(db, today),
   ]);
-  const today = todayIn(user.timezone);
+  // state of this brand's list per client (active + onboarding accounts), Nov 19 2026
+  const stateOf = new Map(states.flatMap((a) => a.brands.filter((b) => b.brand === brand).map((b) => [a.id, b] as const)));
+  const counts = countStates([...stateOf.values()].map((b) => b.state));
+  const qs = (st: string | null) => { const p = new URLSearchParams(); if (brand !== "iphone") p.set("brand", brand); if (st) p.set("state", st); const t = p.toString(); return t ? `/price-lists?${t}` : "/price-lists"; };
   const byAccount = new Map<string, { approved?: (typeof rows)[number]; draft?: (typeof rows)[number] }>();
   const rows = lists.data ?? [];
   for (const l of rows) {
@@ -48,8 +57,11 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
   }
   const accs = (accounts.data ?? []).map((a) => ({ ...a, ...byAccount.get(a.id) }))
     .filter((a) => canPrepare || a.approved)
+    .filter((a) => !stateFilter || stateOf.get(a.id)?.state === stateFilter)
     .sort((x, y) => {
-      const rank = (a: typeof x) => (a.draft ? 0 : a.approved && isDue(a.approved.valid_until, today) ? 1 : !a.approved ? 2 : 3);
+      // what needs work first: draft to approve, refresh due, approved but not sent, then up to date (paused accounts last)
+      const order = ["waiting_approval", "needs_refresh", "not_sent", "up_to_date"];
+      const rank = (a: typeof x) => { const st = stateOf.get(a.id)?.state; return st ? order.indexOf(st) : a.draft ? 0 : a.approved && isDue(a.approved.valid_until, today) ? 1 : 4; };
       return rank(x) - rank(y) || x.code.localeCompare(y.code);
     });
   const bases = BRANDS.map((b) => {
@@ -90,7 +102,7 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
             <CardTitle className="text-base">Client lists</CardTitle>
             <nav className="flex gap-1 pt-1" aria-label="Brand">
               {BRANDS.map((b) => (
-                <Link key={b} href={b === "iphone" ? "/price-lists" : `/price-lists?brand=${b}`} data-testid={`brand-tab-${b}`}
+                <Link key={b} href={`${b === "iphone" ? "/price-lists" : `/price-lists?brand=${b}`}${stateFilter ? `${b === "iphone" ? "?" : "&"}state=${stateFilter}` : ""}`} data-testid={`brand-tab-${b}`}
                   className={`rounded-md border px-3 py-1 text-sm ${b === brand ? "border-hkr-accent bg-hkr-accent-tint font-medium" : "text-muted-foreground hover:bg-muted"}`}>
                   {BRAND_LABEL[b]}
                 </Link>
@@ -99,11 +111,20 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
             <CardDescription>
               {canPrepare ? "Prepare runs the engine for that client and builds a draft from the current base; the admin approves it." : "The approved lists of your accounts."}
             </CardDescription>
+            <nav className="flex flex-wrap gap-1.5 pt-2" aria-label="Does the client have it?" data-testid="list-state-filter">
+              <Link href={qs(null)} className={cn("rounded-md border px-3 py-1 text-sm", !stateFilter ? "border-hkr-accent bg-hkr-accent-tint font-medium" : "text-muted-foreground hover:bg-muted")}>All</Link>
+              {LIST_STATES.map((st) => (
+                <Link key={st} href={qs(st)} title={LIST_STATE_HINT[st]} data-testid={`state-chip-${st}`}
+                  className={cn("rounded-md border px-3 py-1 text-sm", stateFilter === st ? "border-hkr-accent bg-hkr-accent-tint font-medium" : "text-muted-foreground hover:bg-muted")}>
+                  {LIST_STATE_LABEL[st]} <span className="tabular-nums">{counts[st]}</span>
+                </Link>
+              ))}
+            </nav>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Account</TableHead><TableHead>Current list</TableHead><TableHead className="text-right">RMA_c</TableHead><TableHead className="text-right">Extra_c</TableHead>{canPrepare ? <><TableHead>Draft</TableHead><TableHead /></> : null}</TableRow>
+                <TableRow><TableHead>Account</TableHead><TableHead>Current list</TableHead><TableHead>Client has</TableHead><TableHead className="text-right">RMA_c</TableHead><TableHead className="text-right">Extra_c</TableHead>{canPrepare ? <><TableHead>Draft</TableHead><TableHead /></> : null}</TableRow>
               </TableHeader>
               <TableBody>
                 {accs.map((a) => (
@@ -117,6 +138,20 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
                         </span>
                       ) : <span className="text-muted-foreground">No list yet</span>}
                     </TableCell>
+                    <TableCell data-testid="client-has">
+                      {(() => {
+                        const st = stateOf.get(a.id);
+                        if (!st) return <span className="text-muted-foreground">—</span>;
+                        return (
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", LIST_STATE_STYLE[st.state])} data-testid="list-state">{LIST_STATE_LABEL[st.state]}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {st.sent ? `v${st.sent.version} · sent ${fmtDate(st.sent.sentOn)} · ${CHANNEL_LABEL[st.sent.channel] ?? st.sent.channel} · ${st.sent.what}` : "never sent"}
+                            </span>
+                          </span>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell className="text-right">{pctText(a.approved?.rma_c)}</TableCell>
                     <TableCell className="text-right">{pctText(a.approved?.extra_c)}</TableCell>
                     {canPrepare ? (
@@ -127,7 +162,7 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
                     ) : null}
                   </TableRow>
                 ))}
-                {!accs.length ? <TableRow><TableCell colSpan={canPrepare ? 6 : 4} className="text-muted-foreground">No accounts with an approved {BRAND_LABEL[brand]} list yet.</TableCell></TableRow> : null}
+                {!accs.length ? <TableRow><TableCell colSpan={canPrepare ? 7 : 5} className="text-muted-foreground">{stateFilter ? `No client is "${LIST_STATE_LABEL[stateFilter]}" for ${BRAND_LABEL[brand]}.` : `No accounts with an approved ${BRAND_LABEL[brand]} list yet.`}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
           </CardContent>

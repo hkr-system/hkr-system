@@ -220,6 +220,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/order-delete.cjs` | Delete an order (after db:reset): specialist none, blockers shown, admin deletes by typing the number |
 | `node tests/e2e/price-history.cjs` | Price list history + Mark as sent (after db:reset): account tab, History ★ and filters, order versions warning |
 | `node tests/e2e/user-modules.cjs` | Modules per user (after db:reset): untick Leads + WhatsApp for Atreyi → menu, pages, tiles hidden; tick back |
+| `node tests/e2e/list-states.cjs` | Client price lists up to date (after db:reset): dashboard card, state filter, Mark as sent → Up to date, roles |
 | `node tests/e2e/door-to-door.cjs` | Door-to-door EUR lists (after db:reset): set-up in Settings, EU list in EUR without the company name, Mark as sent, LATAM none |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
@@ -683,6 +684,17 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
 - Orders: `orderListVersions()` (`src/lib/price-lists/versions.ts`) → `OrderListVersions` on Overview, Invoice and Finance tabs:
   per brand "prices from vN · current vM · sent to the client: vK on date", amber + warning when the used version was never sent
   (or a different one was). The order form says "Last sent to the client: …". pgTAP `21_price_list_sends`, e2e `tests/e2e/price-history.cjs`.
+
+## Client price lists up to date (Gabriel, Nov 19 2026)
+
+- "Saber a quiénes les hemos actualizado lista y a quiénes no": one state per active/onboarding account and brand
+  (`src/lib/price-lists/send-status.ts`, unit-tested): Waiting for approval (draft) > Needs refresh (no list or valid_until reached)
+  > Not sent yet (approved, client's last sent version ≠ current) > Up to date. Loader `loadListStates()` (versions.ts); Samsung only
+  for clients with a Samsung list. No migration: it reads `price_list_sends`.
+- Dashboard card "Client price lists" (everyone with the Price lists module; RLS: bd her accounts): "X of Y up to date" + counts,
+  an account counts once by its worst brand; each line → /price-lists?state=<state>. Price lists → Client lists: state chips with
+  counts (?state=, kept across the brand tabs), column "Client has" (version · date · channel · USD / EUR door to door).
+  Menu counter adds approved, still valid lists never marked as sent. e2e `tests/e2e/list-states.cjs`.
 
 ## Door-to-door EUR price lists for EU clients (Gabriel, Nov 18 2026)
 

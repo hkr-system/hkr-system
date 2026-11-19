@@ -2,12 +2,13 @@ import "server-only";
 import type { createClient } from "@/lib/supabase/server";
 import type { Brand } from "@/lib/brands";
 import { fmtDate } from "@/lib/price-lists/outputs";
+import { listState, worstState, type ListState } from "@/lib/price-lists/send-status";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 
 // Which price list version a client has (Gabriel, Nov 18 2026): the version USED on an order (prices, margin, invoice), the
 // client's CURRENT approved version and the version last SENT to the client (price_list_sends).
-export type SentInfo = { listId: string; version: number; sentOn: string; channel: string };
+export type SentInfo = { listId: string; version: number; sentOn: string; channel: string; what: string };
 export type UsedList = { listId: string; brand: Brand; version: number; status: string; lines: number };
 export type ListVersionInfo = { brand: Brand; used: UsedList | null; current: number | null; sent: SentInfo | null };
 
@@ -15,7 +16,7 @@ export const CHANNEL_LABEL: Record<string, string> = { whatsapp: "WhatsApp", ema
 
 /** Last send per account + brand (RLS scopes the accounts). Key `${accountId}:${brand}`. */
 export async function loadLastSends(db: Db, accountIds?: string[]): Promise<Map<string, SentInfo>> {
-  let q = db.from("price_list_sends").select("price_list_id, account_id, sent_on, channel, created_at, price_lists(version, brand)")
+  let q = db.from("price_list_sends").select("price_list_id, account_id, sent_on, channel, created_at, variant, fx_rate, intermediaries(name), price_lists(version, brand)")
     .order("sent_on", { ascending: false }).order("created_at", { ascending: false }).limit(5000);
   if (accountIds) q = q.in("account_id", accountIds.length ? accountIds : ["00000000-0000-0000-0000-000000000000"]);
   const { data } = await q;
@@ -24,7 +25,7 @@ export async function loadLastSends(db: Db, accountIds?: string[]): Promise<Map<
     const l = s.price_lists as unknown as { version: number; brand: Brand } | null;
     if (!l) continue;
     const k = `${s.account_id}:${l.brand}`;
-    if (!out.has(k)) out.set(k, { listId: s.price_list_id, version: l.version, sentOn: s.sent_on, channel: s.channel });
+    if (!out.has(k)) out.set(k, { listId: s.price_list_id, version: l.version, sentOn: s.sent_on, channel: s.channel, what: sendWhat(s) });
   }
   return out;
 }
@@ -69,4 +70,31 @@ export function sendWhat(s: { variant?: string | null; fx_rate?: number | null; 
   if (s.variant !== "d2d") return "USD";
   const via = (s.intermediaries as { name: string } | null)?.name;
   return `EUR door to door${via ? ` via ${via}` : ""}${s.fx_rate ? ` @ ${Number(s.fx_rate).toFixed(4)}` : ""}`;
+}
+
+// Price list state of every client (Gabriel, Nov 19 2026): dashboard tile + Price lists → Client lists filter. Active and onboarding
+// accounts (RLS: a bd sees her accounts, and no drafts). iPhone always; Samsung only for clients that have a Samsung list.
+export type BrandState = { brand: Brand; state: ListState; approved: { id: string; version: number; valid_until: string | null } | null; draftId: string | null; sent: SentInfo | null };
+export type AccountListState = { id: string; code: string; name: string; state: ListState; brands: BrandState[] };
+
+export async function loadListStates(db: Db, today: string): Promise<AccountListState[]> {
+  const [{ data: accounts }, { data: lists }, sends] = await Promise.all([
+    db.from("accounts").select("id, code, name").in("status", ["onboarding", "active"]).order("code").limit(5000),
+    db.from("price_lists").select("id, account_id, brand, version, status, valid_until").in("status", ["draft", "approved"]).not("account_id", "is", null).limit(10000),
+    loadLastSends(db),
+  ]);
+  return (accounts ?? []).map((a) => {
+    const mine = (lists ?? []).filter((l) => l.account_id === a.id);
+    const brands = (["iphone", "samsung"] as Brand[]).flatMap((brand) => {
+      const approved = mine.find((l) => l.brand === brand && l.status === "approved") ?? null;
+      const draft = mine.find((l) => l.brand === brand && l.status === "draft") ?? null;
+      const sent = sends.get(`${a.id}:${brand}`) ?? null;
+      if (brand !== "iphone" && !approved && !draft && !sent) return [];
+      return [{
+        brand, approved: approved ? { id: approved.id, version: approved.version, valid_until: approved.valid_until } : null, draftId: draft?.id ?? null, sent,
+        state: listState({ approved, hasDraft: !!draft, sentVersion: sent?.version ?? null, today }),
+      }];
+    });
+    return { id: a.id, code: a.code, name: a.name, brands, state: worstState(brands.map((b) => b.state)) };
+  });
 }

@@ -19,6 +19,8 @@ import { SectionTabs } from "@/components/sales/tabs";
 import { BarList, StatTile } from "@/components/viz";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { loadListStates } from "@/lib/price-lists/versions";
+import { LIST_STATES, LIST_STATE_HINT, LIST_STATE_LABEL, countStates } from "@/lib/price-lists/send-status";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -39,7 +41,7 @@ export default async function DashboardPage() {
   const today0 = todayIn(HK);
   const monthStart = `${today0.slice(0, 7)}-01`;
   const prevStart = `${addDays(monthStart, -1).slice(0, 7)}-01`;
-  const [ops, chats, escalations, units, leads, sales, creditNotes] = await Promise.all([
+  const [ops, chats, escalations, units, leads, sales, creditNotes, listStates] = await Promise.all([
     loadOps(db, now),
     db.from("wa_conversations").select("last_inbound_at, last_outbound_at").neq("status", "resolved").not("last_inbound_at", "is", null).limit(2000)
       .then((r) => (r.data ?? []).filter((c) => !c.last_outbound_at || c.last_inbound_at! > c.last_outbound_at).length),
@@ -52,8 +54,11 @@ export default async function DashboardPage() {
     role === "admin"
       ? db.from("credit_notes").select("amount, issued_on, status").in("status", ["issued", "applied"]).gte("issued_on", `${today0.slice(0, 4)}-01-01`).then((r) => r.data ?? [])
       : Promise.resolve([]),
+    userCan(user, "price-lists") ? loadListStates(db, today0) : Promise.resolve([]),
   ]);
   const today = ops.today;
+  // client price lists up to date (Gabriel, Nov 19 2026): one per account, its worst brand
+  const listCounts = countStates(listStates.map((a) => a.state));
 
   // orders
   const open = ops.orders.filter((o) => (OPEN_ORDER_STATUSES as readonly string[]).includes(o.status));
@@ -194,6 +199,33 @@ export default async function DashboardPage() {
             <CardContent className="grid gap-1">
               <Link href="/rmas/credit-notes" className="text-2xl font-semibold tabular-nums hover:underline">{money(cnMonth)}</Link>
               <p className="text-sm text-muted-foreground">This month · {money(cnYear)} this year</p>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {userCan(user, "price-lists") ? (
+          <Card data-testid="list-states">
+            <CardHeader>
+              <CardTitle>Client price lists</CardTitle>
+              <CardDescription>Does each active / onboarding client have its current list? iPhone and Samsung: an account counts once, by the list that needs most work.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              <Link href="/price-lists?state=up_to_date" className="text-2xl font-semibold tabular-nums hover:underline" data-testid="lists-up-to-date">
+                {listCounts.up_to_date} of {listStates.length} <span className="text-base font-normal text-muted-foreground">up to date</span>
+              </Link>
+              <ul className="grid gap-1.5 text-sm">
+                {LIST_STATES.filter((st) => st !== "up_to_date").map((st) => (
+                  <li key={st}>
+                    <Link href={`/price-lists?state=${st}`} title={LIST_STATE_HINT[st]} className="flex justify-between gap-2 hover:underline" data-testid={`lists-${st}`}>
+                      <span className="flex items-center gap-2">
+                        <span className={cn("inline-block size-2 rounded-full", st === "needs_refresh" ? "bg-red-600" : "bg-amber-500")} aria-hidden />
+                        {LIST_STATE_LABEL[st]}
+                      </span>
+                      <span className={cn("tabular-nums", listCounts[st] ? "font-medium" : "text-muted-foreground")}>{listCounts[st]}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         ) : null}

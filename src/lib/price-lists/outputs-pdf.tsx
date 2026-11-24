@@ -1,6 +1,6 @@
 import "server-only";
-import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
-import { groupRows, moneyIn, termsOf, type OutMeta, type OutRow } from "./outputs";
+import { Document, Image, Page, Polygon, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { groupRows, hasComparison, moneyIn, priceChange, signedMoney, termsOf, type OutMeta, type OutRow } from "./outputs";
 import { fmtDate } from "./outputs";
 
 // Client price list PDF with HKR identity (navy type, red only as a thin accent — brand tokens).
@@ -17,9 +17,28 @@ const s = StyleSheet.create({
   foot: { position: "absolute", bottom: 24, left: 36, right: 36, fontSize: 8, color: "#6b7280", textAlign: "center" },
 });
 
+// ▼ green / ▲ red vs the previous version (Nov 24 2026). Helvetica has no triangle glyphs: they are drawn.
+const GREEN = "#047857";
+const RED = "#c00000";
+function Change({ r, cur }: { r: OutRow; cur: "USD" | "EUR" | undefined }) {
+  const c = priceChange(r);
+  if (!c) return <View style={{ width: 70 }} />;
+  if (c.dir === "new") return <Text style={{ width: 70, textAlign: "right", color: "#6b7280", fontSize: 8.5 }}>new</Text>;
+  const color = c.dir === "down" ? GREEN : RED;
+  return (
+    <View style={{ width: 70, flexDirection: "row", justifyContent: "flex-end", alignItems: "center" }}>
+      <Svg width={7} height={6} style={{ marginRight: 3 }}>
+        <Polygon points={c.dir === "down" ? "0,0 7,0 3.5,6" : "0,6 7,6 3.5,0"} fill={color} />
+      </Svg>
+      <Text style={{ color, fontFamily: "Helvetica-Bold", fontSize: 8.5 }}>{signedMoney(c.diff, cur)}</Text>
+    </View>
+  );
+}
+
 function ListPdf({ rows, meta, logo }: { rows: OutRow[]; meta: OutMeta; logo: Buffer | null }) {
   // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt attribute
   const logoEl = logo ? <Image src={logo} style={{ width: 92 }} /> : null;
+  const cmp = hasComparison(rows);
   const validity = meta.validUntil ? `Valid ${fmtDate(meta.validFrom)} – ${fmtDate(meta.validUntil)}` : `Date ${fmtDate(meta.validFrom)}`;
   return (
     <Document title={meta.title} author="HK Refurbished Stock">
@@ -33,7 +52,13 @@ function ListPdf({ rows, meta, logo }: { rows: OutRow[]; meta: OutMeta; logo: Bu
           <View key={g.label} style={s.group} wrap={false}>
             <Text style={s.model}>{g.label}</Text>
             {g.rows.map((r) => (
-              <View key={r.storage_gb} style={s.row}><Text>{r.storage_gb}GB</Text><Text>{moneyIn(r.price_usd, meta.currency)}</Text></View>
+              <View key={r.storage_gb} style={s.row}>
+                <Text>{r.storage_gb}GB</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text>{moneyIn(r.price_usd, meta.currency)}</Text>
+                  {cmp ? <Change r={r} cur={meta.currency} /> : null}
+                </View>
+              </View>
             ))}
           </View>
         ))}

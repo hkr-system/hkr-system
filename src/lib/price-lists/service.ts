@@ -55,7 +55,15 @@ export async function loadListDoc(db: DB, id: string) {
   const { data: l } = await db.from("price_lists").select("id, account_id, brand, version, status, valid_from, valid_until, accounts(code, name)").eq("id", id).maybeSingle();
   if (!l) return null;
   const acc = l.accounts as unknown as { code: string; name: string } | null;
-  const rows = (await loadRows(db, id)).map((r) => ({ model: r.model, storage_gb: r.storage_gb, note: r.note, price_usd: r.price_usd }));
+  // previous version of the same list (client: same account + brand; base: same brand) → ▼ / ▲ on the outputs (Nov 24 2026)
+  let pq = db.from("price_lists").select("id").eq("brand", l.brand).neq("status", "draft").lt("version", l.version).order("version", { ascending: false }).limit(1);
+  pq = l.account_id ? pq.eq("account_id", l.account_id) : pq.is("account_id", null);
+  const [cur, { data: prevList }] = await Promise.all([loadRows(db, id), pq.maybeSingle()]);
+  const prev = prevList ? new Map((await loadRows(db, prevList.id)).map((r) => [modelKey(r.model, r.storage_gb), r.price_usd])) : null;
+  const rows = cur.map((r) => ({
+    model: r.model, storage_gb: r.storage_gb, note: r.note, price_usd: r.price_usd,
+    ...(prev ? { prev_price: prev.get(modelKey(r.model, r.storage_gb)) ?? null } : {}),
+  }));
   const isBase = !l.account_id;
   const brand = l.brand === "samsung" ? "Samsung " : "";
   const title = isBase ? `${brand}Base price list v${l.version} (internal — admin only)`

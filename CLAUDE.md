@@ -709,6 +709,15 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   company's name never on the file. No record of sends to leads (Gabriel: download only). pgTAP `25_lead_price_list`,
   e2e `tests/e2e/lead-list.cjs`.
 
+## Price changes on every output (Gabriel, Nov 24 2026)
+
+- Every list output compares each price with the PREVIOUS version of the same list (client list: that client + brand; base:
+  previous base; lead list: previous base × the same lead %, rpc `lead_price_list` returns prev_price_usd / prev_version).
+  `OutRow.prev_price` (undefined = no previous version → no marks; null = new model); `priceChange()` in outputs.ts (unit-tested).
+  WhatsApp: `🟢⬇️ -$5.10` / `🔴⬆️ +$2.00` / `🆕`; Text: `▼ -$5.10` / `▲ +$2.00` / `new`; Excel: column "Change" (number, green ▼ /
+  red ▲ format); PDF: drawn triangle + amount (Helvetica has no ▲▼). Same price = no mark. Door to door: the previous price goes
+  through the same rate and fees, so the mark shows the list's change in €.
+
 ## Door-to-door EUR price lists for EU clients (Gabriel, Nov 18 2026)
 
 - Per company in Settings → Intermediaries & clearance (admin only; trigger `intermediaries_d2d_guard`): `intermediaries.d2d` jsonb

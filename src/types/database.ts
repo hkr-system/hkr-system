@@ -2034,7 +2034,7 @@ isOneToOne: false
                            },
 "lead_price_list":
 { Args: { "p_brand": Database["public"]['Enums']["product_brand"] }; Returns: {
-              "base_version": number,"model": string,"note": string,"price_usd": number,"sort_order": number,"storage_gb": number,"valid_from": string
+              "base_version": number,"model": string,"note": string,"prev_price_usd": number,"prev_version": number,"price_usd": number,"sort_order": number,"storage_gb": number,"valid_from": string
             }[]
                            },
 "notify_upsert":

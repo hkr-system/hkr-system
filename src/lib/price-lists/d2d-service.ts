@@ -31,7 +31,11 @@ export async function d2dOutput(db: Db, viaId: string, rate: number, rows: OutRo
   const today = new Date().toISOString().slice(0, 10);
   return {
     cfg,
-    rows: rows.map((r) => ({ ...r, price_usd: d2dUnitPrice(Number(r.price_usd), cfg, rate) })),
+    // the previous price goes through the same conversion, so ▼ / ▲ show the change of the list, not of the rate
+    rows: rows.map((r) => ({
+      ...r, price_usd: d2dUnitPrice(Number(r.price_usd), cfg, rate),
+      ...(r.prev_price === undefined ? {} : { prev_price: r.prev_price === null ? null : d2dUnitPrice(Number(r.prev_price), cfg, rate) }),
+    })),
     meta: { ...meta, currency: "EUR", terms: "EUR · Door to door", notes: d2dNotes(cfg, rate, fmtDate(today)) },
   };
 }

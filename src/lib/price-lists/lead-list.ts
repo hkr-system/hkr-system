@@ -17,7 +17,11 @@ export async function loadLeadListDoc(db: Db, brand: Brand): Promise<{ rows: Out
   if (!data?.length) return { error: `No ${brand === "samsung" ? "Samsung" : "iPhone"} base list yet.` };
   return {
     baseVersion: data[0].base_version,
-    rows: data.map((r) => ({ model: r.model, storage_gb: r.storage_gb, note: r.note, price_usd: Number(r.price_usd) })),
+    // previous base × the same % → ▼ / ▲ on the outputs (Nov 24 2026); no previous base = no marks
+    rows: data.map((r) => ({
+      model: r.model, storage_gb: r.storage_gb, note: r.note, price_usd: Number(r.price_usd),
+      ...(r.prev_version === null ? {} : { prev_price: r.prev_price_usd === null ? null : Number(r.prev_price_usd) }),
+    })),
     meta: {
       title: `HK Refurbished Stock · ${brand === "samsung" ? "Samsung " : ""}Price list`,
       validFrom: todayIn("Asia/Hong_Kong"), validUntil: null, isBase: false,

@@ -46,6 +46,30 @@ const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
   // EUR door to door: (price ÷ 1.10) + 5 € fixed + 2 € shipping
   const d = await (await p.request.get(`${BASE}/api/price-lists/lead/iphone/txt?mode=d2d&via=${co.id}&rate=1.1`)).text();
   check(d.includes(eur(r2(r2(exp / 1.1) + 7))) && !d.includes('Lead D2D Test Co') && d.includes('Customs clearance: +€300.00 per shipment'), 'EUR door to door: converted + fees, company name not on the file');
+  // ▼ / ▲ vs the previous version (Nov 24 2026): a new base version with one price down, one up and one new model
+  check(!(await (await p.request.get(`${BASE}/api/price-lists/lead/iphone/wa`)).text()).match(/🟢|🔴|🆕/), 'one base version only: no marks');
+  const { data: oldRows } = await admin.from('price_list_rows').select('model, storage_gb, note, price_usd, sort_order').eq('price_list_id', base.id).order('sort_order');
+  const { data: nb } = await admin.from('price_lists').insert({ account_id: null, brand: 'iphone', valid_from: new Date().toISOString().slice(0, 10) }).select('id').single();
+  const changed = oldRows.map((r, i) => ({ price_list_id: nb.id, model: r.model, storage_gb: r.storage_gb, note: r.note, sort_order: i,
+    price_usd: i === 0 ? Number(r.price_usd) - 10 : i === 1 ? Number(r.price_usd) + 4 : Number(r.price_usd) }));
+  changed.push({ price_list_id: nb.id, model: 'iPhone 17 Test', storage_gb: 256, note: null, sort_order: 999, price_usd: 900 });
+  await admin.from('price_list_rows').insert(changed);
+  const { error: ae } = await admin.from('price_lists').update({ status: 'approved' }).eq('id', nb.id);
+  check(!ae, 'new base version approved' + (ae ? ` (${ae.message})` : ''));
+  const wa = await (await p.request.get(`${BASE}/api/price-lists/lead/iphone/wa`)).text();
+  const d0 = r2(r2((Number(oldRows[0].price_usd) - 10) * 1.02) - r2(Number(oldRows[0].price_usd) * 1.02));
+  check(wa.includes(`🟢⬇️ -${usd(Math.abs(d0))}`) && wa.includes('🔴⬆️ +') && wa.includes('$918.00 🆕'), `lead WhatsApp: 🟢⬇️ -${usd(Math.abs(d0))}, 🔴⬆️ +, 🆕 for the new model`);
+  const tx = await (await p.request.get(`${BASE}/api/price-lists/lead/iphone/txt`)).text();
+  check(tx.includes('▼ -$') && tx.includes('▲ +$') && tx.includes(' new'), 'lead text: ▼ -$ / ▲ +$ / new');
+  const bwa = await (await p.request.get(`${BASE}/api/price-lists/${nb.id}/wa`)).text();
+  check(bwa.includes('🟢⬇️ -$10.00') && bwa.includes('🔴⬆️ +$4.00'), 'base list WhatsApp: -$10.00 / +$4.00 vs the previous base');
+  const dwa = await (await p.request.get(`${BASE}/api/price-lists/lead/iphone/wa?mode=d2d&via=${co.id}&rate=1.1`)).text();
+  check(dwa.includes('🟢⬇️ -€') && dwa.includes('🔴⬆️ +€'), 'EUR door to door: the change in € (same rate both versions)');
+  const pdf = await p.request.get(`${BASE}/api/price-lists/lead/iphone/pdf`);
+  check(pdf.ok() && (await pdf.body()).length > 1000, 'PDF with the Change column renders');
+  const xl = await p.request.get(`${BASE}/api/price-lists/lead/iphone/xlsx`);
+  check(xl.ok(), 'Excel with the Change column');
+  fs.writeFileSync('/tmp/lead-change.pdf', await pdf.body()); fs.writeFileSync('/tmp/lead-change.xlsx', await xl.body());
   const mode = p.locator('[data-testid=lead-list-iphone] select[aria-label="Prices in"]');
   check((await mode.locator('option').allInnerTexts()).some((t) => t.includes('Door to door via Lead D2D Test Co')), 'card: "Prices in" lists the companies with door to door');
   await p.setViewportSize({ width: 390, height: 844 });
@@ -58,7 +82,7 @@ const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
   await q.goto(`${BASE}/price-lists`); await q.waitForSelector('[data-testid=lead-list-card]', { timeout: 60000 });
   check((await q.locator('[data-testid=lead-extra-pct]').count()) === 0 && (await q.locator('[data-testid=lead-extra-form]').count()) === 0 && (await q.locator('[data-testid=base-card]').count()) === 0,
     'bd: lead list card without the % and without the base card');
-  check((await (await q.request.get(`${BASE}/api/price-lists/lead/iphone/txt`)).text()).includes(usd(exp)), 'bd: downloads the lead list with the admin\'s %');
+  check((await (await q.request.get(`${BASE}/api/price-lists/lead/iphone/txt`)).text()).includes('$918.00'), 'bd: downloads the lead list with the admin\'s %');
   await q.close();
 
   const s = await b.newPage({ viewport: { width: 1280, height: 900 } });

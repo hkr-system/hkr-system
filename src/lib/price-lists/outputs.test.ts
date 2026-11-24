@@ -32,7 +32,7 @@ describe("price change vs the previous version", () => {
     expect(t).toContain("128GB  €280.00 new");
   });
   it("a list without a previous version prints exactly as before", () => {
-    const plain = rows.map(({ prev_price: _p, ...r }) => r);
+    const plain = rows.map((r) => ({ model: r.model, storage_gb: r.storage_gb, note: r.note, price_usd: r.price_usd }));
     expect(toWhatsApp(plain, meta)).not.toMatch(/🟢|🔴|🆕/);
   });
 });

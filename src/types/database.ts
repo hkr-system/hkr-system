@@ -2040,6 +2040,11 @@ isOneToOne: false
 "notify_upsert":
 { Args: { "p_body": string,"p_kind": string,"p_link": string,"p_title": string,"p_user": string }; Returns: undefined
                            },
+"offer_base_prices":
+{ Args: { "p_brand": Database["public"]['Enums']["product_brand"] }; Returns: {
+              "base_version": number,"model": string,"note": string,"prev_price_usd": number,"prev_version": number,"price_usd": number,"storage_gb": number,"valid_from": string
+            }[]
+                           },
 "order_delete":
 { Args: { "p_order": string }; Returns: Json
                            },

@@ -9,6 +9,7 @@ export function WaTabs({ role }: { role: string }) {
   const tabs = [
     { href: "/whatsapp", label: "Inbox", show: true, exact: true },
     { href: "/whatsapp/broadcasts", label: "Broadcasts", show: role === "admin" || role === "bd" },
+    { href: "/whatsapp/offers", label: "Offers", show: role === "admin" || role === "bd" },
     { href: "/whatsapp/templates", label: "Templates", show: true },
     { href: "/whatsapp/numbers", label: "Numbers", show: role === "admin" },
   ].filter((t) => t.show);

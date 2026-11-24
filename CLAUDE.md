@@ -222,6 +222,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/user-modules.cjs` | Modules per user (after db:reset): untick Leads + WhatsApp for Atreyi → menu, pages, tiles hidden; tick back |
 | `node tests/e2e/list-states.cjs` | Client price lists up to date (after db:reset): dashboard card, state filter, Mark as sent → Up to date, roles |
 | `node tests/e2e/lead-list.cjs` | Lead price list (after db:reset): admin % behind the pencil, base × %, USD / EUR door to door, bd without the %, specialist none |
+| `node tests/e2e/offers.cjs` | WhatsApp → Offers (after db:reset): top-3 drops ticked, EU EUR door to door, US base + $, copy, roles |
 | `node tests/e2e/door-to-door.cjs` | Door-to-door EUR lists (after db:reset): set-up in Settings, EU list in EUR without the company name, Mark as sent, LATAM none |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
@@ -717,6 +718,17 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   WhatsApp: `🟢⬇️ -$5.10` / `🔴⬆️ +$2.00` / `🆕`; Text: `▼ -$5.10` / `▲ +$2.00` / `new`; Excel: column "Change" (number, green ▼ /
   red ▲ format); PDF: drawn triangle + amount (Helvetica has no ▲▼). Same price = no mark. Door to door: the previous price goes
   through the same rate and fees, so the mark shows the list's change in €.
+
+## WhatsApp → Offers (Gabriel, Nov 24 2026)
+
+- Tab "Offers" (/whatsapp/offers, admin + bd with the WhatsApp module): Gabriel's "Special Volume Deal" broadcast text, word for
+  word (`src/lib/whatsapp/offer.ts`, unit-tested): Europe 🇪🇺 = EUR door to door via a route (Barry Trading by default, or PGS
+  Megastore; ECB rate − spread, editable; server action offerEurPrices keeps the fees server-side); US / LATAM = base + a typed
+  US$ door-to-door amount per unit, plus the fair videos. Prices = the CURRENT base with NO extra margin (Gabriel's choice: the bd
+  sees base prices here) via rpc `offer_base_prices(brand)` (with the previous base price). The 3 rows (model + GB) that dropped
+  most in US$ vs the previous base are ticked, biggest first; any row can be ticked. Quantities and the new-battery price are typed
+  (battery and US amount remembered in the browser); the message can be touched up, then "Copy message". Nothing is sent from
+  here. pgTAP `26_offer_base_prices`, e2e `tests/e2e/offers.cjs`.
 
 ## Door-to-door EUR price lists for EU clients (Gabriel, Nov 18 2026)
 

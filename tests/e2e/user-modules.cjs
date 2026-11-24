@@ -18,7 +18,7 @@ const login = async (page, email) => {
 };
 const menu = async (page) => (await page.locator('aside nav a, [data-testid=sidebar] a').allInnerTexts()).map((t) => t.replace(/\d+$/, '').trim());
 const setModules = async (page, off) => {
-  await page.goto(BASE + '/settings#users');
+  await page.goto(BASE + '/settings?r=' + Date.now() + '#users');   // a new URL: same-URL goto would not reload (stale "Saved")
   const row = page.locator(`[data-testid="modules-${ATREYI}"]`);
   await row.waitFor({ timeout: 60000 });
   for (const label of ['Dashboard', 'Accounts', 'Sales', 'RMAs', 'Price lists', 'Leads', 'WhatsApp']) {
@@ -58,7 +58,7 @@ const setModules = async (page, off) => {
 
   await setModules(a, []);
   const { data: prof2 } = await admin.from('profiles').select('sections').eq('email', ATREYI).single();
-  check(prof2.sections === null, 'all ticked again = every module of the role (null)');
+  check(prof2.sections === null, 'all ticked again = every module of the role (null) ' + JSON.stringify(prof2.sections));
   await s.goto(BASE + '/leads'); await s.waitForTimeout(2000);
   check(!(await s.$('[data-testid=no-access]')), 'Leads back (read-only for the specialist)');
   await b.close();

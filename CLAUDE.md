@@ -221,6 +221,7 @@ fixtures/                  (from Phase 3) real templates and sample files given 
 | `node tests/e2e/price-history.cjs` | Price list history + Mark as sent (after db:reset): account tab, History ★ and filters, order versions warning |
 | `node tests/e2e/user-modules.cjs` | Modules per user (after db:reset): untick Leads + WhatsApp for Atreyi → menu, pages, tiles hidden; tick back |
 | `node tests/e2e/list-states.cjs` | Client price lists up to date (after db:reset): dashboard card, state filter, Mark as sent → Up to date, roles |
+| `node tests/e2e/lead-list.cjs` | Lead price list (after db:reset): admin % behind the pencil, base × %, USD / EUR door to door, bd without the %, specialist none |
 | `node tests/e2e/door-to-door.cjs` | Door-to-door EUR lists (after db:reset): set-up in Settings, EU list in EUR without the company name, Mark as sent, LATAM none |
 | `node tests/e2e/invoices.cjs` | Invoices browser test (after db:reset): issuer settings, draft, approve, sent files, reopen, roles |
 | `node tests/e2e/dashboard.cjs` | Phase 5 browser test (after db:reset): dashboard per role, daily report + reminders, Thursday/RMA ask queues, escalations |
@@ -695,6 +696,18 @@ gabriel.demo@ (admin), yessica.demo@ (bd), arslan.demo@ (bd, no accounts), atrey
   an account counts once by its worst brand; each line → /price-lists?state=<state>. Price lists → Client lists: state chips with
   counts (?state=, kept across the brand tabs), column "Client has" (version · date · channel · USD / EUR door to door).
   Menu counter adds approved, still valid lists never marked as sent. e2e `tests/e2e/list-states.cjs`.
+
+## Lead price list (Gabriel, Nov 24 2026)
+
+- Price lists → card "Lead price list" (under the base cards): a list for PROSPECTS with no client name and NO RMA amortization
+  = base × (1 + setting `lead_list_extra_pct`, confidential, default 0 — Gabriel's choice: at 0 % it IS the base list).
+  rpc `lead_price_list(brand)` (security definer: admin, or bd with the Price lists module; the specialist none) — the bd never
+  reads the base rows or the %. Only the admin sees and changes the % (✏️ in the card, action saveLeadExtra).
+- Outputs = the client ones (Excel, PDF, Text, WhatsApp) via /api/price-lists/lead/<brand>/<format>, file `HKR_PL(-SAMSUNG)_<date>`,
+  title "HK Refurbished Stock · Price list", dated today (no validity). "Prices in": USD · FOB Hong Kong or EUR door to door via
+  any company with an active set-up (Gabriel: Barry Trading — same company as Global Connect/ABC — and PGS Megastore); the
+  company's name never on the file. No record of sends to leads (Gabriel: download only). pgTAP `25_lead_price_list`,
+  e2e `tests/e2e/lead-list.cjs`.
 
 ## Door-to-door EUR price lists for EU clients (Gabriel, Nov 18 2026)
 

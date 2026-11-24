@@ -18,6 +18,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LIST_STATES, LIST_STATE_HINT, LIST_STATE_LABEL, LIST_STATE_STYLE, countStates, isListState } from "@/lib/price-lists/send-status";
 import { CHANNEL_LABEL, loadListStates } from "@/lib/price-lists/versions";
 import { cn } from "@/lib/utils";
+import { loadLeadD2DChoices } from "@/lib/price-lists/lead-list";
+import { LeadExtraForm } from "@/components/price-lists/lead-extra-form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const metadata: Metadata = { title: "Price lists" };
@@ -35,7 +37,8 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
   const canPrepare = isAdmin || user.role === "account_specialist";
   const db = await createClient();
   const today = todayIn(user.timezone);
-  const [accounts, lists, base, states] = await Promise.all([
+  const showLead = isAdmin || user.role === "bd";   // lead price list (Nov 24 2026): admin + bd
+  const [accounts, lists, base, states, leadD2D, leadPct, baseVersions] = await Promise.all([
     db.from("accounts").select("id, code, name, status").neq("status", "closed").order("code"),
     db.from("price_lists").select("id, account_id, version, status, valid_from, valid_until, rma_c, extra_c")
       .in("status", ["draft", "approved"]).not("account_id", "is", null).eq("brand", brand),
@@ -43,7 +46,11 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
       ? db.from("price_lists").select("id, brand, version, valid_from, source_file, price_list_rows(count)").is("account_id", null).eq("status", "approved")
       : Promise.resolve({ data: [] }),
     loadListStates(db, today),
+    showLead ? loadLeadD2DChoices(db) : Promise.resolve(null),
+    isAdmin ? db.from("settings").select("value").eq("key", "lead_list_extra_pct").maybeSingle().then((r) => Number(r.data?.value ?? 0)) : Promise.resolve(0),
+    showLead ? db.rpc("price_list_base_versions").then((r) => r.data ?? []) : Promise.resolve([]),
   ]);
+  const leadBrands = BRANDS.filter((b) => baseVersions.some((v) => v.brand === b && v.status === "approved"));
   // state of this brand's list per client (active + onboarding accounts), Nov 19 2026
   const stateOf = new Map(states.flatMap((a) => a.brands.filter((b) => b.brand === brand).map((b) => [a.id, b] as const)));
   const counts = countStates([...stateOf.values()].map((b) => b.state));
@@ -95,6 +102,26 @@ export default async function PriceListsPage({ searchParams }: PageProps<"/price
               </Card>
             ))}
           </div>
+        ) : null}
+
+        {showLead ? (
+          <Card data-testid="lead-list-card">
+            <CardHeader>
+              <CardTitle className="text-base">Lead price list <span className="text-sm font-normal text-muted-foreground">for prospects · no client name · no RMA amortization</span></CardTitle>
+              <CardDescription>
+                {isAdmin ? <>Base + <b data-testid="lead-extra-pct">{leadPct} %</b> extra margin{leadPct === 0 ? " — at 0 % the lead list is the base list, and the BD team downloads it" : ""}. </> : null}
+                Prices in USD (FOB Hong Kong) or in EUR door to door through a company; the company&apos;s name is never on the file.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {isAdmin ? <LeadExtraForm pct={leadPct} /> : null}
+              {leadBrands.length ? leadBrands.map((b) => (
+                <div key={b} className="grid gap-1 border-t pt-3 first:border-t-0 first:pt-0" data-testid={`lead-list-${b}`}>
+                  <GetPriceList href={`/api/price-lists/lead/${b}`} label={`${BRAND_LABEL[b]} lead list`} d2d={leadD2D ?? undefined} />
+                </div>
+              )) : <p className="text-sm text-muted-foreground">No base list yet: the lead list is built from the base.</p>}
+            </CardContent>
+          </Card>
         ) : null}
 
         <Card>

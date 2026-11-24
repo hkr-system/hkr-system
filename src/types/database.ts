@@ -2032,6 +2032,11 @@ isOneToOne: false
               "current": number,"reached": number,"stage": Database["public"]['Enums']["lead_stage"]
             }[]
                            },
+"lead_price_list":
+{ Args: { "p_brand": Database["public"]['Enums']["product_brand"] }; Returns: {
+              "base_version": number,"model": string,"note": string,"price_usd": number,"sort_order": number,"storage_gb": number,"valid_from": string
+            }[]
+                           },
 "notify_upsert":
 { Args: { "p_body": string,"p_kind": string,"p_link": string,"p_title": string,"p_user": string }; Returns: undefined
                            },

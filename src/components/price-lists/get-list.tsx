@@ -12,7 +12,9 @@ import type { D2DChoices } from "@/lib/price-lists/d2d-service";
 // "Get price list": Excel and PDF download; plain text and WhatsApp text open ready to copy.
 // EU clients (Nov 18 2026): "Prices in" USD (FOB Hong Kong) or door to door in EUR via a company, at a rate (official − spread,
 // editable). The company is only chosen here; its name never goes on the file.
-export function GetPriceList({ listId, label = "Get price list", d2d }: { listId: string; label?: string; d2d?: D2DChoices }) {
+// href: another source of the same outputs (lead price lists, Nov 24 2026: /api/price-lists/lead/<brand>)
+export function GetPriceList({ listId, href, label = "Get price list", d2d }: { listId?: string; href?: string; label?: string; d2d?: D2DChoices }) {
+  const base = href ?? `/api/price-lists/${listId}`;
   const [open, setOpen] = useState<null | "txt" | "wa">(null);
   const [mode, setMode] = useState("usd");
   const pick = d2d?.companies.find((c) => c.id === mode) ?? null;
@@ -25,7 +27,7 @@ export function GetPriceList({ listId, label = "Get price list", d2d }: { listId
   const [copied, setCopied] = useState(false);
   const show = async (f: "txt" | "wa") => {
     setOpen(f); setText("Loading…"); setCopied(false);
-    const r = await fetch(`/api/price-lists/${listId}/${f}${qs}`, { cache: "no-store" });
+    const r = await fetch(`${base}/${f}${qs}`, { cache: "no-store" });
     setText(r.ok ? await r.text() : (await r.text().catch(() => "")) || "Could not load the list.");
   };
   const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); } catch { setCopied(false); } };
@@ -56,8 +58,8 @@ export function GetPriceList({ listId, label = "Get price list", d2d }: { listId
       <div className="flex flex-wrap items-center gap-2">
       <span className="text-sm font-medium">{label}:</span>
       {blocked ? <span className="text-xs text-destructive">Write the rate first.</span> : <>
-      <Button asChild size="sm" variant="outline"><a href={`/api/price-lists/${listId}/xlsx${qs}`}><Download className="size-3.5" /> Excel</a></Button>
-      <Button asChild size="sm" variant="outline"><a href={`/api/price-lists/${listId}/pdf${qs}`} target="_blank" rel="noreferrer"><FileText className="size-3.5" /> PDF</a></Button>
+      <Button asChild size="sm" variant="outline"><a href={`${base}/xlsx${qs}`}><Download className="size-3.5" /> Excel</a></Button>
+      <Button asChild size="sm" variant="outline"><a href={`${base}/pdf${qs}`} target="_blank" rel="noreferrer"><FileText className="size-3.5" /> PDF</a></Button>
       <Button size="sm" variant="outline" onClick={() => show("txt")}><FileText className="size-3.5" /> Text</Button>
       <Button size="sm" variant="outline" onClick={() => show("wa")}><MessageCircle className="size-3.5" /> WhatsApp text</Button>
       </>}

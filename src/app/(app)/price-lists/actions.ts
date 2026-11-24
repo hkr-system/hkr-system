@@ -271,3 +271,17 @@ export async function deleteListSend(sendId: string): Promise<PlState> {
   revalidatePath("/price-lists/history");
   return { ok: true, message: "Removed." };
 }
+
+// ---------------------------------------------------------------------------
+// Lead price list (Nov 24 2026): the admin sets the extra margin % over the base (no RMA amortization). bd downloads with it.
+export async function saveLeadExtra(_p: PlState, fd: FormData): Promise<PlState> {
+  await requireRole(["admin"]);
+  const raw = String(fd.get("pct") ?? "").replace(",", ".").trim();
+  const pct = Number(raw);
+  if (raw === "" || !Number.isFinite(pct) || pct < 0 || pct > 50) return { error: "Write a % between 0 and 50 (e.g. 1.5)." };
+  const db = await createClient();
+  const { error } = await db.from("settings").update({ value: Math.round(pct * 100) / 100 }).eq("key", "lead_list_extra_pct");
+  if (error) return { error: friendly(error) };
+  revalidatePath("/price-lists");
+  return { ok: true, message: `Saved: lead lists = base + ${Math.round(pct * 100) / 100} %.` };
+}
